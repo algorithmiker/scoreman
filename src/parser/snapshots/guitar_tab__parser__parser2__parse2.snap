@@ -1,0 +1,253 @@
+---
+source: src/parser/parser2.rs
+expression: "parse2(BufReader::new(i1.as_bytes()))"
+---
+Ok(
+    Score(
+        [
+            Part {
+                part: [
+                    Partline {
+                        string_name: 'e',
+                        staffs: [
+                            Measure {
+                                content: [
+                                    Rest,
+                                    Rest,
+                                    Rest,
+                                ],
+                                parent_line: Some(
+                                    1,
+                                ),
+                                index_on_parent_line: Some(
+                                    0,
+                                ),
+                            },
+                        ],
+                    },
+                    Partline {
+                        string_name: 'B',
+                        staffs: [
+                            Measure {
+                                content: [
+                                    Rest,
+                                    Fret(
+                                        3,
+                                    ),
+                                    Rest,
+                                ],
+                                parent_line: Some(
+                                    2,
+                                ),
+                                index_on_parent_line: Some(
+                                    0,
+                                ),
+                            },
+                        ],
+                    },
+                    Partline {
+                        string_name: 'G',
+                        staffs: [
+                            Measure {
+                                content: [
+                                    Fret(
+                                        6,
+                                    ),
+                                    Rest,
+                                    Fret(
+                                        6,
+                                    ),
+                                ],
+                                parent_line: Some(
+                                    3,
+                                ),
+                                index_on_parent_line: Some(
+                                    0,
+                                ),
+                            },
+                        ],
+                    },
+                    Partline {
+                        string_name: 'D',
+                        staffs: [
+                            Measure {
+                                content: [
+                                    Rest,
+                                    Rest,
+                                    Rest,
+                                ],
+                                parent_line: Some(
+                                    4,
+                                ),
+                                index_on_parent_line: Some(
+                                    0,
+                                ),
+                            },
+                        ],
+                    },
+                    Partline {
+                        string_name: 'A',
+                        staffs: [
+                            Measure {
+                                content: [
+                                    Rest,
+                                    Rest,
+                                    Rest,
+                                ],
+                                parent_line: Some(
+                                    5,
+                                ),
+                                index_on_parent_line: Some(
+                                    0,
+                                ),
+                            },
+                        ],
+                    },
+                    Partline {
+                        string_name: 'E',
+                        staffs: [
+                            Measure {
+                                content: [
+                                    Rest,
+                                    Rest,
+                                    Rest,
+                                ],
+                                parent_line: Some(
+                                    6,
+                                ),
+                                index_on_parent_line: Some(
+                                    0,
+                                ),
+                            },
+                        ],
+                    },
+                ],
+                begin_line_idx: 1,
+                end_line_idx: 6,
+            },
+            Comment(
+                " This is a comment ",
+            ),
+            Part {
+                part: [
+                    Partline {
+                        string_name: 'e',
+                        staffs: [
+                            Measure {
+                                content: [
+                                    Rest,
+                                    Rest,
+                                    Rest,
+                                ],
+                                parent_line: Some(
+                                    10,
+                                ),
+                                index_on_parent_line: Some(
+                                    0,
+                                ),
+                            },
+                        ],
+                    },
+                    Partline {
+                        string_name: 'B',
+                        staffs: [
+                            Measure {
+                                content: [
+                                    Fret(
+                                        3,
+                                    ),
+                                    Rest,
+                                    Fret(
+                                        3,
+                                    ),
+                                ],
+                                parent_line: Some(
+                                    11,
+                                ),
+                                index_on_parent_line: Some(
+                                    0,
+                                ),
+                            },
+                        ],
+                    },
+                    Partline {
+                        string_name: 'G',
+                        staffs: [
+                            Measure {
+                                content: [
+                                    Rest,
+                                    Fret(
+                                        6,
+                                    ),
+                                    Rest,
+                                ],
+                                parent_line: Some(
+                                    12,
+                                ),
+                                index_on_parent_line: Some(
+                                    0,
+                                ),
+                            },
+                        ],
+                    },
+                    Partline {
+                        string_name: 'D',
+                        staffs: [
+                            Measure {
+                                content: [
+                                    Rest,
+                                    Rest,
+                                    Rest,
+                                ],
+                                parent_line: Some(
+                                    13,
+                                ),
+                                index_on_parent_line: Some(
+                                    0,
+                                ),
+                            },
+                        ],
+                    },
+                    Partline {
+                        string_name: 'A',
+                        staffs: [
+                            Measure {
+                                content: [
+                                    Rest,
+                                    Rest,
+                                    Rest,
+                                ],
+                                parent_line: Some(
+                                    14,
+                                ),
+                                index_on_parent_line: Some(
+                                    0,
+                                ),
+                            },
+                        ],
+                    },
+                    Partline {
+                        string_name: 'E',
+                        staffs: [
+                            Measure {
+                                content: [
+                                    Rest,
+                                    Rest,
+                                    Rest,
+                                ],
+                                parent_line: Some(
+                                    15,
+                                ),
+                                index_on_parent_line: Some(
+                                    0,
+                                ),
+                            },
+                        ],
+                    },
+                ],
+                begin_line_idx: 10,
+                end_line_idx: 15,
+            },
+        ],
+    ),
+)

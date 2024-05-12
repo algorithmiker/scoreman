@@ -1,0 +1,42 @@
+---
+source: src/parser/parser_tests.rs
+expression: "partline(\"e|--4-|-0--5-|\")"
+---
+Ok(
+    (
+        "",
+        Partline {
+            string_name: 'e',
+            staffs: [
+                Measure {
+                    content: [
+                        Rest,
+                        Rest,
+                        Fret(
+                            4,
+                        ),
+                        Rest,
+                    ],
+                    parent_line: None,
+                    index_on_parent_line: None,
+                },
+                Measure {
+                    content: [
+                        Rest,
+                        Fret(
+                            0,
+                        ),
+                        Rest,
+                        Rest,
+                        Fret(
+                            5,
+                        ),
+                        Rest,
+                    ],
+                    parent_line: None,
+                    index_on_parent_line: None,
+                },
+            ],
+        },
+    ),
+)

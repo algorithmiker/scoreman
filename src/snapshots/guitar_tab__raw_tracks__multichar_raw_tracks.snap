@@ -1,0 +1,128 @@
+---
+source: src/raw_tracks.rs
+expression: "parse2(BufReader::new(input.as_bytes()))?.gen_raw_tracks()"
+---
+Ok(
+    (
+        [
+            'e',
+            'B',
+            'G',
+            'D',
+            'A',
+            'E',
+        ],
+        [
+            [
+                Measure {
+                    content: [
+                        Rest,
+                        Rest,
+                        Rest,
+                        Fret(
+                            5,
+                        ),
+                        Rest,
+                    ],
+                    parent_line: Some(
+                        1,
+                    ),
+                    index_on_parent_line: Some(
+                        0,
+                    ),
+                },
+            ],
+            [
+                Measure {
+                    content: [
+                        Rest,
+                        Rest,
+                        Fret(
+                            3,
+                        ),
+                        Rest,
+                        Rest,
+                    ],
+                    parent_line: Some(
+                        2,
+                    ),
+                    index_on_parent_line: Some(
+                        0,
+                    ),
+                },
+            ],
+            [
+                Measure {
+                    content: [
+                        Fret(
+                            10,
+                        ),
+                        Rest,
+                        Rest,
+                        Rest,
+                        Fret(
+                            12,
+                        ),
+                    ],
+                    parent_line: Some(
+                        3,
+                    ),
+                    index_on_parent_line: Some(
+                        0,
+                    ),
+                },
+            ],
+            [
+                Measure {
+                    content: [
+                        Rest,
+                        Rest,
+                        Rest,
+                        Rest,
+                        Rest,
+                    ],
+                    parent_line: Some(
+                        4,
+                    ),
+                    index_on_parent_line: Some(
+                        0,
+                    ),
+                },
+            ],
+            [
+                Measure {
+                    content: [
+                        Rest,
+                        Rest,
+                        Rest,
+                        Rest,
+                        Rest,
+                    ],
+                    parent_line: Some(
+                        5,
+                    ),
+                    index_on_parent_line: Some(
+                        0,
+                    ),
+                },
+            ],
+            [
+                Measure {
+                    content: [
+                        Rest,
+                        Rest,
+                        Rest,
+                        Rest,
+                        Rest,
+                    ],
+                    parent_line: Some(
+                        6,
+                    ),
+                    index_on_parent_line: Some(
+                        0,
+                    ),
+                },
+            ],
+        ],
+    ),
+)
