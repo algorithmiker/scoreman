@@ -1,5 +1,4 @@
-use std::io::{BufReader, Read};
-use std::{fs::File, path::PathBuf};
+use std::{fs::File, io::Read, path::PathBuf};
 
 use crate::backend::{muxml2, BackendSelector};
 use crate::parser::parser2::parse2;
@@ -64,8 +63,8 @@ fn test_goldens() {
 }
 
 fn process(s: &str, backend: BackendSelector) -> anyhow::Result<String> {
-    let parsed = parse2(BufReader::new(s.as_bytes()))?;
+    let parsed = parse2(s.lines()).unwrap();
     let mut out = vec![];
-    backend.process(parsed, &mut out)?;
+    backend.process(parsed.1, &mut out).unwrap();
     Ok(String::from_utf8(out)?)
 }

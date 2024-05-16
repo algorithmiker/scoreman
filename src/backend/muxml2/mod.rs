@@ -3,12 +3,11 @@ mod muxml2_formatters;
 #[cfg(test)]
 mod muxml2_tests;
 pub mod settings;
-use anyhow::Context;
 
 use crate::{
     parser::{
         Score,
-        TabElement::{Fret, Rest},
+        TabElement::{self, Fret, Rest},
     },
     raw_tracks::RawTracks,
 };
@@ -18,20 +17,28 @@ use self::{
     muxml2_formatters::{muxml2_document, muxml2_measure, muxml2_note, muxml2_rest},
 };
 
-use super::Backend;
+use super::{errors::BackendErrorKind, Backend, BackendError, Diagnostic};
 pub struct Muxml2Backend();
 impl Backend for Muxml2Backend {
     type BackendSettings = settings::Settings;
+
     fn process<Out: std::io::Write>(
         score: Score,
         out: &mut Out,
         settings: Self::BackendSettings,
-    ) -> anyhow::Result<()> {
+    ) -> Result<Vec<Diagnostic>, BackendError> {
+        let mut diagnostics = vec![];
         let raw_tracks = score.gen_raw_tracks()?;
-        let xml_out = raw_tracks_to_muxml2(raw_tracks, settings)?;
-        out.write_all(xml_out.as_bytes())?;
-        println!("[I]: MUXML2 backend: Generated an Uncompressed MusicXML (.musicxml) file");
-        Ok(())
+        let (xml_out, mut inner_diagnostics) = raw_tracks_to_muxml2(raw_tracks, settings)?;
+        diagnostics.append(&mut inner_diagnostics);
+        diagnostics.push(Diagnostic::info(
+            None,
+            "MUXML2 backend: Generated an Uncompressed MusicXML (.musicxml) file".into(),
+        ));
+        out.write_all(xml_out.as_bytes())
+            .map_err(|x| BackendError::from_io_error(x, diagnostics))?;
+
+        Ok(vec![])
     }
 }
 
@@ -44,7 +51,7 @@ enum Muxml2TabElement {
 }
 
 impl Muxml2TabElement {
-    fn write_muxml<A: std::fmt::Write>(&self, buf: &mut A) -> anyhow::Result<()> {
+    fn write_muxml<A: std::fmt::Write>(&self, buf: &mut A) -> std::fmt::Result {
         match self {
             Muxml2TabElement::Rest(mut x) => {
                 while x != 0 {
@@ -76,14 +83,15 @@ impl Muxml2TabElement {
     }
 }
 
-fn raw_tracks_to_muxml2(
+fn raw_tracks_to_muxml2<'a>(
     raw_tracks: RawTracks,
     settings: <Muxml2Backend as Backend>::BackendSettings,
-) -> anyhow::Result<String> {
+) -> Result<(String, Vec<Diagnostic>), BackendError<'a>> {
     // the muxml2 backend assumes
     // 1. that there are the same number of measures for every string (which should be true)
     // 2. that there are the same number of elements in the same measure for each string (also
     //    generally true)
+    let diagnostics = vec![];
     let number_of_measures = raw_tracks.1[0].len();
     let mut measures_xml = String::new();
     for measure_idx in 0..number_of_measures {
@@ -96,17 +104,48 @@ fn raw_tracks_to_muxml2(
         for tick in 0..ticks_in_measure {
             let mut notes_in_tick = vec![];
             for string_idx in 0..6 {
-                let note = &raw_tracks.1[string_idx][measure_idx]
-                    .content
-                    .get(tick)
-                    .with_context(|| {
-                        format_tick_mismatch_err(&raw_tracks, string_idx, measure_idx)
-                    })?;
-                match note {
-                    Fret(x) => {
-                        notes_in_tick.push(get_fretboard_note(raw_tracks.0[string_idx], *x)
-                            .with_context(|| format!("Failed to get note for fret {x} on string {}, found in measure {measure_idx}", raw_tracks.0[string_idx]))?)
+                let note = match raw_tracks.1[string_idx][measure_idx].content.get(tick) {
+                    Some(x) => x,
+                    _ => {
+                        return Err(_tick_mismatch_err(
+                            raw_tracks,
+                            string_idx,
+                            measure_idx,
+                            diagnostics,
+                        ))
                     }
+                };
+                match note {
+                    Fret(fret) => {
+                        let Ok(x) = get_fretboard_note(raw_tracks.0[string_idx], *fret) else {
+                            return Err(BackendError::no_such_fret(
+                                raw_tracks.1[string_idx][measure_idx].parent_line.unwrap(),
+                                raw_tracks.1[string_idx][measure_idx]
+                                    .index_on_parent_line
+                                    .unwrap(),
+                                raw_tracks.0[string_idx],
+                                *fret,
+                                diagnostics,
+                            ));
+                        };
+                        notes_in_tick.push(x);
+                    }
+                    TabElement::DeadNote => {
+                        let Ok(mut x) = get_fretboard_note(raw_tracks.0[string_idx], 0) else {
+                            return Err(BackendError::no_such_fret(
+                                raw_tracks.1[string_idx][measure_idx].parent_line.unwrap(),
+                                raw_tracks.1[string_idx][measure_idx]
+                                    .index_on_parent_line
+                                    .unwrap(),
+                                raw_tracks.0[string_idx],
+                                0,
+                                diagnostics,
+                            ));
+                        };
+                        x.dead = true;
+                        notes_in_tick.push(x);
+                    }
+
                     Rest => continue,
                 }
             }
@@ -181,7 +220,9 @@ fn raw_tracks_to_muxml2(
         // write the final contents into a buffer
         let mut measure_xml = String::new();
         for proc_elem in measure_processed {
-            proc_elem.write_muxml(&mut measure_xml)?;
+            if let Err(x) = proc_elem.write_muxml(&mut measure_xml) {
+                return Err(BackendError::from_fmt_error(x, diagnostics));
+            }
         }
 
         // Try to simplify e.g 8/8 to 4/4
@@ -198,7 +239,7 @@ fn raw_tracks_to_muxml2(
         );
     }
 
-    Ok(muxml2_document(&measures_xml))
+    Ok((muxml2_document(&measures_xml), diagnostics))
 }
 
 enum Direction {
@@ -237,46 +278,70 @@ pub struct MuxmlNote {
     pub step: char,
     pub octave: u32,
     pub sharp: bool,
+    pub dead: bool,
 }
 
 impl MuxmlNote {
     #[allow(clippy::wrong_self_convention)]
     pub fn into_muxml(&self, duration: &str, chord: bool) -> String {
-        muxml2_note(self.step, self.octave, self.sharp, duration, chord)
+        muxml2_note(
+            self.step,
+            self.octave,
+            self.sharp,
+            duration,
+            chord,
+            self.dead,
+        )
     }
 }
 
-fn format_tick_mismatch_err(
-    raw_tracks: &RawTracks,
+fn _tick_mismatch_err(
+    raw_tracks: RawTracks,
     string_idx: usize,
     measure_idx: usize,
-) -> String {
+    diagnostics: Vec<Diagnostic>,
+) -> BackendError<'static> {
     let before_measure = &raw_tracks.1[string_idx - 1][measure_idx];
     let this_measure = &raw_tracks.1[string_idx][measure_idx];
-    let explainer = match (before_measure.parent_line, this_measure.parent_line) {
-        (Some(pbefore), Some(phere)) => {
-            let before_line_num = pbefore + 1;
-            let this_line_num = phere + 1;
-            let (string_before, measure_before) = (
-                raw_tracks.0[string_idx - 1],
-                raw_tracks.1[string_idx - 1][measure_idx].print_pretty_string(),
-            );
-            let (string_here, measure_here) = (
-                raw_tracks.0[string_idx],
-                raw_tracks.1[string_idx][measure_idx].print_pretty_string(),
-            );
+    //let explainer = match (before_measure.parent_line, this_measure.parent_line) {
+    //    (Some(pbefore), Some(phere)) => {
+    //        let before_line_num = pbefore + 1;
+    //        let this_line_num = phere + 1;
+    //        let (string_before, measure_before) = (
+    //            raw_tracks.0[string_idx - 1],
+    //            raw_tracks.1[string_idx - 1][measure_idx].print_pretty_string(),
+    //        );
+    //        let (string_here, measure_here) = (
+    //            raw_tracks.0[string_idx],
+    //            raw_tracks.1[string_idx][measure_idx].print_pretty_string(),
+    //        );
 
-            format!(
-                "\nline {before_line_num}: {string_before}|{measure_before}|
-line {this_line_num}: {string_here}|{measure_here}|\n"
-            )
-        }
-        _ => String::new(),
-    };
-    format!("Problem in {measure_number}th measure:
-The muxml2 backend relies on the fact that there are the same number of ticks (frets/rests) on every line (string) of a measure in the tab. This is not true for this tab.
-{explainer}
-[I] Tip 1: If you get a lot of errors like this, consider using the muxml1 backend.
-[I] Tip 2: Use the format backend to check the contents of measure {measure_number}.",
-measure_number = measure_idx +1)
+    //        format!(
+    //            "\nline {before_line_num}: {string_before}|{measure_before}|
+    //            line {this_line_num}: {string_here}|{measure_here}|\n"
+    //        )
+    //    }
+    //    _ => String::new(),
+    //};
+
+    BackendError {
+        main_location: Some((
+            this_measure.parent_line.unwrap(),
+            this_measure.index_on_parent_line.unwrap(),
+        )),
+        diagnostics,
+        relevant_lines: before_measure.parent_line.unwrap()..=this_measure.parent_line.unwrap(),
+        kind: BackendErrorKind::TickMismatch(
+            raw_tracks.0[string_idx - 1],
+            raw_tracks.0[string_idx],
+            before_measure.content.len(),
+            this_measure.content.len(),
+        ),
+        //short: "Tick count mismatch".into(),
+        // long: format!("Problem in {measure_number}th measure:
+        //The muxml2 backend relies on the fact that there are the same number of ticks (frets/rests) on every line (string) of a measure in the tab. This is not true for this tab.
+        //{explainer}
+        //Tip: If you get a lot of errors like this, consider using the muxml1 backend.",
+        //measure_number = measure_idx +1)
+    }
 }

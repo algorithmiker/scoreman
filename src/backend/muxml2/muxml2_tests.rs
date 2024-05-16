@@ -1,5 +1,3 @@
-use std::io::BufReader;
-
 use crate::{
     backend::{
         muxml2::{settings::Settings, Muxml2Backend},
@@ -24,7 +22,7 @@ E|--------------|
         trim_measure: true,
         simplify_time_signature: true,
     };
-    Muxml2Backend::process(parse2(BufReader::new(i1.as_bytes()))?, &mut out, settings)?;
+    Muxml2Backend::process(parse2(i1.lines()).unwrap().1, &mut out, settings).unwrap();
     insta::assert_snapshot!(String::from_utf8_lossy(&out));
     Ok(())
 }

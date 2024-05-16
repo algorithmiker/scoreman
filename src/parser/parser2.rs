@@ -1,39 +1,55 @@
-use anyhow::{bail, Context};
-use std::io::BufRead;
-
-use crate::collect_parse_error;
+use crate::backend::errors::{BackendError, BackendErrorKind, Diagnostic};
 
 use super::{comment_line, partline, Score, Section};
 
-pub fn parse2<A: BufRead>(inp: A) -> anyhow::Result<Score> {
+pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
+    lines: A,
+) -> Result<(Vec<Diagnostic>, Score), BackendError<'a>> {
+    let mut diagnostics = vec![];
     let mut sections = vec![];
     // Todo eventually remove Part
     let mut part_buf = vec![];
     let mut part_begin = 0;
-    for (line_idx, line) in inp.lines().enumerate() {
+    for (line_idx, line) in lines.enumerate() {
         let line_number = line_idx + 1;
-        let line = line.with_context(|| format!("Cannot read line {line_number}"))?;
         if line.trim().is_empty() {
             if !part_buf.is_empty() {
-                println!("[W]: Empty line inside Part at line {line_idx}, are you sure this is intended?");
+                diagnostics.push(Diagnostic::warn(
+                    Some((line_idx, 0)),
+                    "Empty line inside Part, are you sure this is intended?".into(),
+                ));
             }
             continue;
         }
 
-        match comment_line(&line) {
+        match comment_line(line) {
             Ok((rem, comment)) => {
                 if !rem.is_empty() {
-                    bail!("Invalid comment syntax at line {line_number} (got remaining `{rem}`)")
+                    return Err(BackendError {
+                        main_location: Some((line_number, 0)),
+                        relevant_lines: line_number..=line_number,
+                        kind: BackendErrorKind::InvalidCommentSyntax(rem.into()),
+                        diagnostics,
+                    });
                 }
                 if !part_buf.is_empty() {
-                    println!("[W]: Comment inside Part at line {line_idx}, are you sure this is intended?");
+                    diagnostics.push(Diagnostic::warn(
+                        Some((line_idx, 0)),
+                        "Comment inside Part at line {line_idx}, are you sure this is intended?"
+                            .into(),
+                    ));
                 }
                 sections.push(Section::Comment(comment.to_string()));
             }
-            Err(_) => match partline(&line) {
+            Err(_) => match partline(line) {
                 Ok((rem, mut line)) => {
                     if !rem.is_empty() {
-                        bail!("Invalid partline at line {line_number}, got remaining content: `{rem}`");
+                        return Err(BackendError {
+                            main_location: Some((line_number, 0)),
+                            relevant_lines: line_number..=line_number,
+                            kind: BackendErrorKind::InvalidPartlineSyntax(rem.into()),
+                            diagnostics,
+                        });
                     }
                     // Add measure metadata
                     for measure_idx in 0..line.staffs.len() {
@@ -60,20 +76,23 @@ pub fn parse2<A: BufRead>(inp: A) -> anyhow::Result<Score> {
                     }
                 }
                 // TODO maybe pass the error up here?
-                Err(x) => bail!(
-                    "Error at line {line_number}, not a comment but also not a valid partline\n{}",
-                    collect_parse_error(x)
-                ),
+                Err(x) => {
+                    return Err(BackendError {
+                        main_location: Some((line_number, 0)),
+                        relevant_lines: line_number..=line_number,
+                        kind: BackendErrorKind::ParseError(x),
+                        diagnostics,
+                    });
+                }
             },
         }
     }
 
-    Ok(Score(sections))
+    Ok((diagnostics, Score(sections)))
 }
 
 #[test]
 fn test_parse2() {
-    use std::io::BufReader;
     let i1 = r#"
 e|---|
 B|-3-|
@@ -90,7 +109,7 @@ G|-6-|
 D|---|
 A|---|
 E|---|"#;
-    insta::assert_debug_snapshot!(parse2(BufReader::new(i1.as_bytes())));
+    insta::assert_debug_snapshot!(parse2(i1.lines()));
     let i2 = r#"
 e|---|
 B|-3-|
@@ -107,5 +126,5 @@ G|-6-|
 D|---|
 A|---|
 E|---|"#;
-    insta::assert_debug_snapshot!(parse2(BufReader::new(i2.as_bytes())));
+    insta::assert_debug_snapshot!(parse2(i2.lines()));
 }

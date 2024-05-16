@@ -1,7 +1,8 @@
-use super::Backend;
+use super::{Backend, BackendError, Diagnostic};
 use crate::parser::Section;
 
 pub struct FormatBackend();
+
 impl Backend for FormatBackend {
     type BackendSettings = ();
 
@@ -9,7 +10,8 @@ impl Backend for FormatBackend {
         score: crate::parser::Score,
         out: &mut Out,
         _settings: Self::BackendSettings,
-    ) -> anyhow::Result<()> {
+    ) -> Result<Vec<Diagnostic>, BackendError> {
+        let diagnostics = vec![];
         let mut formatted = String::new();
         let mut measure_cnt = 0;
         for section in score.0 {
@@ -40,7 +42,11 @@ impl Backend for FormatBackend {
                 }
             }
         }
-        out.write_all(formatted.as_bytes())?;
-        Ok(())
+
+        if let Err(x) = out.write_all(formatted.as_bytes()) {
+            return Err(BackendError::from_io_error(x, diagnostics));
+        }
+
+        Ok(diagnostics)
     }
 }

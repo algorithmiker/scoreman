@@ -22,10 +22,18 @@ pub fn muxml2_rest(r#type: &str, duration: u8) -> String {
 }
 
 #[inline]
-pub fn muxml2_note(step: char, octave: u32, sharp: bool, r#type: &str, chord: bool) -> String {
+pub fn muxml2_note(
+    step: char,
+    octave: u32,
+    sharp: bool,
+    r#type: &str,
+    chord: bool,
+    dead: bool,
+) -> String {
     let chord_modifier = opt_string(chord, "<chord/>");
     let alter_modifier = opt_string(sharp, "<alter>1</alter>");
     let accidental_modifier = opt_string(sharp, "<accidental>sharp</accidental>");
+    let dead_modifier = opt_string(dead, "<notehead>x</notehead>");
     format!(
         r#"
 <note>
@@ -38,6 +46,7 @@ pub fn muxml2_note(step: char, octave: u32, sharp: bool, r#type: &str, chord: bo
   <duration>1</duration>
   <type>{type}</type>
   {accidental_modifier}
+  {dead_modifier}
 </note>
 "#,
     )

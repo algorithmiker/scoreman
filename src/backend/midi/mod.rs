@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use anyhow::Context;
 use midly::{
     num::{u28, u7},
     Format, Header, MetaMessage, MidiMessage, Smf, TrackEvent, TrackEventKind,
@@ -8,7 +7,7 @@ use midly::{
 
 use crate::parser::{Measure, Score, TabElement::*};
 
-use super::Backend;
+use super::{Backend, BackendError, Diagnostic};
 
 const BPM: u32 = 80;
 const MINUTE_IN_MICROSECONDS: u32 = 60 * 1000;
@@ -18,11 +17,13 @@ const LENGTH_OF_EIGHT: u32 = LENGTH_OF_QUARTER / 2;
 pub struct MidiBackend();
 impl Backend for MidiBackend {
     type BackendSettings = ();
+
     fn process<Out: std::io::Write>(
         score: Score,
         out: &mut Out,
         _settings: Self::BackendSettings,
-    ) -> anyhow::Result<()> {
+    ) -> Result<Vec<Diagnostic>, BackendError> {
+        let diagnostics = vec![];
         let raw_tracks = score.gen_raw_tracks()?;
         let mut midi_tracks = raw_tracks_to_midi(raw_tracks);
         let mut tracks = vec![vec![
@@ -44,9 +45,10 @@ impl Backend for MidiBackend {
             header: Header::new(Format::Parallel, midly::Timing::Metrical(4.into())),
             tracks,
         };
-        smf.write_std(out)
-            .context("Failed to write SMF contents to output buffer")?;
-        Ok(())
+        if let Err(x) = smf.write_std(out) {
+            return Err(BackendError::from_io_error(x, diagnostics));
+        }
+        Ok(diagnostics)
     }
 }
 
@@ -78,6 +80,8 @@ fn raw_tracks_to_midi(raw_tracks: ([char; 6], [Vec<Measure>; 6])) -> Vec<Vec<Tra
                         tracks[i].push(note_off);
                     }
                     Rest => delta_carry += LENGTH_OF_EIGHT,
+                    // dead notes are purely cosmetic in this implementation
+                    DeadNote => (),
                 }
             }
         }

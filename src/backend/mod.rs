@@ -1,7 +1,7 @@
-use std::fmt::Display;
-
+use self::errors::{BackendError, Diagnostic};
 use crate::parser::Score;
-
+use std::fmt::Display;
+pub mod errors;
 pub mod format;
 pub mod midi;
 pub mod muxml;
@@ -16,7 +16,7 @@ pub trait Backend {
         score: Score,
         out: &mut Out,
         settings: Self::BackendSettings,
-    ) -> anyhow::Result<()>;
+    ) -> Result<Vec<Diagnostic>, BackendError>;
 }
 
 /// Handles backend dispatch. Can be easily created from a string identifier
@@ -29,7 +29,11 @@ pub enum BackendSelector {
 }
 
 impl BackendSelector {
-    pub fn process<Out: std::io::Write>(self, score: Score, out: &mut Out) -> anyhow::Result<()> {
+    pub fn process<Out: std::io::Write>(
+        self,
+        score: Score,
+        out: &mut Out,
+    ) -> Result<Vec<Diagnostic>, BackendError> {
         match self {
             BackendSelector::Midi(settings) => midi::MidiBackend::process(score, out, settings),
             BackendSelector::Muxml(settings) => muxml::MuxmlBackend::process(score, out, settings),

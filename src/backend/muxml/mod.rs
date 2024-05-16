@@ -1,40 +1,49 @@
-use anyhow::Context;
-
-use crate::{
-    parser::{
-        Measure, Score,
-        TabElement::{self, Fret},
-    },
-    BOLD_YELLOW_FORMAT, CLEAR_FORMAT,
+use crate::parser::{
+    Measure, Score,
+    TabElement::{self, Fret},
 };
 
-use super::{muxml2::fretboard::get_fretboard_note, Backend};
+use super::{muxml2::fretboard::get_fretboard_note, Backend, BackendError, Diagnostic};
 
 pub struct MuxmlBackend();
 impl Backend for MuxmlBackend {
     type BackendSettings = ();
+
     fn process<Out: std::io::Write>(
         score: Score,
         out: &mut Out,
         _settings: Self::BackendSettings,
-    ) -> anyhow::Result<()> {
-        println!("{BOLD_YELLOW_FORMAT}[W]: The MUXML1 backend is significantly worse than the MUXML2 backend. If you don't have any reason not to, use the MUXML2 backend{CLEAR_FORMAT}");
+    ) -> Result<Vec<Diagnostic>, BackendError> {
+        let mut diagnostics=vec! [
+            Diagnostic::warn(None,"The MUXML1 backend is significantly worse than the MUXML2 backend. If you don't have any reason not to, use the MUXML2 backend".into()),
+        ];
         let raw_tracks = score.gen_raw_tracks()?;
-        let xml_out = raw_tracks_to_xml(raw_tracks)?;
-        out.write_all(xml_out.as_bytes())?;
-
-        println!("[I]: MUXML1 backend: Generated an Uncompressed MusicXML (.musicxml) file.");
-        let fix = r#"[I]: The 6 strings of the guitar are labelled as separate instruments. To fix that,
+        let (xml_out, mut xml_diagnostics) = raw_tracks_to_xml(raw_tracks)?;
+        diagnostics.append(&mut xml_diagnostics);
+        diagnostics.push(Diagnostic::info(
+            None,
+            "Generated an Uncompressed MusicXML (.musicxml) file.".into(),
+        ));
+        diagnostics.push(Diagnostic::info(
+            None,
+            r#"The 6 strings of the guitar are labelled as separate instruments. To fix that,
      1. import the generated file into MuseScore
      2. select all tracks, do Tools->Implode
-     3. delete all other tracks except the first."#;
-        println!("{}", fix);
-        Ok(())
+     3. delete all other tracks except the first."#
+                .into(),
+        ));
+        if let Err(x) = out.write_all(xml_out.as_bytes()) {
+            return Err(BackendError::from_io_error(x, diagnostics));
+        }
+        Ok(diagnostics)
     }
 }
 
-fn raw_tracks_to_xml(raw_tracks: ([char; 6], [Vec<Measure>; 6])) -> anyhow::Result<String> {
+fn raw_tracks_to_xml<'a>(
+    raw_tracks: ([char; 6], [Vec<Measure>; 6]),
+) -> Result<(String, Vec<Diagnostic>), BackendError<'a>> {
     let mut parts_xml = String::new();
+    let diagnostics = vec![];
     for i in 0..6 {
         let part = &raw_tracks.1[i];
         let mut measures_xml = String::new();
@@ -42,13 +51,30 @@ fn raw_tracks_to_xml(raw_tracks: ([char; 6], [Vec<Measure>; 6])) -> anyhow::Resu
             let mut notes_xml = String::new();
             for note in &measure.content {
                 match note {
-                    Fret(x) => {
-                        let note = get_fretboard_note(raw_tracks.0[i], *x)
-                            .with_context(|| format!("Failed to get note for fret {x} on string {}, found in measure {measure_idx}", raw_tracks.0[i]))?
-                            .into_muxml("eighth", false);
-                        //let note = CLASSICAL_FRETBOARD[&raw_tracks.0[i]][*x as usize]
-                        //    .into_muxml("eighth", false);
-                        notes_xml.push_str(&note);
+                    Fret(fret) => {
+                        let Ok(x) = get_fretboard_note(raw_tracks.0[i], *fret) else {
+                            return Err(BackendError::no_such_fret(
+                                measure.parent_line.unwrap(),
+                                measure.index_on_parent_line.unwrap(),
+                                raw_tracks.0[i],
+                                *fret,
+                                diagnostics,
+                            ));
+                        };
+                        notes_xml.push_str(&x.into_muxml("eighth", false));
+                    }
+                    TabElement::DeadNote => {
+                        let Ok(mut x) = get_fretboard_note(raw_tracks.0[i], 0) else {
+                            return Err(BackendError::no_such_fret(
+                                measure.parent_line.unwrap(),
+                                measure.index_on_parent_line.unwrap(),
+                                raw_tracks.0[i],
+                                0,
+                                diagnostics,
+                            ));
+                        };
+                        x.dead = true;
+                        notes_xml.push_str(&x.into_muxml("eighth", false));
                     }
                     TabElement::Rest => notes_xml.push_str(&muxml_rest("eighth", 1)),
                 }
@@ -64,7 +90,7 @@ fn raw_tracks_to_xml(raw_tracks: ([char; 6], [Vec<Measure>; 6])) -> anyhow::Resu
         parts_xml.push_str(&muxml_part(i as u32 + 1, &measures_xml));
     }
 
-    Ok(muxml_document(&parts_xml))
+    Ok((muxml_document(&parts_xml), diagnostics))
 }
 
 fn muxml_rest(r#type: &str, duration: u8) -> String {

@@ -12,7 +12,7 @@ pub fn time<T, F: FnOnce() -> T>(f: F) -> (Duration, T) {
     (start.elapsed(), val)
 }
 
-pub fn collect_parse_error(x: nom::Err<VerboseError<&str>>) -> String {
+pub fn collect_parse_error(x: &nom::Err<VerboseError<&str>>) -> String {
     let mut collected = String::new();
     collected += &format!(
         "{}",

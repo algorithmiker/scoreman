@@ -1,5 +1,3 @@
-use std::io::BufReader;
-
 use crate::parser::{measure, parser2::parse2, partline, TabElement};
 
 #[test]
@@ -19,7 +17,7 @@ D|---|
 A|---|
 E|---|
 "#;
-    insta::assert_debug_snapshot!(parse2(BufReader::new(example_score.as_bytes())));
+    insta::assert_debug_snapshot!(parse2(example_score.lines()));
 }
 #[test]
 fn test_part() {
@@ -30,7 +28,7 @@ G|6-6|-6-|
 D|---|---|
 A|---|---|
 E|---|---|"#;
-    insta::assert_debug_snapshot!(parse2(BufReader::new(example_part.as_bytes())));
+    insta::assert_debug_snapshot!(parse2(example_part.lines()));
 }
 
 #[test]

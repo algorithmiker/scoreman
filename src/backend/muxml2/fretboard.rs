@@ -9,6 +9,7 @@ fn note(note: char, octave: u32) -> MuxmlNote {
         step: note,
         octave,
         sharp: false,
+        dead: false,
     }
 }
 
@@ -33,10 +34,12 @@ impl MuxmlNote {
             ('A', true) => ('B', false, 0),
             ('B', false) => ('C', false, 1),
             ('B', true) => unreachable!("B# in mscore backend"),
-            (note, sharp) => bail!(
-                "Don't know what note comes after {note}{}",
-                if sharp { "#" } else { "" }
-            ),
+            (note, sharp) => {
+                bail!(
+                    "Don't know what note comes after {note}{}",
+                    if sharp { "#" } else { "" }
+                )
+            }
         };
         self.step = next_step;
         self.sharp = next_sharp;

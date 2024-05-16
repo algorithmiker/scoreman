@@ -77,6 +77,7 @@ impl Measure {
             match x {
                 TabElement::Fret(x) => pretty += &x.to_string(),
                 TabElement::Rest => pretty += "-",
+                TabElement::DeadNote => pretty += "x",
             }
         }
         pretty
@@ -93,6 +94,7 @@ fn measure(s: &str) -> VerboseResult<&str, Measure> {
                 "TabElement",
                 alt((
                     char('-').map(|_| Rest),
+                    char('x').map(|_| DeadNote),
                     digit1.map(|x: &str| {
                         Fret(x.parse::<u16>().unwrap_or_else(|_| {
                             panic!("failed to parse {x} to a fret position, in Measure")
@@ -110,4 +112,6 @@ fn measure(s: &str) -> VerboseResult<&str, Measure> {
 pub enum TabElement {
     Fret(u16),
     Rest,
+    /// on which string:
+    DeadNote,
 }
