@@ -78,7 +78,7 @@ Tip: If you get a lot of errors like this, consider using the muxml1 backend.")
         }
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DiagnosticSeverity {
     Info,
     Warning,
@@ -95,7 +95,7 @@ impl Display for DiagnosticSeverity {
         )
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Diagnostic {
     pub location: Option<(usize, usize)>,
     pub message: String,

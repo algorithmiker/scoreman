@@ -115,37 +115,23 @@ fn raw_tracks_to_muxml2<'a>(
                         ))
                     }
                 };
+                let measure = &raw_tracks.1[string_idx][measure_idx];
+                let loc = (
+                    measure.parent_line.unwrap(),
+                    measure.index_on_parent_line.unwrap(),
+                );
                 match note {
                     Fret(fret) => {
-                        let Ok(x) = get_fretboard_note(raw_tracks.0[string_idx], *fret) else {
-                            return Err(BackendError::no_such_fret(
-                                raw_tracks.1[string_idx][measure_idx].parent_line.unwrap(),
-                                raw_tracks.1[string_idx][measure_idx]
-                                    .index_on_parent_line
-                                    .unwrap(),
-                                raw_tracks.0[string_idx],
-                                *fret,
-                                diagnostics,
-                            ));
-                        };
+                        let x =
+                            get_fretboard_note(raw_tracks.0[string_idx], *fret, loc, &diagnostics)?;
                         notes_in_tick.push(x);
                     }
                     TabElement::DeadNote => {
-                        let Ok(mut x) = get_fretboard_note(raw_tracks.0[string_idx], 0) else {
-                            return Err(BackendError::no_such_fret(
-                                raw_tracks.1[string_idx][measure_idx].parent_line.unwrap(),
-                                raw_tracks.1[string_idx][measure_idx]
-                                    .index_on_parent_line
-                                    .unwrap(),
-                                raw_tracks.0[string_idx],
-                                0,
-                                diagnostics,
-                            ));
-                        };
+                        let mut x =
+                            get_fretboard_note(raw_tracks.0[string_idx], 0, loc, &diagnostics)?;
                         x.dead = true;
                         notes_in_tick.push(x);
                     }
-
                     Rest => continue,
                 }
             }

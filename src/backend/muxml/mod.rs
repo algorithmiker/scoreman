@@ -48,31 +48,20 @@ fn raw_tracks_to_xml<'a>(
         let part = &raw_tracks.1[i];
         let mut measures_xml = String::new();
         for (measure_idx, measure) in part.iter().enumerate() {
+            let m_par_line = measure.parent_line.unwrap();
+            let m_idx_on_par_line = measure.index_on_parent_line.unwrap();
+            let loc = (m_par_line, m_idx_on_par_line);
+
             let mut notes_xml = String::new();
             for note in &measure.content {
                 match note {
                     Fret(fret) => {
-                        let Ok(x) = get_fretboard_note(raw_tracks.0[i], *fret) else {
-                            return Err(BackendError::no_such_fret(
-                                measure.parent_line.unwrap(),
-                                measure.index_on_parent_line.unwrap(),
-                                raw_tracks.0[i],
-                                *fret,
-                                diagnostics,
-                            ));
-                        };
+                        let x = get_fretboard_note(raw_tracks.0[i], *fret, loc, &diagnostics)?;
                         notes_xml.push_str(&x.into_muxml("eighth", false));
                     }
                     TabElement::DeadNote => {
-                        let Ok(mut x) = get_fretboard_note(raw_tracks.0[i], 0) else {
-                            return Err(BackendError::no_such_fret(
-                                measure.parent_line.unwrap(),
-                                measure.index_on_parent_line.unwrap(),
-                                raw_tracks.0[i],
-                                0,
-                                diagnostics,
-                            ));
-                        };
+                        let mut x = get_fretboard_note(raw_tracks.0[i], 0, loc, &diagnostics)?;
+                        notes_xml.push_str(&x.into_muxml("eighth", false));
                         x.dead = true;
                         notes_xml.push_str(&x.into_muxml("eighth", false));
                     }

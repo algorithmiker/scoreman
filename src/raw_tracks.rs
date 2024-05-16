@@ -61,12 +61,12 @@ impl Score {
                     let measure = &mut track[measure_idx];
                     // This is a multi-char tick. Remove adjacent rest everywhere where it is not
                     // multi-char.
-                    let should_remove_rest = match &measure.content[tick_idx] {
+                    let tick_onechar_on_this_track = match &measure.content[tick_idx] {
                         TabElement::Fret(x) => *x < 10,
                         TabElement::Rest => true,
                         TabElement::DeadNote => true,
                     };
-                    if should_remove_rest {
+                    if tick_onechar_on_this_track {
                         if let Some(next) = measure.content.get(tick_idx + 1) {
                             if let TabElement::Fret(fret) = next {
                                 let parent_line = measure.parent_line.unwrap();

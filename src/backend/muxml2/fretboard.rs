@@ -1,5 +1,10 @@
 use std::{cell::RefCell, collections::HashMap};
 
+use crate::{
+    backend::errors::{BackendError, Diagnostic},
+    raw_tracks::RawTracks,
+};
+
 use super::MuxmlNote;
 use anyhow::bail;
 use once_cell::unsync::Lazy;
@@ -44,6 +49,7 @@ impl MuxmlNote {
         self.step = next_step;
         self.sharp = next_sharp;
         self.octave += octave_diff;
+
         Ok(self)
     }
 }
@@ -78,17 +84,35 @@ thread_local! {
   };
 }
 
-/// TODO cache notes
-pub fn get_fretboard_note(string: char, fret: u16) -> anyhow::Result<MuxmlNote> {
+/// location is (line_idx,measure_idx)
+pub fn get_fretboard_note(
+    string: char,
+    fret: u16,
+    location: (usize, usize),
+    diagnostics: &Vec<Diagnostic>,
+) -> Result<MuxmlNote, BackendError<'static>> {
     NOTE_CACHE.with_borrow_mut(|v| {
         if let Some(x) = v.get(&(string, fret)) {
             Ok(x.clone())
         } else {
-            let base_note = &v[&(string, 0u16)];
+            let base_note = &v[&(string, 0)];
             let mut idx = 0;
             let mut current_note = base_note.clone();
             while idx < fret {
-                current_note = current_note.next_note_consuming()?;
+                current_note = match current_note.next_note_consuming() {
+                    // todo add x to diagnostics
+                    Err(_) => {
+                        return Err(BackendError::no_such_fret(
+                            location.0,
+                            location.1,
+                            string,
+                            fret,
+                            diagnostics.to_vec(),
+                        ))
+                    }
+                    Ok(x) => x,
+                };
+
                 idx += 1;
                 v.insert((string, idx), current_note.clone());
             }
