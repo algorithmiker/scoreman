@@ -1,10 +1,20 @@
 use std::{
+    cmp::{max, min},
     fmt::{self, Display},
     ops::RangeInclusive,
 };
 
+use yansi::Paint;
+
 use crate::collect_parse_error;
 
+#[derive(Clone, Debug)]
+pub enum ErrorLocation {
+    NoLocation,
+    LineOnly(usize),
+    LineAndMeasure(usize, usize),
+    LineAndCharIdx(usize, usize),
+}
 /// Produced [diagnostics.len()] diagnostics and one error.
 /// Diagnostics:
 ///  - [location]
@@ -16,7 +26,7 @@ use crate::collect_parse_error;
 ///
 #[derive(Debug)]
 pub struct BackendError<'a> {
-    pub main_location: Option<(usize, usize)>,
+    pub main_location: ErrorLocation,
     pub relevant_lines: RangeInclusive<usize>,
     pub kind: BackendErrorKind<'a>,
     pub diagnostics: Vec<Diagnostic>,
@@ -89,28 +99,28 @@ impl Display for DiagnosticSeverity {
             f,
             "{}",
             match self {
-                DiagnosticSeverity::Info => "[I]",
-                DiagnosticSeverity::Warning => "[W]",
+                DiagnosticSeverity::Info => "Info".blue(),
+                DiagnosticSeverity::Warning => "Warning".yellow(),
             }
         )
     }
 }
 #[derive(Debug, Clone)]
 pub struct Diagnostic {
-    pub location: Option<(usize, usize)>,
+    pub location: ErrorLocation,
     pub message: String,
     pub severity: DiagnosticSeverity,
 }
 
 impl Diagnostic {
-    pub fn info(location: Option<(usize, usize)>, message: String) -> Self {
+    pub fn info(location: ErrorLocation, message: String) -> Self {
         Self {
             location,
             message,
             severity: DiagnosticSeverity::Info,
         }
     }
-    pub fn warn(location: Option<(usize, usize)>, message: String) -> Self {
+    pub fn warn(location: ErrorLocation, message: String) -> Self {
         Self {
             location,
             message,
@@ -122,7 +132,7 @@ impl Diagnostic {
 impl<'a> BackendError<'a> {
     pub fn from_io_error(x: std::io::Error, diagnostics: Vec<Diagnostic>) -> Self {
         BackendError {
-            main_location: None,
+            main_location: ErrorLocation::NoLocation,
             kind: BackendErrorKind::IOError(x),
             relevant_lines: 0..=0,
             diagnostics,
@@ -130,7 +140,7 @@ impl<'a> BackendError<'a> {
     }
     pub fn from_fmt_error(x: std::fmt::Error, diagnostics: Vec<Diagnostic>) -> Self {
         BackendError {
-            main_location: None,
+            main_location: ErrorLocation::NoLocation,
             //short: "Cannot write to internal buffer".to_string(),
             //long: format!("Format error:\n{x}"),
             diagnostics,
@@ -141,9 +151,7 @@ impl<'a> BackendError<'a> {
 
     pub fn empty_score_err(diagnostics: Vec<Diagnostic>) -> Self {
         BackendError {
-            main_location: None,
-            //short: "Empty score".to_string(),
-            //long: String::new(),
+            main_location: ErrorLocation::NoLocation,
             diagnostics,
             kind: BackendErrorKind::EmptyScore,
             relevant_lines: 0..=0,
@@ -158,10 +166,64 @@ impl<'a> BackendError<'a> {
         diagnostics: Vec<Diagnostic>,
     ) -> Self {
         Self {
-            main_location: Some((location_a, location_b)),
+            main_location: ErrorLocation::LineAndMeasure(location_a, location_b),
             diagnostics,
             kind: BackendErrorKind::NoSuchFret(string_name, fret),
             relevant_lines: location_a..=location_a,
         }
     }
+}
+
+impl ErrorLocation {
+    pub fn get_line_idx(&self) -> Option<usize> {
+        match self {
+            ErrorLocation::NoLocation => None,
+            ErrorLocation::LineOnly(x) => Some(*x),
+            ErrorLocation::LineAndMeasure(x, _) => Some(*x),
+            ErrorLocation::LineAndCharIdx(x, _) => Some(*x),
+        }
+    }
+    pub fn write_location_explainer(&self, f: &mut impl std::fmt::Write) {
+        match self {
+            ErrorLocation::NoLocation => (),
+            ErrorLocation::LineOnly(line_idx) => {
+                let line_num = line_idx + 1;
+                writeln!(f, "{} in line {line_num}:", "Where:".bold(),).unwrap();
+            }
+            ErrorLocation::LineAndMeasure(line_idx, measure_idx) => {
+                let (line_num, measure_num) = (line_idx + 1, measure_idx + 1);
+                writeln!(
+                    f,
+                    "{} Measure {measure_num} in line {line_num}:",
+                    "Where:".bold()
+                )
+                .unwrap();
+            }
+            ErrorLocation::LineAndCharIdx(line_idx, char_idx) => writeln!(
+                f,
+                "{} line {} char {}",
+                "Where:".bold(),
+                line_idx + 1,
+                char_idx + 1,
+            )
+            .unwrap(),
+        }
+    }
+}
+
+pub const ERROR_CONTEXT: usize = 3;
+
+/// When reporting an error with `relevant_lines`, we want to show some context of +=, [ERROR_CONTEXT]
+/// lines that are not neccessarily relevant
+/// This is not always possible because of line bounds (cannot show 3 lines before line 0)
+/// This function handles that.
+pub fn extend_error_range(range: &RangeInclusive<usize>, line_cnt: usize) -> RangeInclusive<usize> {
+    let start = max(*range.start(), ERROR_CONTEXT) - ERROR_CONTEXT;
+    let end = min(line_cnt, range.end() + ERROR_CONTEXT);
+
+    start..=end
+}
+
+pub fn get_digit_cnt(num: usize) -> u32 {
+    num.checked_ilog10().unwrap_or(0) + 1
 }

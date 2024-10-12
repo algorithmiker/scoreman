@@ -5,6 +5,7 @@ mod muxml2_tests;
 pub mod settings;
 
 use crate::{
+    backend::errors::ErrorLocation,
     parser::{
         Score,
         TabElement::{self, Fret, Rest},
@@ -27,12 +28,13 @@ impl Backend for Muxml2Backend {
         out: &mut Out,
         settings: Self::BackendSettings,
     ) -> Result<Vec<Diagnostic>, BackendError> {
+        use ErrorLocation::*;
         let mut diagnostics = vec![];
         let raw_tracks = score.gen_raw_tracks()?;
         let (xml_out, mut inner_diagnostics) = raw_tracks_to_muxml2(raw_tracks, settings)?;
         diagnostics.append(&mut inner_diagnostics);
         diagnostics.push(Diagnostic::info(
-            None,
+            NoLocation,
             "MUXML2 backend: Generated an Uncompressed MusicXML (.musicxml) file".into(),
         ));
         out.write_all(xml_out.as_bytes())
@@ -43,7 +45,7 @@ impl Backend for Muxml2Backend {
 }
 
 #[derive(Debug)]
-enum Muxml2TabElement {
+pub enum Muxml2TabElement {
     Rest(usize),
     Notes(Vec<MuxmlNote>),
     /// used in optimizing, should generate no code for this type
@@ -104,7 +106,8 @@ fn raw_tracks_to_muxml2<'a>(
         for tick in 0..ticks_in_measure {
             let mut notes_in_tick = vec![];
             for string_idx in 0..6 {
-                let note = match raw_tracks.1[string_idx][measure_idx].content.get(tick) {
+                let measure = &raw_tracks.1[string_idx][measure_idx];
+                let raw_tick = match measure.content.get(tick) {
                     Some(x) => x,
                     _ => {
                         return Err(_tick_mismatch_err(
@@ -112,18 +115,14 @@ fn raw_tracks_to_muxml2<'a>(
                             string_idx,
                             measure_idx,
                             diagnostics,
-                        ))
+                        ));
                     }
                 };
-                let measure = &raw_tracks.1[string_idx][measure_idx];
-                let loc = (
-                    measure.parent_line.unwrap(),
-                    measure.index_on_parent_line.unwrap(),
-                );
-                match note {
+                let loc = (measure.parent_line, measure.index_on_parent_line);
+                match raw_tick.element {
                     Fret(fret) => {
                         let x =
-                            get_fretboard_note(raw_tracks.0[string_idx], *fret, loc, &diagnostics)?;
+                            get_fretboard_note(raw_tracks.0[string_idx], fret, loc, &diagnostics)?;
                         notes_in_tick.push(x);
                     }
                     TabElement::DeadNote => {
@@ -261,10 +260,10 @@ fn trim_measure(measure: &mut [Muxml2TabElement], content_len: &mut usize, direc
 
 #[derive(Clone, Debug)]
 pub struct MuxmlNote {
-    pub step: char,
-    pub octave: u32,
-    pub sharp: bool,
-    pub dead: bool,
+    pub step: char,  // 1 byte
+    pub octave: u8,  // 1 byte
+    pub sharp: bool, // 1 byte
+    pub dead: bool,  // 1 bytes
 }
 
 impl MuxmlNote {
@@ -289,45 +288,19 @@ fn _tick_mismatch_err(
 ) -> BackendError<'static> {
     let before_measure = &raw_tracks.1[string_idx - 1][measure_idx];
     let this_measure = &raw_tracks.1[string_idx][measure_idx];
-    //let explainer = match (before_measure.parent_line, this_measure.parent_line) {
-    //    (Some(pbefore), Some(phere)) => {
-    //        let before_line_num = pbefore + 1;
-    //        let this_line_num = phere + 1;
-    //        let (string_before, measure_before) = (
-    //            raw_tracks.0[string_idx - 1],
-    //            raw_tracks.1[string_idx - 1][measure_idx].print_pretty_string(),
-    //        );
-    //        let (string_here, measure_here) = (
-    //            raw_tracks.0[string_idx],
-    //            raw_tracks.1[string_idx][measure_idx].print_pretty_string(),
-    //        );
-
-    //        format!(
-    //            "\nline {before_line_num}: {string_before}|{measure_before}|
-    //            line {this_line_num}: {string_here}|{measure_here}|\n"
-    //        )
-    //    }
-    //    _ => String::new(),
-    //};
 
     BackendError {
-        main_location: Some((
-            this_measure.parent_line.unwrap(),
-            this_measure.index_on_parent_line.unwrap(),
-        )),
+        main_location: ErrorLocation::LineAndMeasure(
+            this_measure.parent_line,
+            this_measure.index_on_parent_line,
+        ),
         diagnostics,
-        relevant_lines: before_measure.parent_line.unwrap()..=this_measure.parent_line.unwrap(),
+        relevant_lines: before_measure.parent_line..=this_measure.parent_line,
         kind: BackendErrorKind::TickMismatch(
             raw_tracks.0[string_idx - 1],
             raw_tracks.0[string_idx],
             before_measure.content.len(),
             this_measure.content.len(),
         ),
-        //short: "Tick count mismatch".into(),
-        // long: format!("Problem in {measure_number}th measure:
-        //The muxml2 backend relies on the fact that there are the same number of ticks (frets/rests) on every line (string) of a measure in the tab. This is not true for this tab.
-        //{explainer}
-        //Tip: If you get a lot of errors like this, consider using the muxml1 backend.",
-        //measure_number = measure_idx +1)
     }
 }

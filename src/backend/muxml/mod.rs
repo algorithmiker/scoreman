@@ -1,6 +1,9 @@
-use crate::parser::{
-    Measure, Score,
-    TabElement::{self, Fret},
+use crate::{
+    backend::errors::ErrorLocation,
+    parser::{
+        Measure, Score,
+        TabElement::{self, Fret},
+    },
 };
 
 use super::{muxml2::fretboard::get_fretboard_note, Backend, BackendError, Diagnostic};
@@ -14,18 +17,19 @@ impl Backend for MuxmlBackend {
         out: &mut Out,
         _settings: Self::BackendSettings,
     ) -> Result<Vec<Diagnostic>, BackendError> {
+        use ErrorLocation::*;
         let mut diagnostics=vec! [
-            Diagnostic::warn(None,"The MUXML1 backend is significantly worse than the MUXML2 backend. If you don't have any reason not to, use the MUXML2 backend".into()),
+            Diagnostic::warn(NoLocation,"The MUXML1 backend is significantly worse than the MUXML2 backend. If you don't have any reason not to, use the MUXML2 backend".into()),
         ];
         let raw_tracks = score.gen_raw_tracks()?;
         let (xml_out, mut xml_diagnostics) = raw_tracks_to_xml(raw_tracks)?;
         diagnostics.append(&mut xml_diagnostics);
         diagnostics.push(Diagnostic::info(
-            None,
+            NoLocation,
             "Generated an Uncompressed MusicXML (.musicxml) file.".into(),
         ));
         diagnostics.push(Diagnostic::info(
-            None,
+            NoLocation,
             r#"The 6 strings of the guitar are labelled as separate instruments. To fix that,
      1. import the generated file into MuseScore
      2. select all tracks, do Tools->Implode
@@ -48,15 +52,15 @@ fn raw_tracks_to_xml<'a>(
         let part = &raw_tracks.1[i];
         let mut measures_xml = String::new();
         for (measure_idx, measure) in part.iter().enumerate() {
-            let m_par_line = measure.parent_line.unwrap();
-            let m_idx_on_par_line = measure.index_on_parent_line.unwrap();
+            let m_par_line = measure.parent_line;
+            let m_idx_on_par_line = measure.index_on_parent_line;
             let loc = (m_par_line, m_idx_on_par_line);
 
             let mut notes_xml = String::new();
-            for note in &measure.content {
-                match note {
+            for raw_tick in &measure.content {
+                match raw_tick.element {
                     Fret(fret) => {
-                        let x = get_fretboard_note(raw_tracks.0[i], *fret, loc, &diagnostics)?;
+                        let x = get_fretboard_note(raw_tracks.0[i], fret, loc, &diagnostics)?;
                         notes_xml.push_str(&x.into_muxml("eighth", false));
                     }
                     TabElement::DeadNote => {

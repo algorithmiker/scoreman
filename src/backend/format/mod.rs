@@ -17,13 +17,13 @@ impl Backend for FormatBackend {
         for section in score.0 {
             match section {
                 Section::Part { part, .. } => {
-                    let measures_in_part = part[0].staffs.len();
+                    let measures_in_part = part[0].measures.len();
                     for measure_idx in 0..measures_in_part {
                         formatted += &format!("// SYS: Measure {}\n", measure_cnt + 1);
                         for line in &part {
                             formatted.push(line.string_name);
                             formatted.push('|');
-                            formatted += &line.staffs[measure_idx].print_pretty_string();
+                            formatted += &line.measures[measure_idx].print_pretty_string();
                             formatted.push('|');
                             formatted.push('\n');
                         }

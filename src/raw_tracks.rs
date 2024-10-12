@@ -1,6 +1,6 @@
 use crate::{
-    backend::errors::{BackendError, BackendErrorKind},
-    parser::{Measure, Score, Section, TabElement},
+    backend::errors::{BackendError, BackendErrorKind, ErrorLocation},
+    parser::{Measure, RawTick, Score, Section, TabElement},
 };
 
 pub type RawTracks = ([char; 6], [Vec<Measure>; 6]);
@@ -9,12 +9,13 @@ impl Score {
         let diagnostics = vec![];
         let mut tracks = [vec![], vec![], vec![], vec![], vec![], vec![]];
         let mut track_names = ['\0'; 6];
+
         for part in self.0.into_iter() {
             match part {
                 Section::Part { part, .. } => {
                     for (line_idx, line) in part.into_iter().enumerate() {
                         track_names[line_idx] = line.string_name;
-                        for staff in line.staffs {
+                        for staff in line.measures {
                             tracks[line_idx].push(staff)
                         }
                     }
@@ -39,15 +40,15 @@ impl Score {
             //println!("[T]: tick count for measure {measure_idx}: {tick_count} (least on {track_with_least_ticks})");
             let mut tick_idx = 0;
             while tick_idx < tick_count {
-                let Some((multichar_t_idx, TabElement::Fret(multichar_fret))) = tracks.iter().enumerate()
+                let Some((multichar_t_idx, RawTick { element: TabElement::Fret(multichar_fret), ..})) = tracks.iter().enumerate()
                     .map(|(track_idx, track)| {
         (track_idx,  track[measure_idx]
                             .content
                             .get(tick_idx)
                             .unwrap_or_else(|| panic!("Measure {measure_num} on string {string_name} doesn't have tick {tick_idx}\n", measure_num = measure_idx +1, string_name = track_names[track_idx] )))
                     })
-                    .find(|(_,x)| { match x {
-                        TabElement::Fret(x) => *x >= 10,
+                    .find(|(_,x)| { match x.element {
+                        TabElement::Fret(x) => x >= 10,
                         _ => false,
                     }})
                 else {
@@ -61,24 +62,24 @@ impl Score {
                     let measure = &mut track[measure_idx];
                     // This is a multi-char tick. Remove adjacent rest everywhere where it is not
                     // multi-char.
-                    let tick_onechar_on_this_track = match &measure.content[tick_idx] {
+                    let tick_onechar_on_this_track = match &measure.content[tick_idx].element {
                         TabElement::Fret(x) => *x < 10,
                         TabElement::Rest => true,
                         TabElement::DeadNote => true,
                     };
                     if tick_onechar_on_this_track {
                         if let Some(next) = measure.content.get(tick_idx + 1) {
-                            if let TabElement::Fret(fret) = next {
-                                let parent_line = measure.parent_line.unwrap();
+                            if let TabElement::Fret(fret) = next.element {
+                                let parent_line = measure.parent_line;
                                 return Err(BackendError {
-                                    main_location: Some((
+                                    main_location: ErrorLocation::LineAndCharIdx(
                                         parent_line,
-                                        measure.index_on_parent_line.unwrap(),
-                                    )),
+                                        next.idx_on_parent_line,
+                                    ),
                                     relevant_lines: parent_line..=parent_line,
                                     kind: BackendErrorKind::BadMulticharTick {
                                         multichar: (track_names[multichar_t_idx], multichar_fret),
-                                        invalid: (track_names[track_idx], *fret),
+                                        invalid: (track_names[track_idx], fret),
                                         tick_idx,
                                     },
                                     diagnostics,

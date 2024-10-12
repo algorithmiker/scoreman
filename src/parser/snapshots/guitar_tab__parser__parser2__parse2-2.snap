@@ -1,7 +1,27 @@
 ---
 source: src/parser/parser2.rs
-expression: "parse2(BufReader::new(i2.as_bytes()))"
+expression: parse2(i2.lines())
 ---
 Err(
-    "Error at line 6, not a comment but also not a valid partline\nParse error:\nexpected '|' at: o-|\nin section 'Partline', at: A|-o-|\n",
+    BackendError {
+        main_location: LineOnly(
+            5,
+        ),
+        relevant_lines: 5..=5,
+        kind: ParseError(
+            Error(
+                VerboseError {
+                    errors: [
+                        (
+                            "o-|",
+                            Char(
+                                '|',
+                            ),
+                        ),
+                    ],
+                },
+            ),
+        ),
+        diagnostics: [],
+    },
 )

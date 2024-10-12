@@ -1,15 +1,12 @@
 use std::{cell::RefCell, collections::HashMap};
 
-use crate::{
-    backend::errors::{BackendError, Diagnostic},
-    raw_tracks::RawTracks,
-};
+use crate::backend::errors::{BackendError, Diagnostic};
 
 use super::MuxmlNote;
 use anyhow::bail;
 use once_cell::unsync::Lazy;
 
-fn note(note: char, octave: u32) -> MuxmlNote {
+fn note(note: char, octave: u8) -> MuxmlNote {
     MuxmlNote {
         step: note,
         octave,
@@ -89,7 +86,7 @@ pub fn get_fretboard_note(
     string: char,
     fret: u16,
     location: (usize, usize),
-    diagnostics: &Vec<Diagnostic>,
+    diagnostics: &[Diagnostic],
 ) -> Result<MuxmlNote, BackendError<'static>> {
     NOTE_CACHE.with_borrow_mut(|v| {
         if let Some(x) = v.get(&(string, fret)) {

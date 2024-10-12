@@ -1,9 +1,10 @@
 # TODO
-- accept dead notes!
 - parse chords / lyrics 
+- "fixup" mode (replace unknown chars with rest), and comment unparseable lines
 
 # DONE
 
+- accept dead notes!
 - desktop / mobile app
 - write tests for backends
 - Display on measure for better errors

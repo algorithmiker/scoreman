@@ -1,40 +1,80 @@
 ---
 source: src/parser/parser_tests.rs
-expression: "partline(\"e|--4-|-0--5-|\")"
+expression: "partline(\"e|--4-|-0--5-|\", 0)"
 ---
 Ok(
     (
         "",
         Partline {
             string_name: 'e',
-            staffs: [
+            measures: [
                 Measure {
                     content: [
-                        Rest,
-                        Rest,
-                        Fret(
-                            4,
-                        ),
-                        Rest,
+                        RawTick {
+                            element: Rest,
+                            parent_line: 0,
+                            idx_on_parent_line: 2,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 0,
+                            idx_on_parent_line: 3,
+                        },
+                        RawTick {
+                            element: Fret(
+                                4,
+                            ),
+                            parent_line: 0,
+                            idx_on_parent_line: 4,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 0,
+                            idx_on_parent_line: 5,
+                        },
                     ],
-                    parent_line: None,
-                    index_on_parent_line: None,
+                    parent_line: 0,
+                    index_on_parent_line: 0,
                 },
                 Measure {
                     content: [
-                        Rest,
-                        Fret(
-                            0,
-                        ),
-                        Rest,
-                        Rest,
-                        Fret(
-                            5,
-                        ),
-                        Rest,
+                        RawTick {
+                            element: Rest,
+                            parent_line: 0,
+                            idx_on_parent_line: 7,
+                        },
+                        RawTick {
+                            element: Fret(
+                                0,
+                            ),
+                            parent_line: 0,
+                            idx_on_parent_line: 8,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 0,
+                            idx_on_parent_line: 9,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 0,
+                            idx_on_parent_line: 10,
+                        },
+                        RawTick {
+                            element: Fret(
+                                5,
+                            ),
+                            parent_line: 0,
+                            idx_on_parent_line: 11,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 0,
+                            idx_on_parent_line: 12,
+                        },
                     ],
-                    parent_line: None,
-                    index_on_parent_line: None,
+                    parent_line: 0,
+                    index_on_parent_line: 0,
                 },
             ],
         },

@@ -1,214 +1,313 @@
 ---
 source: src/parser/parser_tests.rs
-expression: "parse2(BufReader::new(example_part.as_bytes()))"
+expression: parse2(example_part.lines())
 ---
 Ok(
-    Score(
-        [
-            Part {
-                part: [
-                    Partline {
-                        string_name: 'e',
-                        staffs: [
-                            Measure {
-                                content: [
-                                    Rest,
-                                    Rest,
-                                    Rest,
-                                ],
-                                parent_line: Some(
-                                    1,
-                                ),
-                                index_on_parent_line: Some(
-                                    0,
-                                ),
-                            },
-                            Measure {
-                                content: [
-                                    Rest,
-                                    Rest,
-                                    Rest,
-                                ],
-                                parent_line: Some(
-                                    1,
-                                ),
-                                index_on_parent_line: Some(
-                                    1,
-                                ),
-                            },
-                        ],
-                    },
-                    Partline {
-                        string_name: 'B',
-                        staffs: [
-                            Measure {
-                                content: [
-                                    Rest,
-                                    Fret(
-                                        3,
-                                    ),
-                                    Rest,
-                                ],
-                                parent_line: Some(
-                                    2,
-                                ),
-                                index_on_parent_line: Some(
-                                    0,
-                                ),
-                            },
-                            Measure {
-                                content: [
-                                    Fret(
-                                        3,
-                                    ),
-                                    Rest,
-                                    Fret(
-                                        3,
-                                    ),
-                                ],
-                                parent_line: Some(
-                                    2,
-                                ),
-                                index_on_parent_line: Some(
-                                    1,
-                                ),
-                            },
-                        ],
-                    },
-                    Partline {
-                        string_name: 'G',
-                        staffs: [
-                            Measure {
-                                content: [
-                                    Fret(
-                                        6,
-                                    ),
-                                    Rest,
-                                    Fret(
-                                        6,
-                                    ),
-                                ],
-                                parent_line: Some(
-                                    3,
-                                ),
-                                index_on_parent_line: Some(
-                                    0,
-                                ),
-                            },
-                            Measure {
-                                content: [
-                                    Rest,
-                                    Fret(
-                                        6,
-                                    ),
-                                    Rest,
-                                ],
-                                parent_line: Some(
-                                    3,
-                                ),
-                                index_on_parent_line: Some(
-                                    1,
-                                ),
-                            },
-                        ],
-                    },
-                    Partline {
-                        string_name: 'D',
-                        staffs: [
-                            Measure {
-                                content: [
-                                    Rest,
-                                    Rest,
-                                    Rest,
-                                ],
-                                parent_line: Some(
-                                    4,
-                                ),
-                                index_on_parent_line: Some(
-                                    0,
-                                ),
-                            },
-                            Measure {
-                                content: [
-                                    Rest,
-                                    Rest,
-                                    Rest,
-                                ],
-                                parent_line: Some(
-                                    4,
-                                ),
-                                index_on_parent_line: Some(
-                                    1,
-                                ),
-                            },
-                        ],
-                    },
-                    Partline {
-                        string_name: 'A',
-                        staffs: [
-                            Measure {
-                                content: [
-                                    Rest,
-                                    Rest,
-                                    Rest,
-                                ],
-                                parent_line: Some(
-                                    5,
-                                ),
-                                index_on_parent_line: Some(
-                                    0,
-                                ),
-                            },
-                            Measure {
-                                content: [
-                                    Rest,
-                                    Rest,
-                                    Rest,
-                                ],
-                                parent_line: Some(
-                                    5,
-                                ),
-                                index_on_parent_line: Some(
-                                    1,
-                                ),
-                            },
-                        ],
-                    },
-                    Partline {
-                        string_name: 'E',
-                        staffs: [
-                            Measure {
-                                content: [
-                                    Rest,
-                                    Rest,
-                                    Rest,
-                                ],
-                                parent_line: Some(
-                                    6,
-                                ),
-                                index_on_parent_line: Some(
-                                    0,
-                                ),
-                            },
-                            Measure {
-                                content: [
-                                    Rest,
-                                    Rest,
-                                    Rest,
-                                ],
-                                parent_line: Some(
-                                    6,
-                                ),
-                                index_on_parent_line: Some(
-                                    1,
-                                ),
-                            },
-                        ],
-                    },
-                ],
-                begin_line_idx: 1,
-                end_line_idx: 6,
-            },
-        ],
+    (
+        [],
+        Score(
+            [
+                Part {
+                    part: [
+                        Partline {
+                            string_name: 'e',
+                            measures: [
+                                Measure {
+                                    content: [
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 1,
+                                            idx_on_parent_line: 2,
+                                        },
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 1,
+                                            idx_on_parent_line: 3,
+                                        },
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 1,
+                                            idx_on_parent_line: 4,
+                                        },
+                                    ],
+                                    parent_line: 1,
+                                    index_on_parent_line: 0,
+                                },
+                                Measure {
+                                    content: [
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 1,
+                                            idx_on_parent_line: 6,
+                                        },
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 1,
+                                            idx_on_parent_line: 7,
+                                        },
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 1,
+                                            idx_on_parent_line: 8,
+                                        },
+                                    ],
+                                    parent_line: 1,
+                                    index_on_parent_line: 0,
+                                },
+                            ],
+                        },
+                        Partline {
+                            string_name: 'B',
+                            measures: [
+                                Measure {
+                                    content: [
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 2,
+                                            idx_on_parent_line: 2,
+                                        },
+                                        RawTick {
+                                            element: Fret(
+                                                3,
+                                            ),
+                                            parent_line: 2,
+                                            idx_on_parent_line: 3,
+                                        },
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 2,
+                                            idx_on_parent_line: 4,
+                                        },
+                                    ],
+                                    parent_line: 2,
+                                    index_on_parent_line: 0,
+                                },
+                                Measure {
+                                    content: [
+                                        RawTick {
+                                            element: Fret(
+                                                3,
+                                            ),
+                                            parent_line: 2,
+                                            idx_on_parent_line: 6,
+                                        },
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 2,
+                                            idx_on_parent_line: 7,
+                                        },
+                                        RawTick {
+                                            element: Fret(
+                                                3,
+                                            ),
+                                            parent_line: 2,
+                                            idx_on_parent_line: 8,
+                                        },
+                                    ],
+                                    parent_line: 2,
+                                    index_on_parent_line: 0,
+                                },
+                            ],
+                        },
+                        Partline {
+                            string_name: 'G',
+                            measures: [
+                                Measure {
+                                    content: [
+                                        RawTick {
+                                            element: Fret(
+                                                6,
+                                            ),
+                                            parent_line: 3,
+                                            idx_on_parent_line: 2,
+                                        },
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 3,
+                                            idx_on_parent_line: 3,
+                                        },
+                                        RawTick {
+                                            element: Fret(
+                                                6,
+                                            ),
+                                            parent_line: 3,
+                                            idx_on_parent_line: 4,
+                                        },
+                                    ],
+                                    parent_line: 3,
+                                    index_on_parent_line: 0,
+                                },
+                                Measure {
+                                    content: [
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 3,
+                                            idx_on_parent_line: 6,
+                                        },
+                                        RawTick {
+                                            element: Fret(
+                                                6,
+                                            ),
+                                            parent_line: 3,
+                                            idx_on_parent_line: 7,
+                                        },
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 3,
+                                            idx_on_parent_line: 8,
+                                        },
+                                    ],
+                                    parent_line: 3,
+                                    index_on_parent_line: 0,
+                                },
+                            ],
+                        },
+                        Partline {
+                            string_name: 'D',
+                            measures: [
+                                Measure {
+                                    content: [
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 4,
+                                            idx_on_parent_line: 2,
+                                        },
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 4,
+                                            idx_on_parent_line: 3,
+                                        },
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 4,
+                                            idx_on_parent_line: 4,
+                                        },
+                                    ],
+                                    parent_line: 4,
+                                    index_on_parent_line: 0,
+                                },
+                                Measure {
+                                    content: [
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 4,
+                                            idx_on_parent_line: 6,
+                                        },
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 4,
+                                            idx_on_parent_line: 7,
+                                        },
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 4,
+                                            idx_on_parent_line: 8,
+                                        },
+                                    ],
+                                    parent_line: 4,
+                                    index_on_parent_line: 0,
+                                },
+                            ],
+                        },
+                        Partline {
+                            string_name: 'A',
+                            measures: [
+                                Measure {
+                                    content: [
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 5,
+                                            idx_on_parent_line: 2,
+                                        },
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 5,
+                                            idx_on_parent_line: 3,
+                                        },
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 5,
+                                            idx_on_parent_line: 4,
+                                        },
+                                    ],
+                                    parent_line: 5,
+                                    index_on_parent_line: 0,
+                                },
+                                Measure {
+                                    content: [
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 5,
+                                            idx_on_parent_line: 6,
+                                        },
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 5,
+                                            idx_on_parent_line: 7,
+                                        },
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 5,
+                                            idx_on_parent_line: 8,
+                                        },
+                                    ],
+                                    parent_line: 5,
+                                    index_on_parent_line: 0,
+                                },
+                            ],
+                        },
+                        Partline {
+                            string_name: 'E',
+                            measures: [
+                                Measure {
+                                    content: [
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 6,
+                                            idx_on_parent_line: 2,
+                                        },
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 6,
+                                            idx_on_parent_line: 3,
+                                        },
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 6,
+                                            idx_on_parent_line: 4,
+                                        },
+                                    ],
+                                    parent_line: 6,
+                                    index_on_parent_line: 0,
+                                },
+                                Measure {
+                                    content: [
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 6,
+                                            idx_on_parent_line: 6,
+                                        },
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 6,
+                                            idx_on_parent_line: 7,
+                                        },
+                                        RawTick {
+                                            element: Rest,
+                                            parent_line: 6,
+                                            idx_on_parent_line: 8,
+                                        },
+                                    ],
+                                    parent_line: 6,
+                                    index_on_parent_line: 0,
+                                },
+                            ],
+                        },
+                    ],
+                    begin_line_idx: 1,
+                    end_line_idx: 6,
+                },
+            ],
+        ),
     ),
 )

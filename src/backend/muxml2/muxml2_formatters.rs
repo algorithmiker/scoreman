@@ -24,7 +24,7 @@ pub fn muxml2_rest(r#type: &str, duration: u8) -> String {
 #[inline]
 pub fn muxml2_note(
     step: char,
-    octave: u32,
+    octave: u8,
     sharp: bool,
     r#type: &str,
     chord: bool,

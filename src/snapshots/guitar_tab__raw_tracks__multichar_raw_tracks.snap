@@ -1,6 +1,6 @@
 ---
 source: src/raw_tracks.rs
-expression: "parse2(BufReader::new(input.as_bytes()))?.gen_raw_tracks()"
+expression: parse2(input.lines()).unwrap().1.gen_raw_tracks()
 ---
 Ok(
     (
@@ -16,111 +16,207 @@ Ok(
             [
                 Measure {
                     content: [
-                        Rest,
-                        Rest,
-                        Rest,
-                        Fret(
-                            5,
-                        ),
-                        Rest,
+                        RawTick {
+                            element: Rest,
+                            parent_line: 1,
+                            idx_on_parent_line: 2,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 1,
+                            idx_on_parent_line: 4,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 1,
+                            idx_on_parent_line: 5,
+                        },
+                        RawTick {
+                            element: Fret(
+                                5,
+                            ),
+                            parent_line: 1,
+                            idx_on_parent_line: 6,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 1,
+                            idx_on_parent_line: 7,
+                        },
                     ],
-                    parent_line: Some(
-                        1,
-                    ),
-                    index_on_parent_line: Some(
-                        0,
-                    ),
+                    parent_line: 1,
+                    index_on_parent_line: 0,
                 },
             ],
             [
                 Measure {
                     content: [
-                        Rest,
-                        Rest,
-                        Fret(
-                            3,
-                        ),
-                        Rest,
-                        Rest,
+                        RawTick {
+                            element: Rest,
+                            parent_line: 2,
+                            idx_on_parent_line: 2,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 2,
+                            idx_on_parent_line: 4,
+                        },
+                        RawTick {
+                            element: Fret(
+                                3,
+                            ),
+                            parent_line: 2,
+                            idx_on_parent_line: 5,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 2,
+                            idx_on_parent_line: 6,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 2,
+                            idx_on_parent_line: 7,
+                        },
                     ],
-                    parent_line: Some(
-                        2,
-                    ),
-                    index_on_parent_line: Some(
-                        0,
-                    ),
+                    parent_line: 2,
+                    index_on_parent_line: 0,
                 },
             ],
             [
                 Measure {
                     content: [
-                        Fret(
-                            10,
-                        ),
-                        Rest,
-                        Rest,
-                        Rest,
-                        Fret(
-                            12,
-                        ),
+                        RawTick {
+                            element: Fret(
+                                10,
+                            ),
+                            parent_line: 3,
+                            idx_on_parent_line: 2,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 3,
+                            idx_on_parent_line: 3,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 3,
+                            idx_on_parent_line: 4,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 3,
+                            idx_on_parent_line: 5,
+                        },
+                        RawTick {
+                            element: Fret(
+                                12,
+                            ),
+                            parent_line: 3,
+                            idx_on_parent_line: 6,
+                        },
                     ],
-                    parent_line: Some(
-                        3,
-                    ),
-                    index_on_parent_line: Some(
-                        0,
-                    ),
+                    parent_line: 3,
+                    index_on_parent_line: 0,
                 },
             ],
             [
                 Measure {
                     content: [
-                        Rest,
-                        Rest,
-                        Rest,
-                        Rest,
-                        Rest,
+                        RawTick {
+                            element: Rest,
+                            parent_line: 4,
+                            idx_on_parent_line: 2,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 4,
+                            idx_on_parent_line: 4,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 4,
+                            idx_on_parent_line: 5,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 4,
+                            idx_on_parent_line: 6,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 4,
+                            idx_on_parent_line: 7,
+                        },
                     ],
-                    parent_line: Some(
-                        4,
-                    ),
-                    index_on_parent_line: Some(
-                        0,
-                    ),
+                    parent_line: 4,
+                    index_on_parent_line: 0,
                 },
             ],
             [
                 Measure {
                     content: [
-                        Rest,
-                        Rest,
-                        Rest,
-                        Rest,
-                        Rest,
+                        RawTick {
+                            element: Rest,
+                            parent_line: 5,
+                            idx_on_parent_line: 2,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 5,
+                            idx_on_parent_line: 4,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 5,
+                            idx_on_parent_line: 5,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 5,
+                            idx_on_parent_line: 6,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 5,
+                            idx_on_parent_line: 7,
+                        },
                     ],
-                    parent_line: Some(
-                        5,
-                    ),
-                    index_on_parent_line: Some(
-                        0,
-                    ),
+                    parent_line: 5,
+                    index_on_parent_line: 0,
                 },
             ],
             [
                 Measure {
                     content: [
-                        Rest,
-                        Rest,
-                        Rest,
-                        Rest,
-                        Rest,
+                        RawTick {
+                            element: Rest,
+                            parent_line: 6,
+                            idx_on_parent_line: 2,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 6,
+                            idx_on_parent_line: 4,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 6,
+                            idx_on_parent_line: 5,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 6,
+                            idx_on_parent_line: 6,
+                        },
+                        RawTick {
+                            element: Rest,
+                            parent_line: 6,
+                            idx_on_parent_line: 7,
+                        },
                     ],
-                    parent_line: Some(
-                        6,
-                    ),
-                    index_on_parent_line: Some(
-                        0,
-                    ),
+                    parent_line: 6,
+                    index_on_parent_line: 0,
                 },
             ],
         ],

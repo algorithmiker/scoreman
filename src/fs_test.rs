@@ -15,6 +15,7 @@ fn read_file_to_string(file: &str) -> anyhow::Result<String> {
 }
 
 #[test]
+#[ignore = "use insta instead"]
 fn test_goldens() {
     let mut test_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     test_dir.push("test");

@@ -1,4 +1,4 @@
-use crate::backend::errors::{BackendError, BackendErrorKind, Diagnostic};
+use crate::backend::errors::{BackendError, BackendErrorKind, Diagnostic, ErrorLocation};
 
 use super::{comment_line, partline, Score, Section};
 
@@ -11,80 +11,65 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
     let mut part_buf = vec![];
     let mut part_begin = 0;
     for (line_idx, line) in lines.enumerate() {
-        let line_number = line_idx + 1;
         if line.trim().is_empty() {
             if !part_buf.is_empty() {
                 diagnostics.push(Diagnostic::warn(
-                    Some((line_idx, 0)),
+                    ErrorLocation::LineOnly(line_idx),
                     "Empty line inside Part, are you sure this is intended?".into(),
                 ));
             }
             continue;
         }
 
-        match comment_line(line) {
-            Ok((rem, comment)) => {
-                if !rem.is_empty() {
-                    return Err(BackendError {
-                        main_location: Some((line_number, 0)),
-                        relevant_lines: line_number..=line_number,
-                        kind: BackendErrorKind::InvalidCommentSyntax(rem.into()),
-                        diagnostics,
-                    });
-                }
-                if !part_buf.is_empty() {
-                    diagnostics.push(Diagnostic::warn(
-                        Some((line_idx, 0)),
-                        "Comment inside Part at line {line_idx}, are you sure this is intended?"
-                            .into(),
-                    ));
-                }
-                sections.push(Section::Comment(comment.to_string()));
+        if let Ok((rem, comment)) = comment_line(line) {
+            assert!(rem.is_empty(), "Invalid comment syntax (line {line_idx})");
+            if !part_buf.is_empty() {
+                diagnostics.push(Diagnostic::warn(
+                    ErrorLocation::LineOnly(line_idx),
+                    "Comment inside Part, are you sure this is intended?".to_string(),
+                ));
             }
-            Err(_) => match partline(line) {
-                Ok((rem, mut line)) => {
+            sections.push(Section::Comment(comment.to_string()));
+        } else {
+            match partline(line, line_idx) {
+                Ok((rem, line)) => {
                     if !rem.is_empty() {
                         return Err(BackendError {
-                            main_location: Some((line_number, 0)),
-                            relevant_lines: line_number..=line_number,
+                            main_location: ErrorLocation::LineAndMeasure(
+                                line_idx,
+                                // the measure with the problem is the first that is not parsed
+                                line.measures.len(),
+                            ),
+                            relevant_lines: line_idx..=line_idx,
                             kind: BackendErrorKind::InvalidPartlineSyntax(rem.into()),
                             diagnostics,
                         });
                     }
-                    // Add measure metadata
-                    for measure_idx in 0..line.staffs.len() {
-                        line.staffs[measure_idx].parent_line = Some(line_idx);
-                        line.staffs[measure_idx].index_on_parent_line = Some(measure_idx);
-                    }
                     part_buf.push(line);
-                    match part_buf.len() {
-                        6 => {
-                            // flush part buf
-                            sections.push(Section::Part {
-                                part: part_buf
-                                    .clone() // TODO try to elide this clone
-                                    .try_into()
-                                    .expect("Unreachable: more than 6 elements in part_buf"),
-                                begin_line_idx: part_begin,
-                                end_line_idx: line_idx,
-                            });
-                            part_buf.clear();
-                            part_begin = 0;
-                        }
-                        1 => part_begin = line_idx,
-                        _ => (),
+                    if part_buf.len() == 6 {
+                        // flush part buf
+                        sections.push(Section::Part {
+                            part: part_buf
+                                .try_into()
+                                .expect("Unreachable: more than 6 elements in part_buf"),
+                            begin_line_idx: part_begin,
+                            end_line_idx: line_idx,
+                        });
+                        part_buf = vec![];
+                        part_begin = 0;
+                    } else if part_buf.len() == 1 {
+                        part_begin = line_idx
                     }
                 }
-                // TODO maybe pass the error up here?
                 Err(x) => {
                     return Err(BackendError {
-                        main_location: Some((line_number, 0)),
-                        relevant_lines: line_number..=line_number,
+                        main_location: ErrorLocation::LineOnly(line_idx),
+                        relevant_lines: line_idx..=line_idx,
                         kind: BackendErrorKind::ParseError(x),
                         diagnostics,
                     });
                 }
-            },
+            }
         }
     }
 
