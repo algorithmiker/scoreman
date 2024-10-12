@@ -29,7 +29,7 @@ fn get_lines(input_path: &str) -> anyhow::Result<Vec<String>> {
             File::open(input_path).with_context(|| format!("Failed to open file {input_path}"))?;
 
         let lines: Vec<String> = BufReader::new(&f).lines().map(|x| x.unwrap()).collect();
-        println!("{:?}", lines);
+        // println!("{:?}", lines);
         Ok(lines)
     }
 }
@@ -87,7 +87,7 @@ fn main() -> anyhow::Result<()> {
     let (export, res) = time(|| backend.process(parsed, &mut output_fd));
 
     match res {
-        Ok(mut x) if !x.is_empty() => {
+        Ok(mut x) if !x.is_empty() && !cli.quiet => {
             diagnostics.append(&mut x);
             println!(
                 "Produced {} diagnostics and no errors",
@@ -95,10 +95,16 @@ fn main() -> anyhow::Result<()> {
             );
             print_diagnostics(diagnostics.iter(), &lines);
         }
-        Ok(_empty) => print_diagnostics(diagnostics.iter(), &lines),
+        Ok(_empty) => {
+            if !cli.quiet {
+                print_diagnostics(diagnostics.iter(), &lines)
+            }
+        }
         Err(x) => handle_error(&x, Some(&diagnostics), &lines)?,
     };
-    println!("[D]: Performance timings:\nparsing input file: {input_parsing:?}\ncreating file using {command} backend: {export:?}");
+    if !cli.quiet {
+        println!("[D]: Performance timings:\nparsing input file: {input_parsing:?}\ncreating file using {command} backend: {export:?}");
+    }
     Ok(())
 }
 

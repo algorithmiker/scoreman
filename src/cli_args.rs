@@ -12,9 +12,9 @@ use guitar_tab::backend::{muxml2, BackendSelector};
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
-    //    /// Don't write out diagnostics that were produced. Makes execution slightly faster
-    //    #[arg(short = 'q', long)]
-    //    pub quiet: bool,
+    /// Don't write out diagnostics that were produced. Makes execution slightly faster
+    #[arg(short = 'q', long)]
+    pub quiet: bool,
 }
 
 #[derive(Subcommand)]
