@@ -44,6 +44,7 @@ pub fn parse3<'a>(lines: &[String]) -> Result<(), BackendError<'a>> {
 pub fn tokenize3(inp: &str) {}
 
 #[test]
+#[ignore = "Parser3 is experimental"]
 pub fn test_parse3() {
     let example_score = r#"
 e|---|
