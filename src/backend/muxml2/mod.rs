@@ -80,7 +80,7 @@ impl Muxml2TabElement {
             }
             Muxml2TabElement::Notes(notes) => {
                 for (i, note) in notes.iter().enumerate() {
-                    note.write_muxml(buf, "eighth", i != 0)?;
+                    note.write_muxml(buf, i != 0)?;
                 }
                 Ok(())
             }
@@ -279,18 +279,9 @@ impl MuxmlNote {
     pub fn write_muxml(
         &self,
         buf: &mut impl std::fmt::Write,
-        duration: &str,
         chord: bool,
     ) -> Result<(), std::fmt::Error> {
-        write_muxml2_note(
-            buf,
-            self.step,
-            self.octave,
-            self.sharp,
-            duration,
-            chord,
-            self.dead,
-        )
+        write_muxml2_note(buf, self.step, self.octave, self.sharp, chord, self.dead)
     }
 }
 
