@@ -48,7 +48,6 @@ fn partline(s: &str, parent_line_idx: usize) -> VerboseResult<&str, Partline> {
     let mut parsed_len = 2;
     let mut measures = vec![];
     while !rem.is_empty() {
-        //let (new_rem, measure) = ;
         let mut measure = Measure {
             content: vec![],
             parent_line: parent_line_idx,

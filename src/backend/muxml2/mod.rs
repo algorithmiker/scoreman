@@ -4,6 +4,11 @@ mod muxml2_formatters;
 mod muxml2_tests;
 pub mod settings;
 
+use muxml2_formatters::{
+    write_muxml2_measure, write_muxml2_note, write_muxml2_rest, MUXML2_DOCUMENT_END,
+    MUXML_INCOMPLETE_DOC_PRELUDE,
+};
+
 use crate::{
     backend::errors::error_location::ErrorLocation,
     parser::{
@@ -13,10 +18,7 @@ use crate::{
     raw_tracks::RawTracks,
 };
 
-use self::{
-    fretboard::get_fretboard_note,
-    muxml2_formatters::{muxml2_document, muxml2_measure, muxml2_note, muxml2_rest},
-};
+use self::{fretboard::get_fretboard_note, muxml2_formatters::muxml2_note};
 
 use super::{
     errors::{
@@ -59,17 +61,17 @@ impl Muxml2TabElement {
             Muxml2TabElement::Rest(mut x) => {
                 while x != 0 {
                     if x >= 8 {
-                        buf.write_str(&muxml2_rest("whole", 8))?;
+                        write_muxml2_rest(buf, "whole", 8)?;
                         x -= 8;
                     } else if x >= 4 {
-                        buf.write_str(&muxml2_rest("half", 4))?;
+                        write_muxml2_rest(buf, "half", 4)?;
                         x -= 4;
                     } else if x >= 2 {
-                        buf.write_str(&muxml2_rest("quarter", 2))?;
+                        write_muxml2_rest(buf, "quarter", 2)?;
                         x -= 2;
                     } else {
                         debug_assert_eq!(x, 1);
-                        buf.write_str(&muxml2_rest("eighth", 1))?;
+                        write_muxml2_rest(buf, "eighth", 1)?;
                         x -= 1;
                     }
                 }
@@ -77,7 +79,7 @@ impl Muxml2TabElement {
             }
             Muxml2TabElement::Notes(notes) => {
                 for (i, note) in notes.iter().enumerate() {
-                    buf.write_str(&note.into_muxml("eighth", i != 0))?;
+                    note.write_muxml(buf, "eighth", i != 0)?;
                 }
                 Ok(())
             }
@@ -96,7 +98,7 @@ fn raw_tracks_to_muxml2<'a>(
     //    generally true)
     let diagnostics = vec![];
     let number_of_measures = raw_tracks.1[0].len();
-    let mut measures_xml = String::new();
+    let mut document = String::from(MUXML_INCOMPLETE_DOC_PRELUDE);
     for measure_idx in 0..number_of_measures {
         let ticks_in_measure = raw_tracks.1[0][measure_idx].content.len();
 
@@ -217,15 +219,18 @@ fn raw_tracks_to_muxml2<'a>(
             measure_enumerator /= 2;
             measure_denominator /= 2;
         }
-        measures_xml += &muxml2_measure(
+        write_muxml2_measure(
+            &mut document,
             measure_idx,
             measure_enumerator,
             measure_denominator,
             &measure_xml,
-        );
+        )
+        .unwrap();
     }
 
-    Ok((muxml2_document(&measures_xml), diagnostics))
+    document += MUXML2_DOCUMENT_END;
+    Ok((document, diagnostics))
 }
 
 enum Direction {
@@ -268,6 +273,22 @@ pub struct MuxmlNote {
 }
 
 impl MuxmlNote {
+    pub fn write_muxml(
+        &self,
+        buf: &mut impl std::fmt::Write,
+        duration: &str,
+        chord: bool,
+    ) -> Result<(), std::fmt::Error> {
+        write_muxml2_note(
+            buf,
+            self.step,
+            self.octave,
+            self.sharp,
+            duration,
+            chord,
+            self.dead,
+        )
+    }
     #[allow(clippy::wrong_self_convention)]
     pub fn into_muxml(&self, duration: &str, chord: bool) -> String {
         muxml2_note(
