@@ -1,5 +1,5 @@
 use crate::{
-    backend::errors::error_location::ErrorLocation,
+    backend::errors::{diagnostic_kind::DiagnosticKind, error_location::ErrorLocation},
     parser::{
         Measure, Score,
         TabElement::{self, Fret},
@@ -18,23 +18,13 @@ impl Backend for MuxmlBackend {
         _settings: Self::BackendSettings,
     ) -> Result<Vec<Diagnostic>, BackendError> {
         use ErrorLocation::*;
-        let mut diagnostics=vec! [
-            Diagnostic::warn(NoLocation,"The MUXML1 backend is significantly worse than the MUXML2 backend. If you don't have any reason not to, use the MUXML2 backend".into()),
-        ];
+        let mut diagnostics = vec![Diagnostic::warn(NoLocation, DiagnosticKind::Muxml1IsBad)];
         let raw_tracks = score.gen_raw_tracks()?;
         let (xml_out, mut xml_diagnostics) = raw_tracks_to_xml(raw_tracks)?;
         diagnostics.append(&mut xml_diagnostics);
         diagnostics.push(Diagnostic::info(
             NoLocation,
-            "Generated an Uncompressed MusicXML (.musicxml) file.".into(),
-        ));
-        diagnostics.push(Diagnostic::info(
-            NoLocation,
-            r#"The 6 strings of the guitar are labelled as separate instruments. To fix that,
-     1. import the generated file into MuseScore
-     2. select all tracks, do Tools->Implode
-     3. delete all other tracks except the first."#
-                .into(),
+            DiagnosticKind::Muxml1SeperateTracks,
         ));
         if let Err(x) = out.write_all(xml_out.as_bytes()) {
             return Err(BackendError::from_io_error(x, diagnostics));

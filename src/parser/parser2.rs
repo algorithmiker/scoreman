@@ -1,6 +1,6 @@
 use crate::backend::errors::{
     backend_error::BackendError, backend_error_kind::BackendErrorKind, diagnostic::Diagnostic,
-    error_location::ErrorLocation,
+    diagnostic_kind::DiagnosticKind, error_location::ErrorLocation,
 };
 
 use super::{comment_line, partline, Score, Section};
@@ -18,18 +18,19 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
             if !part_buf.is_empty() {
                 diagnostics.push(Diagnostic::warn(
                     ErrorLocation::LineOnly(line_idx),
-                    "Empty line inside Part, are you sure this is intended?".into(),
+                    DiagnosticKind::EmptyLineInPart,
                 ));
             }
             continue;
         }
 
         if let Ok((rem, comment)) = comment_line(line) {
+            // I don't think there is a way to write an invalid comment after a valid start, just to be safe
             assert!(rem.is_empty(), "Invalid comment syntax (line {line_idx})");
             if !part_buf.is_empty() {
                 diagnostics.push(Diagnostic::warn(
                     ErrorLocation::LineOnly(line_idx),
-                    "Comment inside Part, are you sure this is intended?".to_string(),
+                    DiagnosticKind::CommentInPart,
                 ));
             }
             sections.push(Section::Comment(comment.to_string()));

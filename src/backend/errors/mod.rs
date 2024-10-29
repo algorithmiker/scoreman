@@ -6,6 +6,7 @@ use std::{
 pub mod backend_error;
 pub mod backend_error_kind;
 pub mod diagnostic;
+pub mod diagnostic_kind;
 pub mod error_location;
 
 pub const ERROR_CONTEXT: usize = 3;

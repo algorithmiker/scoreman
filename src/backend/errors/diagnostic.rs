@@ -1,26 +1,26 @@
-use super::error_location::ErrorLocation;
+use super::{diagnostic_kind::DiagnosticKind, error_location::ErrorLocation};
 use std::fmt::{self, Display};
 use yansi::Paint;
 
 #[derive(Debug, Clone)]
 pub struct Diagnostic {
     pub location: ErrorLocation,
-    pub message: String,
+    pub kind: DiagnosticKind,
     pub severity: DiagnosticSeverity,
 }
 
 impl Diagnostic {
-    pub fn info(location: ErrorLocation, message: String) -> Self {
+    pub fn info(location: ErrorLocation, kind: DiagnosticKind) -> Self {
         Self {
             location,
-            message,
+            kind,
             severity: DiagnosticSeverity::Info,
         }
     }
-    pub fn warn(location: ErrorLocation, message: String) -> Self {
+    pub fn warn(location: ErrorLocation, kind: DiagnosticKind) -> Self {
         Self {
             location,
-            message,
+            kind,
             severity: DiagnosticSeverity::Warning,
         }
     }

@@ -34,15 +34,10 @@ impl Backend for Muxml2Backend {
         out: &mut Out,
         settings: Self::BackendSettings,
     ) -> Result<Vec<Diagnostic>, BackendError> {
-        use ErrorLocation::*;
         let mut diagnostics = vec![];
         let raw_tracks = score.gen_raw_tracks()?;
         let (xml_out, mut inner_diagnostics) = raw_tracks_to_muxml2(raw_tracks, settings)?;
         diagnostics.append(&mut inner_diagnostics);
-        diagnostics.push(Diagnostic::info(
-            NoLocation,
-            "MUXML2 backend: Generated an Uncompressed MusicXML (.musicxml) file".into(),
-        ));
         out.write_all(xml_out.as_bytes())
             .map_err(|x| BackendError::from_io_error(x, diagnostics))?;
 

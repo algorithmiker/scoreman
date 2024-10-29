@@ -184,7 +184,7 @@ pub fn print_diagnostics<'a, A: std::iter::Iterator<Item = &'a Diagnostic>>(
         idx,
         Diagnostic {
             severity,
-            message,
+            kind,
             location,
         },
     ) in diags.enumerate()
@@ -198,7 +198,7 @@ pub fn print_diagnostics<'a, A: std::iter::Iterator<Item = &'a Diagnostic>>(
             writeln!(&mut location_explainer, "{}│ {}", x + 1, lines[x]).unwrap();
         }
         println!(
-            "({idx_display}) {severity}: {message}{location_explainer}",
+            "({idx_display}) {severity}: {kind}{location_explainer}",
             severity = severity.bold()
         );
     }
