@@ -137,6 +137,5 @@ pub struct RawTick {
 pub enum TabElement {
     Fret(u16),
     Rest,
-    /// on which string:
     DeadNote,
 }

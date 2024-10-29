@@ -12,11 +12,12 @@ Tools to wrangle guitar tabulature notation.
 - generally well optimized for performance
 
 ## TODO
-- parse chords / lyrics 
+- parse chords / lyrics
 - "fixup" mode (replace unknown chars with rest), and comment unparseable lines
-- a lot of perf improvements 
+- a lot of perf improvements
     - muxml2 right now is just a bunch of string formatting which slows the backend down, so write the ast in one go
     - right now a large tab takes about 4ms in a realistic configuration (muxml2 with -qmnt) but I suspect this can be brought down to around 1ms
+- rethink error and diagnostic handling, right now diagnostics are part of an error but there is no real reason for this.
 ## DONE
 
 - accept dead notes!

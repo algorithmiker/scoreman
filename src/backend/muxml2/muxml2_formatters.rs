@@ -68,7 +68,7 @@ pub fn muxml2_measure(number: usize, note_count: usize, note_type: usize, notes:
       <beats>{note_count}</beats>
       <beat-type>{note_type}</beat-type>
     </time>
-    {clef} 
+    {clef}
   </attributes>
   {notes}
 </measure>

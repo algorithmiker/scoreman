@@ -111,12 +111,12 @@ fn raw_tracks_to_muxml2<'a>(
                 let raw_tick = match measure.content.get(tick) {
                     Some(x) => x,
                     _ => {
-                        return Err(_tick_mismatch_err(
+                        return _tick_mismatch_err(
                             raw_tracks,
                             string_idx,
                             measure_idx,
                             diagnostics,
-                        ));
+                        );
                     }
                 };
                 let loc = (measure.parent_line, measure.index_on_parent_line);
@@ -281,16 +281,16 @@ impl MuxmlNote {
     }
 }
 
-fn _tick_mismatch_err(
+fn _tick_mismatch_err<T>(
     raw_tracks: RawTracks,
     string_idx: usize,
     measure_idx: usize,
     diagnostics: Vec<Diagnostic>,
-) -> BackendError<'static> {
+) -> Result<T, BackendError<'static>> {
     let before_measure = &raw_tracks.1[string_idx - 1][measure_idx];
     let this_measure = &raw_tracks.1[string_idx][measure_idx];
 
-    BackendError {
+    Err(BackendError {
         main_location: ErrorLocation::LineAndMeasure(
             this_measure.parent_line,
             this_measure.index_on_parent_line,
@@ -303,5 +303,5 @@ fn _tick_mismatch_err(
             before_measure.content.len(),
             this_measure.content.len(),
         ),
-    }
+    })
 }
