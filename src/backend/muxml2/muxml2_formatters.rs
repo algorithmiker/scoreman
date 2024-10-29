@@ -58,14 +58,12 @@ pub fn write_muxml2_note(
 "#,
     )
 }
-
 #[inline]
-pub fn write_muxml2_measure(
+pub fn write_muxml2_measure_prelude(
     buf: &mut impl std::fmt::Write,
     number: usize,
     note_count: usize,
     note_type: usize,
-    notes: &str,
 ) -> Result<(), std::fmt::Error> {
     let first_measure = number == 0;
     let key = opt_string(first_measure, "<key><fifths>0</fifths></key>");
@@ -84,8 +82,6 @@ pub fn write_muxml2_measure(
     </time>
     {clef}
   </attributes>
-  {notes}
-</measure>
 "#,
     )
 }

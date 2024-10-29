@@ -5,7 +5,7 @@ mod muxml2_tests;
 pub mod settings;
 
 use muxml2_formatters::{
-    write_muxml2_measure, write_muxml2_note, write_muxml2_rest, MUXML2_DOCUMENT_END,
+    write_muxml2_measure_prelude, write_muxml2_note, write_muxml2_rest, MUXML2_DOCUMENT_END,
     MUXML_INCOMPLETE_DOC_PRELUDE,
 };
 
@@ -210,28 +210,25 @@ fn raw_tracks_to_muxml2<'a>(
             );
         }
 
-        // write the final contents into a buffer
-        let mut measure_xml = String::new();
-        for proc_elem in measure_processed {
-            if let Err(x) = proc_elem.write_muxml(&mut measure_xml) {
-                return Err(BackendError::from_fmt_error(x, diagnostics));
-            }
-        }
-
         // Try to simplify e.g 8/8 to 4/4
         let (mut measure_enumerator, mut measure_denominator) = (measure_content_len, 8);
         if settings.simplify_time_signature && measure_content_len % 2 == 0 {
             measure_enumerator /= 2;
             measure_denominator /= 2;
         }
-        write_muxml2_measure(
+        write_muxml2_measure_prelude(
             &mut document,
             measure_idx,
             measure_enumerator,
             measure_denominator,
-            &measure_xml,
         )
         .unwrap();
+        for proc_elem in measure_processed {
+            if let Err(x) = proc_elem.write_muxml(&mut document) {
+                return Err(BackendError::from_fmt_error(x, diagnostics));
+            }
+        }
+        document.push_str("</measure>");
     }
 
     document += MUXML2_DOCUMENT_END;
