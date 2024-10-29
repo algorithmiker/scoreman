@@ -1,4 +1,7 @@
-use crate::backend::errors::{BackendError, BackendErrorKind, Diagnostic, ErrorLocation};
+use crate::backend::errors::{
+    backend_error::BackendError, backend_error_kind::BackendErrorKind, diagnostic::Diagnostic,
+    error_location::ErrorLocation,
+};
 
 use super::{comment_line, partline, Score, Section};
 
@@ -86,7 +89,7 @@ D|---|
 A|---|
 E|---|
 
-// This is a comment 
+// This is a comment
 
 e|---|
 B|3-3|
@@ -103,7 +106,7 @@ D|---|
 A|-o-|
 E|---|
 
-// This is a comment 
+// This is a comment
 
 e|---|
 B|3-3|

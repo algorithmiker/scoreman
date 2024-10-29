@@ -7,7 +7,10 @@ use midly::{
 
 use crate::parser::{Measure, Score, TabElement::*};
 
-use super::{Backend, BackendError, Diagnostic};
+use super::{
+    errors::{backend_error::BackendError, diagnostic::Diagnostic},
+    Backend,
+};
 
 const BPM: u32 = 80;
 const MINUTE_IN_MICROSECONDS: u32 = 60 * 1000;

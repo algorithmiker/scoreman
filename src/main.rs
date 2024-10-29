@@ -8,12 +8,11 @@ use std::{
 
 use anyhow::Context;
 use clap::Parser;
-use guitar_tab::backend::errors::{extend_error_range, get_digit_cnt, ErrorLocation};
-use guitar_tab::{
-    backend::errors::{BackendError, Diagnostic},
-    parser::parser2::parse2,
-    time,
-};
+use guitar_tab::backend::errors::backend_error::BackendError;
+use guitar_tab::backend::errors::diagnostic::Diagnostic;
+use guitar_tab::backend::errors::error_location::ErrorLocation;
+use guitar_tab::backend::errors::{extend_error_range, get_digit_cnt};
+use guitar_tab::{parser::parser2::parse2, time};
 use yansi::{Paint, Painted};
 
 mod cli_args;

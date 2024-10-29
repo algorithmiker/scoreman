@@ -1,6 +1,6 @@
 use std::{cell::RefCell, collections::HashMap};
 
-use crate::backend::errors::{BackendError, Diagnostic};
+use crate::backend::errors::{backend_error::BackendError, diagnostic::Diagnostic};
 
 use super::MuxmlNote;
 use anyhow::bail;

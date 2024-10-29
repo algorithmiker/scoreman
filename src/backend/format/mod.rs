@@ -1,5 +1,5 @@
-use super::{Backend, BackendError, Diagnostic};
-use crate::parser::Section;
+use super::errors::{backend_error::BackendError, diagnostic::Diagnostic};
+use crate::{backend::Backend, parser::Section};
 
 pub struct FormatBackend();
 

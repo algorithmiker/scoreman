@@ -1,4 +1,5 @@
-use self::errors::{BackendError, Diagnostic};
+use errors::{backend_error::BackendError, diagnostic::Diagnostic};
+
 use crate::parser::Score;
 use std::fmt::Display;
 pub mod errors;
@@ -14,7 +15,7 @@ pub trait Backend {
     /// and writes the output to out.
     fn process<Out: std::io::Write>(
         score: Score,
-        out: &mut Out,
+        ou: &mut Out,
         settings: Self::BackendSettings,
     ) -> Result<Vec<Diagnostic>, BackendError>;
 }

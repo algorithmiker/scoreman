@@ -1,5 +1,8 @@
 use crate::{
-    backend::errors::{BackendError, BackendErrorKind, ErrorLocation},
+    backend::errors::{
+        backend_error::BackendError, backend_error_kind::BackendErrorKind,
+        error_location::ErrorLocation,
+    },
     parser::{Measure, RawTick, Score, Section, TabElement},
 };
 

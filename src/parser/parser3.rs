@@ -1,5 +1,6 @@
 #![allow(dead_code, unused_variables)]
-use crate::backend::{errors::BackendError, muxml2::Muxml2TabElement};
+
+use crate::backend::{errors::backend_error::BackendError, muxml2::Muxml2TabElement};
 
 use super::comment_line;
 enum Parse3Element {
@@ -29,7 +30,7 @@ pub fn parse3<'a>(lines: &[String]) -> Result<(), BackendError<'a>> {
         // TODO nice error if incomplete part
         let next_6_l = &lines[i..i + 6];
         let max_chars = next_6_l.iter().map(|x| x.len()).max().unwrap();
-        let mut strings: Vec<char> = (0..6)
+        let strings: Vec<char> = (0..6)
             .map(|i| char::from(next_6_l[i].as_bytes()[0]))
             .collect();
 

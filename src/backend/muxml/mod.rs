@@ -1,5 +1,5 @@
 use crate::{
-    backend::errors::ErrorLocation,
+    backend::errors::error_location::ErrorLocation,
     parser::{
         Measure, Score,
         TabElement::{self, Fret},
@@ -125,7 +125,7 @@ fn muxml_measure(number: u32, note_count: usize, notes: &str) -> String {
       <beats>{note_count}</beats>
       <beat-type>8</beat-type>
     </time>
-    {clef} 
+    {clef}
   </attributes>
   {notes}
 </measure>

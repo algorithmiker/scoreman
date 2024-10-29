@@ -5,7 +5,7 @@ mod muxml2_tests;
 pub mod settings;
 
 use crate::{
-    backend::errors::ErrorLocation,
+    backend::errors::error_location::ErrorLocation,
     parser::{
         Score,
         TabElement::{self, Fret, Rest},
@@ -18,7 +18,13 @@ use self::{
     muxml2_formatters::{muxml2_document, muxml2_measure, muxml2_note, muxml2_rest},
 };
 
-use super::{errors::BackendErrorKind, Backend, BackendError, Diagnostic};
+use super::{
+    errors::{
+        backend_error::BackendError, backend_error_kind::BackendErrorKind, diagnostic::Diagnostic,
+    },
+    Backend,
+};
+
 pub struct Muxml2Backend();
 impl Backend for Muxml2Backend {
     type BackendSettings = settings::Settings;
