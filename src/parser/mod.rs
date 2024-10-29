@@ -46,10 +46,10 @@ fn partline(s: &str, parent_line_idx: usize) -> VerboseResult<&str, Partline> {
     let (rem, string_name) = none_of("|").parse(s)?;
     let (mut rem, _) = char('|').parse(rem)?;
     let mut parsed_len = 2;
-    let mut measures = vec![];
+    let mut measures = Vec::with_capacity(2);
     while !rem.is_empty() {
         let mut measure = Measure {
-            content: vec![],
+            content: Vec::with_capacity(4),
             parent_line: parent_line_idx,
             index_on_parent_line: max(measures.len(), 1) - 1,
         };
@@ -108,6 +108,7 @@ impl Measure {
         pretty
     }
 }
+#[inline]
 fn tab_element(s: &str) -> VerboseResult<&str, TabElement> {
     use TabElement::*;
     context(

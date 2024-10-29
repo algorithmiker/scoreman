@@ -12,7 +12,7 @@ impl Score {
         let diagnostics = vec![];
         let mut tracks = [vec![], vec![], vec![], vec![], vec![], vec![]];
         let mut track_names = ['\0'; 6];
-
+        // this here willl copy each measure but it doesn't look like it's a bottleneck (takes about 60us)
         for part in self.0.into_iter() {
             match part {
                 Section::Part { part, .. } => {
