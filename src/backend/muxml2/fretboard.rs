@@ -1,7 +1,7 @@
 use super::MuxmlNote2;
 use crate::backend::errors::backend_error::BackendError;
 
-pub fn get_fretboard_note2(string: char, fret: u16) -> Result<MuxmlNote2, BackendError<'static>> {
+pub fn get_fretboard_note2(string: char, fret: u8) -> Result<MuxmlNote2, BackendError<'static>> {
     return Ok(MuxmlNote2 {
         step: STRING_BASE_NOTES[string as usize]
             .unwrap_or_else(|| panic!("Don't know base note for string {string}"))

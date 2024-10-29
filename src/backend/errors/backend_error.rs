@@ -53,7 +53,7 @@ impl<'a> BackendError<'a> {
         location_a: usize,
         location_b: usize,
         string_name: char,
-        fret: u16,
+        fret: u8,
         diagnostics: Vec<Diagnostic>,
     ) -> Self {
         Self {

@@ -108,9 +108,9 @@ fn _bad_multichar_tick_error<'a, T>(
     next_idx_on_parent_line: usize,
     diagnostics: Vec<Diagnostic>,
     multichar_string: char,
-    multichar_fret: u16,
+    multichar_fret: u8,
     invalid_string: char,
-    invalid_fret: u16,
+    invalid_fret: u8,
     tick_idx: usize,
 ) -> Result<T, BackendError<'a>> {
     return Err(BackendError {

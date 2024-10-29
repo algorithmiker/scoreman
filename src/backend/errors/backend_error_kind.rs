@@ -6,18 +6,17 @@ pub enum BackendErrorKind<'a> {
     FmtError(std::fmt::Error),
     EmptyScore,
     /// string name and fret
-    NoSuchFret(char, u16),
+    NoSuchFret(char, u8),
     TickMismatch(char, char, usize, usize),
     /// string name where tick is multichar, string name here, tick idx, and the found invalid fret
     BadMulticharTick {
         /// string and fret
-        multichar: (char, u16),
+        multichar: (char, u8),
         /// string and fret
-        invalid: (char, u16),
+        invalid: (char, u8),
         tick_idx: usize,
     },
-    InvalidCommentSyntax(String),
-    InvalidPartlineSyntax(String),
+    InvalidPartlineSyntax(&'a str),
     ParseError(nom::Err<nom::error::VerboseError<&'a str>>),
 }
 
@@ -49,7 +48,6 @@ Tip: If you get a lot of errors like this, consider using the muxml1 backend.")
                 format!(
 "Tick {} has a multi-char fret ({multichar_fret}) on string {multichar_string}, but on the same tick there is an invalid fret {invalid_fret} on string {invalid_string}", tick_idx+1)
             ),
-            BackendErrorKind::InvalidCommentSyntax(rem) => ("Invalid comment syntax".into(), format!("Got remaining content: `{rem}`")),
             BackendErrorKind::InvalidPartlineSyntax(rem) => ("Invalid partline syntax".into(), format!("Got remaining content: `{rem}`")),
             BackendErrorKind::ParseError(x) => ("Invalid syntax".into(), collect_parse_error(x)),
 

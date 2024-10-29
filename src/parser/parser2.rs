@@ -12,7 +12,6 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
     let mut sections = Vec::with_capacity(10);
     // Todo eventually remove Part
     let mut part_buf = vec![];
-    let mut part_begin = 0;
     for (line_idx, line) in lines.enumerate() {
         if line.trim().is_empty() {
             if !part_buf.is_empty() {
@@ -45,7 +44,7 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
                                 line.measures.len(),
                             ),
                             relevant_lines: line_idx..=line_idx,
-                            kind: BackendErrorKind::InvalidPartlineSyntax(rem.into()),
+                            kind: BackendErrorKind::InvalidPartlineSyntax(rem),
                             diagnostics,
                         });
                     }
@@ -56,13 +55,8 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
                             part: part_buf
                                 .try_into()
                                 .expect("Unreachable: more than 6 elements in part_buf"),
-                            begin_line_idx: part_begin,
-                            end_line_idx: line_idx,
                         });
                         part_buf = vec![];
-                        part_begin = 0;
-                    } else if part_buf.len() == 1 {
-                        part_begin = line_idx
                     }
                 }
                 Err(x) => {

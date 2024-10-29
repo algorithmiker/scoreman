@@ -25,8 +25,6 @@ type VerboseResult<Input, Parsed> = IResult<Input, Parsed, VerboseError<Input>>;
 pub enum Section {
     Part {
         part: [Partline; 6],
-        begin_line_idx: usize,
-        end_line_idx: usize,
     },
     Comment(String),
 }
@@ -117,7 +115,7 @@ fn tab_element(s: &str) -> VerboseResult<&str, TabElement> {
             char('-').map(|_| Rest),
             char('x').map(|_| DeadNote),
             digit1.map(|x: &str| {
-                Fret(x.parse::<u16>().unwrap_or_else(|_| {
+                Fret(x.parse::<u8>().unwrap_or_else(|_| {
                     panic!("failed to parse {x} to a fret position, in Measure")
                 }))
             }),
@@ -135,7 +133,7 @@ pub struct RawTick {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TabElement {
-    Fret(u16),
+    Fret(u8),
     Rest,
     DeadNote,
 }
