@@ -39,9 +39,9 @@ impl Backend for Muxml2Backend {
         let (xml_out, mut inner_diagnostics) = raw_tracks_to_muxml2(raw_tracks, settings)?;
         diagnostics.append(&mut inner_diagnostics);
         out.write_all(xml_out.as_bytes())
-            .map_err(|x| BackendError::from_io_error(x, diagnostics))?;
+            .map_err(|x| BackendError::from_io_error(x, diagnostics.clone()))?;
 
-        Ok(vec![])
+        Ok(diagnostics)
     }
 }
 
