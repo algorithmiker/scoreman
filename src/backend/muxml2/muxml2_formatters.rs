@@ -1,14 +1,5 @@
 use itoa::Buffer;
 
-#[inline(always)]
-pub fn opt_string(c: bool, a: &str) -> &str {
-    if c {
-        a
-    } else {
-        ""
-    }
-}
-
 #[inline]
 pub fn write_muxml2_rest(
     buf: &mut impl std::fmt::Write,

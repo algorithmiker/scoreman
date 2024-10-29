@@ -6,7 +6,7 @@ use crate::{
     },
 };
 
-use super::{muxml2::fretboard::get_fretboard_note, Backend, BackendError, Diagnostic};
+use super::{muxml2::fretboard::get_fretboard_note2, Backend, BackendError, Diagnostic};
 
 pub struct MuxmlBackend();
 impl Backend for MuxmlBackend {
@@ -42,19 +42,15 @@ fn raw_tracks_to_xml<'a>(
         let part = &raw_tracks.1[i];
         let mut measures_xml = String::new();
         for (measure_idx, measure) in part.iter().enumerate() {
-            let m_par_line = measure.parent_line;
-            let m_idx_on_par_line = measure.index_on_parent_line;
-            let loc = (m_par_line, m_idx_on_par_line);
-
             let mut notes_xml = String::new();
             for raw_tick in &measure.content {
                 match raw_tick.element {
                     Fret(fret) => {
-                        let x = get_fretboard_note(raw_tracks.0[i], fret, loc, &diagnostics)?;
+                        let x = get_fretboard_note2(raw_tracks.0[i], fret)?;
                         x.write_muxml(&mut notes_xml, false).unwrap();
                     }
                     TabElement::DeadNote => {
-                        let mut x = get_fretboard_note(raw_tracks.0[i], 0, loc, &diagnostics)?;
+                        let mut x = get_fretboard_note2(raw_tracks.0[i], 0)?;
                         x.dead = true;
                         x.write_muxml(&mut notes_xml, false).unwrap();
                     }

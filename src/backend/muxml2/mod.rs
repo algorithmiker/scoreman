@@ -4,6 +4,7 @@ mod muxml2_formatters;
 mod muxml2_tests;
 pub mod settings;
 
+use fretboard::get_fretboard_note2;
 use muxml2_formatters::{
     write_muxml2_measure_prelude, write_muxml2_note, write_muxml2_rest, MUXML2_DOCUMENT_END,
     MUXML_INCOMPLETE_DOC_PRELUDE,
@@ -17,8 +18,6 @@ use crate::{
     },
     raw_tracks::RawTracks,
 };
-
-use self::fretboard::get_fretboard_note;
 
 use super::{
     errors::{
@@ -51,7 +50,7 @@ impl Backend for Muxml2Backend {
 #[derive(Debug)]
 pub enum Muxml2TabElement {
     Rest(usize),
-    Notes(Vec<MuxmlNote>),
+    Notes(Vec<MuxmlNote2>),
     /// used in optimizing, should generate no code for this type
     Invalid,
 }
@@ -126,16 +125,13 @@ fn raw_tracks_to_muxml2<'a>(
                         );
                     }
                 };
-                let loc = (measure.parent_line, measure.index_on_parent_line);
                 match raw_tick.element {
                     Fret(fret) => {
-                        let x =
-                            get_fretboard_note(raw_tracks.0[string_idx], fret, loc, &diagnostics)?;
+                        let x = get_fretboard_note2(raw_tracks.0[string_idx], fret)?;
                         notes_in_tick.push(x);
                     }
                     TabElement::DeadNote => {
-                        let mut x =
-                            get_fretboard_note(raw_tracks.0[string_idx], 0, loc, &diagnostics)?;
+                        let mut x = get_fretboard_note2(raw_tracks.0[string_idx], 0)?;
                         x.dead = true;
                         notes_in_tick.push(x);
                     }
@@ -269,10 +265,10 @@ fn trim_measure(measure: &mut [Muxml2TabElement], content_len: &mut usize, direc
 
 #[derive(Clone, Debug)]
 pub struct MuxmlNote {
-    pub step: char,  // 1 byte
-    pub octave: u8,  // 1 byte
-    pub sharp: bool, // 1 byte
-    pub dead: bool,  // 1 bytes
+    pub step: char,
+    pub octave: u8,
+    pub sharp: bool,
+    pub dead: bool,
 }
 
 impl MuxmlNote {
@@ -282,6 +278,49 @@ impl MuxmlNote {
         chord: bool,
     ) -> Result<(), std::fmt::Error> {
         write_muxml2_note(buf, self.step, self.octave, self.sharp, chord, self.dead)
+    }
+}
+
+const NOTE2_STEPS: [(char, bool); 12] = [
+    ('C', false),
+    ('C', true),
+    ('D', false),
+    ('D', true),
+    ('E', false),
+    ('F', false),
+    ('F', true),
+    ('G', false),
+    ('G', true),
+    ('A', false),
+    ('A', true),
+    ('B', false),
+];
+#[derive(Debug)]
+pub struct MuxmlNote2 {
+    /// Numeric representation of the frequency.
+    ///
+    /// step=0 is an octave 0 C,
+    /// step=1 is an octave 0 C#,
+    /// step=2 is an octave 0 D,
+    /// and so on.
+    ///
+    /// Can represent 20 full octaves which should be plenty.
+    pub step: u8,
+    pub dead: bool,
+}
+impl MuxmlNote2 {
+    pub fn step_octave_sharp(&self) -> (char, u8, bool) {
+        let stepidx = (self.step % 12) as usize;
+        let octave = (self.step / 12) as u8;
+        return (NOTE2_STEPS[stepidx].0, octave, NOTE2_STEPS[stepidx].1);
+    }
+    pub fn write_muxml(
+        &self,
+        buf: &mut impl std::fmt::Write,
+        chord: bool,
+    ) -> Result<(), std::fmt::Error> {
+        let (step, octave, sharp) = self.step_octave_sharp();
+        write_muxml2_note(buf, step, octave, sharp, chord, self.dead)
     }
 }
 
