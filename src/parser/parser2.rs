@@ -9,7 +9,7 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
     lines: A,
 ) -> Result<(Vec<Diagnostic>, Score), BackendError<'a>> {
     let mut diagnostics = vec![];
-    let mut sections = vec![];
+    let mut sections = Vec::with_capacity(10);
     // Todo eventually remove Part
     let mut part_buf = vec![];
     let mut part_begin = 0;
