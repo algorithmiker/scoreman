@@ -30,7 +30,7 @@ expression: "String::from_utf8_lossy(&out)"
       <beats>9</beats>
       <beat-type>8</beat-type>
     </time>
-    <clef><sign>G</sign><line>2</line></clef> 
+    <clef><sign>G</sign><line>2</line></clef>
   </attributes>
   
 <note>
