@@ -1,9 +1,9 @@
-use std::{cell::RefCell, collections::HashMap};
-
 use crate::backend::errors::{backend_error::BackendError, diagnostic::Diagnostic};
+use std::{cell::RefCell, collections::HashMap};
 
 use super::MuxmlNote;
 use anyhow::bail;
+use rustc_hash::FxBuildHasher;
 
 fn note(note: char, octave: u8) -> MuxmlNote {
     MuxmlNote {
@@ -62,7 +62,7 @@ impl MuxmlNote {
 }
 
 pub fn gen_note_cache() {
-    NOTE_CACHE.with_borrow(|cache: &HashMap<(char, u16), MuxmlNote>| {
+    NOTE_CACHE.with_borrow(|cache: &HashMap<(char, u16), MuxmlNote, FxBuildHasher>| {
         for ((string, _), note) in cache {
             let mut note = note.clone();
             for fret in 0..13 {
@@ -113,8 +113,8 @@ pub fn get_fretboard_note(
 }
 
 thread_local! {
-  static NOTE_CACHE: RefCell<HashMap<(char, u16), MuxmlNote>> =  {
-    let mut h = HashMap::with_capacity(13*7);
+  static NOTE_CACHE: RefCell<HashMap<(char, u16), MuxmlNote,FxBuildHasher>> =  {
+    let mut h = std::collections::HashMap::with_capacity_and_hasher(13*7,FxBuildHasher);
 
     h.insert(('D', 0), note('D', 4));
     h.insert(('D', 1), note_sharp('D', 4));
