@@ -18,7 +18,7 @@ use crate::{
     raw_tracks::RawTracks,
 };
 
-use self::{fretboard::get_fretboard_note, muxml2_formatters::muxml2_note};
+use self::fretboard::get_fretboard_note;
 
 use super::{
     errors::{
@@ -281,17 +281,6 @@ impl MuxmlNote {
     ) -> Result<(), std::fmt::Error> {
         write_muxml2_note(
             buf,
-            self.step,
-            self.octave,
-            self.sharp,
-            duration,
-            chord,
-            self.dead,
-        )
-    }
-    #[allow(clippy::wrong_self_convention)]
-    pub fn into_muxml(&self, duration: &str, chord: bool) -> String {
-        muxml2_note(
             self.step,
             self.octave,
             self.sharp,

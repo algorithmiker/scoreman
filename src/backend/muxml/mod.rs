@@ -51,13 +51,12 @@ fn raw_tracks_to_xml<'a>(
                 match raw_tick.element {
                     Fret(fret) => {
                         let x = get_fretboard_note(raw_tracks.0[i], fret, loc, &diagnostics)?;
-                        notes_xml.push_str(&x.into_muxml("eighth", false));
+                        x.write_muxml(&mut notes_xml, "eighth", false).unwrap();
                     }
                     TabElement::DeadNote => {
                         let mut x = get_fretboard_note(raw_tracks.0[i], 0, loc, &diagnostics)?;
-                        notes_xml.push_str(&x.into_muxml("eighth", false));
                         x.dead = true;
-                        notes_xml.push_str(&x.into_muxml("eighth", false));
+                        x.write_muxml(&mut notes_xml, "eighth", false).unwrap();
                     }
                     TabElement::Rest => notes_xml.push_str(&muxml_rest("eighth", 1)),
                 }

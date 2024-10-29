@@ -1,6 +1,6 @@
 use crate::{
     backend::errors::{
-        backend_error::BackendError, backend_error_kind::BackendErrorKind,
+        backend_error::BackendError, backend_error_kind::BackendErrorKind, diagnostic::Diagnostic,
         error_location::ErrorLocation,
     },
     parser::{Measure, RawTick, Score, Section, TabElement},
@@ -74,22 +74,19 @@ impl Score {
                         if let Some(next) = measure.content.get(tick_idx + 1) {
                             if let TabElement::Fret(fret) = next.element {
                                 let parent_line = measure.parent_line;
-                                return Err(BackendError {
-                                    main_location: ErrorLocation::LineAndCharIdx(
-                                        parent_line,
-                                        next.idx_on_parent_line,
-                                    ),
-                                    relevant_lines: parent_line..=parent_line,
-                                    kind: BackendErrorKind::BadMulticharTick {
-                                        multichar: (track_names[multichar_t_idx], multichar_fret),
-                                        invalid: (track_names[track_idx], fret),
-                                        tick_idx,
-                                    },
+                                return _bad_multichar_tick_error(
+                                    parent_line,
+                                    next.idx_on_parent_line,
                                     diagnostics,
-                                });
+                                    track_names[multichar_t_idx],
+                                    multichar_fret,
+                                    track_names[track_idx],
+                                    fret,
+                                    tick_idx,
+                                );
                             }
 
-                            // Beware: this is O(n)
+                            // Beware: this is O(n). I don't think this can be done in a better way. Sadly, this dominates runtime.
                             measure.content.remove(tick_idx + 1);
                             if track_idx == track_with_least_ticks {
                                 tick_count -= 1;
@@ -104,7 +101,27 @@ impl Score {
         Ok((track_names, tracks))
     }
 }
-
+fn _bad_multichar_tick_error<'a, T>(
+    parent_line: usize,
+    next_idx_on_parent_line: usize,
+    diagnostics: Vec<Diagnostic>,
+    multichar_string: char,
+    multichar_fret: u16,
+    invalid_string: char,
+    invalid_fret: u16,
+    tick_idx: usize,
+) -> Result<T, BackendError<'a>> {
+    return Err(BackendError {
+        main_location: ErrorLocation::LineAndCharIdx(parent_line, next_idx_on_parent_line),
+        relevant_lines: parent_line..=parent_line,
+        kind: BackendErrorKind::BadMulticharTick {
+            multichar: (multichar_string, multichar_fret),
+            invalid: (invalid_string, invalid_fret),
+            tick_idx,
+        },
+        diagnostics,
+    });
+}
 #[test]
 fn test_multichar_raw_tracks() -> anyhow::Result<()> {
     use crate::parser::parser2::parse2;
