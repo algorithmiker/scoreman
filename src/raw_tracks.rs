@@ -8,10 +8,11 @@ use crate::{
 
 pub type RawTracks = ([char; 6], [Vec<Measure>; 6]);
 impl Score {
-    pub fn gen_raw_tracks<'a>(self) -> Result<RawTracks, BackendError<'a>> {
+    pub fn gen_raw_tracks<'a>(self) -> Result<(RawTracks, usize), BackendError<'a>> {
         let diagnostics = vec![];
         let mut tracks = [vec![], vec![], vec![], vec![], vec![], vec![]];
         let mut track_names = ['\0'; 6];
+        let mut total_tick_count = 0;
         // this here willl copy each measure but it doesn't look like it's a bottleneck (takes about 60us)
         for part in self.0.into_iter() {
             match part {
@@ -19,7 +20,8 @@ impl Score {
                     for (line_idx, line) in part.into_iter().enumerate() {
                         track_names[line_idx] = line.string_name;
                         for staff in line.measures {
-                            tracks[line_idx].push(staff)
+                            total_tick_count += staff.content.len();
+                            tracks[line_idx].push(staff);
                         }
                     }
                 }
@@ -98,7 +100,7 @@ impl Score {
             }
         }
 
-        Ok((track_names, tracks))
+        Ok(((track_names, tracks), total_tick_count))
     }
 }
 fn _bad_multichar_tick_error<'a, T>(

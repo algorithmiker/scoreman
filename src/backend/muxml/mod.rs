@@ -19,7 +19,7 @@ impl Backend for MuxmlBackend {
     ) -> Result<Vec<Diagnostic>, BackendError> {
         use ErrorLocation::*;
         let mut diagnostics = vec![Diagnostic::warn(NoLocation, DiagnosticKind::Muxml1IsBad)];
-        let raw_tracks = score.gen_raw_tracks()?;
+        let (raw_tracks, _) = score.gen_raw_tracks()?;
         let (xml_out, mut xml_diagnostics) = raw_tracks_to_xml(raw_tracks)?;
         diagnostics.append(&mut xml_diagnostics);
         diagnostics.push(Diagnostic::info(

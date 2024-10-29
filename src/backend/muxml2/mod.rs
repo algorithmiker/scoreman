@@ -37,8 +37,9 @@ impl Backend for Muxml2Backend {
         settings: Self::BackendSettings,
     ) -> Result<Vec<Diagnostic>, BackendError> {
         let mut diagnostics = vec![];
-        let raw_tracks = score.gen_raw_tracks()?;
-        let (xml_out, mut inner_diagnostics) = raw_tracks_to_muxml2(raw_tracks, settings)?;
+        let (raw_tracks, tick_cnt) = score.gen_raw_tracks()?;
+        let (xml_out, mut inner_diagnostics) =
+            raw_tracks_to_muxml2(raw_tracks, settings, tick_cnt)?;
         diagnostics.append(&mut inner_diagnostics);
         out.write_all(xml_out.as_bytes())
             .map_err(|x| BackendError::from_io_error(x, diagnostics.clone()))?;
@@ -91,6 +92,7 @@ impl Muxml2TabElement {
 fn raw_tracks_to_muxml2<'a>(
     raw_tracks: RawTracks,
     settings: <Muxml2Backend as Backend>::BackendSettings,
+    tick_cnt: usize,
 ) -> Result<(String, Vec<Diagnostic>), BackendError<'a>> {
     // the muxml2 backend assumes
     // 1. that there are the same number of measures for every string (which should be true)
@@ -99,6 +101,9 @@ fn raw_tracks_to_muxml2<'a>(
     let diagnostics = vec![];
     let number_of_measures = raw_tracks.1[0].len();
     let mut document = String::from(MUXML_INCOMPLETE_DOC_PRELUDE);
+    // this looks like a good setting for -nmt based on trial and error
+    document.reserve(tick_cnt * 10);
+    //println!("Reserved capacity: {}", document.capacity());
     for measure_idx in 0..number_of_measures {
         let ticks_in_measure = raw_tracks.1[0][measure_idx].content.len();
 
@@ -230,6 +235,7 @@ fn raw_tracks_to_muxml2<'a>(
     }
 
     document += MUXML2_DOCUMENT_END;
+    //println!("Actual len: {}", document.len());
     Ok((document, diagnostics))
 }
 

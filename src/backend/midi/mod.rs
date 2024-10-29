@@ -27,7 +27,7 @@ impl Backend for MidiBackend {
         _settings: Self::BackendSettings,
     ) -> Result<Vec<Diagnostic>, BackendError> {
         let diagnostics = vec![];
-        let raw_tracks = score.gen_raw_tracks()?;
+        let (raw_tracks, _) = score.gen_raw_tracks()?;
         let mut midi_tracks = raw_tracks_to_midi(raw_tracks);
         let mut tracks = vec![vec![
             TrackEvent {
