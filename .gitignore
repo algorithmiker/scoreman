@@ -1,3 +1,9 @@
 /target
 input/
 output/
+justfile
+gt-new
+gt-old
+perf*
+profile.json
+flamegraph*
