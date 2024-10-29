@@ -27,7 +27,7 @@ impl MuxmlNote {
         let new = self.clone();
         new.next_note_consuming()
     }
-    pub fn next_note_consuming(mut self) -> anyhow::Result<MuxmlNote> {
+    pub fn next_note_in_place(&mut self) -> anyhow::Result<()> {
         let (next_step, next_sharp, octave_diff) = match (self.step, self.sharp) {
             ('C', false) => ('C', true, 0),
             ('C', true) => ('D', false, 0),
@@ -53,7 +53,10 @@ impl MuxmlNote {
         self.step = next_step;
         self.sharp = next_sharp;
         self.octave += octave_diff;
-
+        Ok(())
+    }
+    pub fn next_note_consuming(mut self) -> anyhow::Result<MuxmlNote> {
+        self.next_note_in_place()?;
         Ok(self)
     }
 }
@@ -91,20 +94,15 @@ pub fn get_fretboard_note(
             let mut idx = 0;
             let mut current_note = base_note.clone();
             while idx < fret {
-                current_note = match current_note.next_note_consuming() {
-                    // todo add x to diagnostics
-                    Err(_) => {
-                        return Err(BackendError::no_such_fret(
-                            location.0,
-                            location.1,
-                            string,
-                            fret,
-                            diagnostics.to_vec(),
-                        ))
-                    }
-                    Ok(x) => x,
-                };
-
+                if let Err(_) = current_note.next_note_in_place() {
+                    return Err(BackendError::no_such_fret(
+                        location.0,
+                        location.1,
+                        string,
+                        fret,
+                        diagnostics.to_vec(),
+                    ));
+                }
                 idx += 1;
                 v.insert((string, idx), current_note.clone());
             }
