@@ -111,7 +111,7 @@ fn raw_tracks_to_muxml2<'a>(
         let mut measure_content_len = ticks_in_measure;
         let mut measure_processed: Vec<Muxml2TabElement> = vec![];
         for tick in 0..ticks_in_measure {
-            let mut notes_in_tick = vec![];
+            let mut notes_in_tick = Vec::with_capacity(6);
             for string_idx in 0..6 {
                 let measure = &raw_tracks.1[string_idx][measure_idx];
                 let raw_tick = match measure.content.get(tick) {
@@ -260,24 +260,6 @@ fn trim_measure(measure: &mut [Muxml2TabElement], content_len: &mut usize, direc
                 }
             }
         }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct MuxmlNote {
-    pub step: char,
-    pub octave: u8,
-    pub sharp: bool,
-    pub dead: bool,
-}
-
-impl MuxmlNote {
-    pub fn write_muxml(
-        &self,
-        buf: &mut impl std::fmt::Write,
-        chord: bool,
-    ) -> Result<(), std::fmt::Error> {
-        write_muxml2_note(buf, self.step, self.octave, self.sharp, chord, self.dead)
     }
 }
 
