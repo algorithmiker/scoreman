@@ -47,7 +47,7 @@ fn partline(s: &str, parent_line_idx: usize) -> VerboseResult<&str, Partline> {
     let mut measures = Vec::with_capacity(2);
     while !rem.is_empty() {
         let mut measure = Measure {
-            content: Vec::with_capacity(4),
+            content: Vec::with_capacity(16),
             parent_line: parent_line_idx,
             index_on_parent_line: max(measures.len(), 1) - 1,
         };

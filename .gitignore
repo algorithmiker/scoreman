@@ -7,3 +7,4 @@ gt-old
 perf*
 profile.json
 flamegraph*
+profile.sh
