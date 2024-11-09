@@ -61,8 +61,8 @@ fn main() -> anyhow::Result<()> {
     let (input_parsing, parsed) = time(|| parse2(lines.iter().map(|x| x.as_str())));
     let parsed = match parsed {
         Ok(mut x) => {
-            diagnostics.append(&mut x.0);
-            x.1
+            diagnostics.append(&mut x.diagnostics);
+            x
         }
         Err(err) => {
             return handle_error(&err, None, &lines);

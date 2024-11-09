@@ -1,5 +1,11 @@
+use std::ops::RangeInclusive;
+
 use super::errors::{backend_error::BackendError, diagnostic::Diagnostic};
-use crate::{backend::Backend, parser::Section};
+use crate::{
+    backend::Backend,
+    parser::{parser2::Parse2Result, Section},
+    rlen,
+};
 
 pub struct FormatBackend();
 
@@ -7,23 +13,24 @@ impl Backend for FormatBackend {
     type BackendSettings = ();
 
     fn process<Out: std::io::Write>(
-        score: crate::parser::Score,
+        parse_result: Parse2Result,
         out: &mut Out,
         _settings: Self::BackendSettings,
     ) -> Result<Vec<Diagnostic>, BackendError> {
         let diagnostics = vec![];
         let mut formatted = String::new();
         let mut measure_cnt = 0;
-        for section in score.0 {
+        for section in parse_result.sections {
             match section {
                 Section::Part { part, .. } => {
-                    let measures_in_part = part[0].measures.len();
+                    let measures_in_part = rlen(&part[0].measures);
                     for measure_idx in 0..measures_in_part {
                         formatted += &format!("// SYS: Measure {}\n", measure_cnt + 1);
-                        for line in &part {
+                        for (l_idx, line) in part.iter().enumerate() {
+                            let line_measures = &parse_result.strings[l_idx][line.measures.clone()];
                             formatted.push(line.string_name);
                             formatted.push('|');
-                            formatted += &line.measures[measure_idx].print_pretty_string();
+                            formatted += &line_measures[measure_idx].print_pretty_string();
                             formatted.push('|');
                             formatted.push('\n');
                         }

@@ -3,7 +3,7 @@ mod parser3;
 #[cfg(test)]
 mod parser_tests;
 
-use std::cmp::max;
+use std::{cmp::max, ops::RangeInclusive};
 
 use nom::{
     branch::alt,
@@ -15,6 +15,8 @@ use nom::{
 };
 
 use nom_supreme::tag::complete::tag;
+
+use crate::rlen;
 
 #[derive(Debug, PartialEq)]
 pub struct Score(pub Vec<Section>);
@@ -36,20 +38,34 @@ fn comment_line(s: &str) -> VerboseResult<&str, &str> {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Partline {
     pub string_name: char,
-    pub measures: Vec<Measure>,
+    /// which measures originate from this partline in the string buf of string_name
+    pub measures: RangeInclusive<usize>,
 }
-
+impl Partline {
+    /// Returns the measure count of this partline
+    pub fn len(&self) -> usize {
+        rlen(&self.measures)
+    }
+}
 /// like `e|--------------4-----------|-----0--------------5-----|`
-fn partline(s: &str, parent_line_idx: usize) -> VerboseResult<&str, Partline> {
+/// If called with append_to, the returned Partline will have no measures itself
+fn partline<'a, 'b>(
+    s: &'a str,
+    parent_line_idx: usize,
+    string_buf: &mut Vec<Measure>,
+    measures_before: usize,
+) -> VerboseResult<&'a str, (Partline, usize)> {
     let (rem, string_name) = none_of("|").parse(s)?;
     let (mut rem, _) = char('|').parse(rem)?;
     let mut parsed_len = 2;
-    let mut measures = Vec::with_capacity(2);
+    let mut measures = measures_before..=measures_before;
+    let len = |r: &RangeInclusive<usize>| -> usize { r.end() - r.start() };
+    let mut tick_cnt = 0;
     while !rem.is_empty() {
         let mut measure = Measure {
             content: Vec::with_capacity(16),
             parent_line: parent_line_idx,
-            index_on_parent_line: max(measures.len(), 1) - 1,
+            index_on_parent_line: max(len(&measures), 1) - 1,
         };
         loop {
             let Ok(x) = tab_element(rem) else { break };
@@ -61,16 +77,21 @@ fn partline(s: &str, parent_line_idx: usize) -> VerboseResult<&str, Partline> {
             });
             parsed_len += 1;
         }
-        measures.push(measure);
+        tick_cnt += measure.content.len();
+        string_buf.push(measure);
+        measures = *measures.start()..=measures.end() + 1;
         rem = char('|').parse(rem)?.0;
         parsed_len += 1;
     }
     Ok((
         rem,
-        Partline {
-            string_name,
-            measures,
-        },
+        (
+            Partline {
+                string_name,
+                measures,
+            },
+            tick_cnt,
+        ),
     ))
     //context(
     //    "Partline",

@@ -66,6 +66,6 @@ fn test_goldens() {
 fn process(s: &str, backend: BackendSelector) -> anyhow::Result<String> {
     let parsed = parse2(s.lines()).unwrap();
     let mut out = vec![];
-    backend.process(parsed.1, &mut out).unwrap();
+    backend.process(parsed, &mut out).unwrap();
     Ok(String::from_utf8(out)?)
 }

@@ -22,7 +22,7 @@ E|--------------|
         trim_measure: true,
         simplify_time_signature: true,
     };
-    Muxml2Backend::process(parse2(i1.lines()).unwrap().1, &mut out, settings).unwrap();
+    Muxml2Backend::process(parse2(i1.lines()).unwrap(), &mut out, settings).unwrap();
     insta::assert_snapshot!(String::from_utf8_lossy(&out));
     Ok(())
 }

@@ -5,7 +5,7 @@ use midly::{
     Format, Header, MetaMessage, MidiMessage, Smf, TrackEvent, TrackEventKind,
 };
 
-use crate::parser::{Measure, Score, TabElement::*};
+use crate::parser::{parser2::Parse2Result, Measure, Score, TabElement::*};
 
 use super::{
     errors::{backend_error::BackendError, diagnostic::Diagnostic},
@@ -22,12 +22,12 @@ impl Backend for MidiBackend {
     type BackendSettings = ();
 
     fn process<Out: std::io::Write>(
-        score: Score,
+        parse_result: Parse2Result,
         out: &mut Out,
         _settings: Self::BackendSettings,
     ) -> Result<Vec<Diagnostic>, BackendError> {
         let diagnostics = vec![];
-        let (raw_tracks, _) = score.gen_raw_tracks()?;
+        let raw_tracks = (parse_result.string_names, parse_result.strings);
         let mut midi_tracks = raw_tracks_to_midi(raw_tracks);
         let mut tracks = vec![vec![
             TrackEvent {

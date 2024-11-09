@@ -1,10 +1,17 @@
-use std::time::{Duration, Instant};
+use std::{
+    ops::RangeInclusive,
+    time::{Duration, Instant},
+};
 
 pub mod backend;
 #[cfg(test)]
 mod fs_test;
 pub mod parser;
 pub mod raw_tracks;
+
+pub fn rlen<T: std::ops::Sub<Output = T> + Copy>(r: &RangeInclusive<T>) -> T {
+    return *r.end() - *r.start();
+}
 
 pub fn time<T, F: FnOnce() -> T>(f: F) -> (Duration, T) {
     let start = Instant::now();

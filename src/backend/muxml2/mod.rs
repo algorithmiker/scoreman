@@ -13,6 +13,7 @@ use muxml2_formatters::{
 use crate::{
     backend::errors::error_location::ErrorLocation,
     parser::{
+        parser2::Parse2Result,
         Score,
         TabElement::{self, Fret, Rest},
     },
@@ -31,14 +32,14 @@ impl Backend for Muxml2Backend {
     type BackendSettings = settings::Settings;
 
     fn process<Out: std::io::Write>(
-        score: Score,
+        parse_result: Parse2Result,
         out: &mut Out,
         settings: Self::BackendSettings,
     ) -> Result<Vec<Diagnostic>, BackendError> {
         let mut diagnostics = vec![];
-        let (raw_tracks, tick_cnt) = score.gen_raw_tracks()?;
+        let raw_tracks = (parse_result.string_names, parse_result.strings);
         let (xml_out, mut inner_diagnostics) =
-            raw_tracks_to_muxml2(raw_tracks, settings, tick_cnt)?;
+            raw_tracks_to_muxml2(raw_tracks, settings, parse_result.tick_cnt)?;
         diagnostics.append(&mut inner_diagnostics);
         out.write_all(xml_out.as_bytes())
             .map_err(|x| BackendError::from_io_error(x, diagnostics.clone()))?;

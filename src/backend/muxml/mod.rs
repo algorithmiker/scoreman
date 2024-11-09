@@ -1,6 +1,7 @@
 use crate::{
     backend::errors::{diagnostic_kind::DiagnosticKind, error_location::ErrorLocation},
     parser::{
+        parser2::Parse2Result,
         Measure, Score,
         TabElement::{self, Fret},
     },
@@ -13,13 +14,13 @@ impl Backend for MuxmlBackend {
     type BackendSettings = ();
 
     fn process<Out: std::io::Write>(
-        score: Score,
+        parse_result: Parse2Result,
         out: &mut Out,
         _settings: Self::BackendSettings,
     ) -> Result<Vec<Diagnostic>, BackendError> {
         use ErrorLocation::*;
         let mut diagnostics = vec![Diagnostic::warn(NoLocation, DiagnosticKind::Muxml1IsBad)];
-        let (raw_tracks, _) = score.gen_raw_tracks()?;
+        let raw_tracks = (parse_result.string_names, parse_result.strings);
         let (xml_out, mut xml_diagnostics) = raw_tracks_to_xml(raw_tracks)?;
         diagnostics.append(&mut xml_diagnostics);
         diagnostics.push(Diagnostic::info(
