@@ -126,9 +126,9 @@ pub fn handle_error(
         };
 
     println!(
-        "Produced {diag_cnt} and {}.",
+        "Produced {} and {}.",
+        format!("{diag_count} diagnostics").bold(),
         "one error".red().bold(),
-        diag_cnt = format!("{diag_count} diagnostics").bold(),
     );
     if diag_count != 0 {
         match previous_diags {

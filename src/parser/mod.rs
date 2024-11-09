@@ -93,16 +93,6 @@ fn partline<'a, 'b>(
             tick_cnt,
         ),
     ))
-    //context(
-    //    "Partline",
-    //    tuple((none_of("|"), terminated(many1(measure), char('|')))).map(
-    //        |(string_name, staffs)| Partline {
-    //            string_name,
-    //            staffs,
-    //        },
-    //    ),
-    //)
-    //.parse(s)
 }
 
 /// A staff of a single string.
@@ -127,21 +117,21 @@ impl Measure {
         pretty
     }
 }
+
 #[inline]
 fn tab_element(s: &str) -> VerboseResult<&str, TabElement> {
     use TabElement::*;
-    context(
-        "TabElement",
-        alt((
-            char('-').map(|_| Rest),
-            char('x').map(|_| DeadNote),
-            digit1.map(|x: &str| {
-                Fret(x.parse::<u8>().unwrap_or_else(|_| {
+    alt((
+        char('-').map(|_| Rest),
+        digit1.map(|x: &str| {
+            Fret(
+                x.parse::<u8>().unwrap_or_else(|_| {
                     panic!("failed to parse {x} to a fret position, in Measure")
-                }))
-            }),
-        )),
-    )
+                }),
+            )
+        }),
+        char('x').map(|_| DeadNote),
+    ))
     .parse(s)
 }
 
