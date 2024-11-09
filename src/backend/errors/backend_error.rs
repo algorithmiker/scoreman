@@ -63,4 +63,25 @@ impl<'a> BackendError<'a> {
             relevant_lines: location_a..=location_a,
         }
     }
+    pub fn bad_multichar_tick(
+        diagnostics: Vec<Diagnostic>,
+        parent_line: usize,
+        chr: usize,
+        multichar_track: char,
+        multichar_fret: u8,
+        invalid_track: char,
+        invalid_fret: u8,
+        tick_idx: usize,
+    ) -> Self {
+        Self {
+            main_location: ErrorLocation::LineAndCharIdx(parent_line, chr),
+            relevant_lines: parent_line..=parent_line,
+            kind: BackendErrorKind::BadMulticharTick {
+                multichar: (multichar_track, multichar_fret),
+                invalid: (invalid_track, invalid_fret),
+                tick_idx,
+            },
+            diagnostics,
+        }
+    }
 }

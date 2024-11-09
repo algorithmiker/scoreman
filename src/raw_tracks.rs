@@ -1,8 +1,5 @@
 use crate::{
-    backend::errors::{
-        backend_error::BackendError, backend_error_kind::BackendErrorKind, diagnostic::Diagnostic,
-        error_location::ErrorLocation,
-    },
+    backend::errors::backend_error::BackendError,
     parser::{Measure, RawTick, Score, Section, TabElement},
 };
 
@@ -45,17 +42,13 @@ impl Score {
             //println!("[T]: tick count for measure {measure_idx}: {tick_count} (least on {track_with_least_ticks})");
             let mut tick_idx = 0;
             while tick_idx < tick_count {
-                let Some((multichar_t_idx, RawTick { element: TabElement::Fret(multichar_fret), ..})) = tracks.iter().enumerate()
-                    .map(|(track_idx, track)| {
-        (track_idx,  track[measure_idx]
-                            .content
-                            .get(tick_idx)
-                            .unwrap_or_else(|| panic!("Measure {measure_num} on string {string_name} doesn't have tick {tick_idx}\n", measure_num = measure_idx +1, string_name = track_names[track_idx] )))
-                    })
-                    .find(|(_,x)| { match x.element {
-                        TabElement::Fret(x) => x >= 10,
-                        _ => false,
-                    }})
+                let Some((
+                    multichar_t_idx,
+                    RawTick {
+                        element: TabElement::Fret(multichar_fret),
+                        ..
+                    },
+                )) = find_multichar_tick(&tracks, measure_idx, track_names, tick_idx)
                 else {
                     tick_idx += 1;
                     continue;
@@ -75,20 +68,11 @@ impl Score {
                     if tick_onechar_on_this_track {
                         if let Some(next) = measure.content.get(tick_idx + 1) {
                             if let TabElement::Fret(fret) = next.element {
-                                let parent_line = measure.parent_line;
-                                return _bad_multichar_tick_error(
-                                    parent_line,
-                                    next.idx_on_parent_line,
-                                    diagnostics,
-                                    track_names[multichar_t_idx],
-                                    multichar_fret,
-                                    track_names[track_idx],
-                                    fret,
-                                    tick_idx,
-                                );
+                                #[rustfmt::skip]
+                                return Err(BackendError::bad_multichar_tick(diagnostics, measure.parent_line, next.idx_on_parent_line, track_names[multichar_t_idx], multichar_fret, track_names[track_idx], fret, tick_idx));
                             }
 
-                            // Beware: this is O(n). I don't think this can be done in a better way. Sadly, this dominates runtime.
+                            // Beware: this is O(n). I don't think this can be done in a better way, and measures are typically not that big.
                             measure.content.remove(tick_idx + 1);
                             if track_idx == track_with_least_ticks {
                                 tick_count -= 1;
@@ -103,26 +87,32 @@ impl Score {
         Ok(((track_names, tracks), total_tick_count))
     }
 }
-fn _bad_multichar_tick_error<'a, T>(
-    parent_line: usize,
-    next_idx_on_parent_line: usize,
-    diagnostics: Vec<Diagnostic>,
-    multichar_string: char,
-    multichar_fret: u8,
-    invalid_string: char,
-    invalid_fret: u8,
+
+fn find_multichar_tick(
+    tracks: &[Vec<Measure>; 6],
+    measure_idx: usize,
+    track_names: [char; 6],
     tick_idx: usize,
-) -> Result<T, BackendError<'a>> {
-    return Err(BackendError {
-        main_location: ErrorLocation::LineAndCharIdx(parent_line, next_idx_on_parent_line),
-        relevant_lines: parent_line..=parent_line,
-        kind: BackendErrorKind::BadMulticharTick {
-            multichar: (multichar_string, multichar_fret),
-            invalid: (invalid_string, invalid_fret),
-            tick_idx,
-        },
-        diagnostics,
-    });
+) -> std::option::Option<(usize, &RawTick)> {
+    tracks
+        .iter()
+        .enumerate()
+        .map(|(t_idx, track)| {
+            (
+                t_idx,
+                track[measure_idx].content.get(tick_idx).unwrap_or_else(|| {
+                    panic!(
+                        "Measure {} on string {} doesn't have tick {t_idx}\n",
+                        measure_idx + 1,
+                        track_names[t_idx]
+                    );
+                }),
+            )
+        })
+        .find(|(_, x)| match x.element {
+            TabElement::Fret(x) => x >= 10,
+            _ => false,
+        })
 }
 #[test]
 fn test_multichar_raw_tracks() -> anyhow::Result<()> {

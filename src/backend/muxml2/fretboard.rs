@@ -2,12 +2,12 @@ use super::MuxmlNote2;
 use crate::backend::errors::backend_error::BackendError;
 
 pub fn get_fretboard_note2(string: char, fret: u8) -> Result<MuxmlNote2, BackendError<'static>> {
-    return Ok(MuxmlNote2 {
+    Ok(MuxmlNote2 {
         step: STRING_BASE_NOTES[string as usize]
             .unwrap_or_else(|| panic!("Don't know base note for string {string}"))
-            + fret as u8,
+            + fret,
         dead: false,
-    });
+    })
 }
 
 /// TODO fill in everything with u8s for no extra cost and more flexibility

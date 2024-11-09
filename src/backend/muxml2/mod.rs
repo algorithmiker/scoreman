@@ -293,8 +293,8 @@ pub struct MuxmlNote2 {
 impl MuxmlNote2 {
     pub fn step_octave_sharp(&self) -> (char, u8, bool) {
         let stepidx = (self.step % 12) as usize;
-        let octave = (self.step / 12) as u8;
-        return (NOTE2_STEPS[stepidx].0, octave, NOTE2_STEPS[stepidx].1);
+        let octave = self.step / 12;
+        (NOTE2_STEPS[stepidx].0, octave, NOTE2_STEPS[stepidx].1)
     }
     pub fn write_muxml(
         &self,

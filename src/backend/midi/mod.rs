@@ -76,8 +76,7 @@ fn raw_tracks_to_midi(raw_tracks: ([char; 6], [Vec<Measure>; 6])) -> Vec<Vec<Tra
                 match raw_tick.element {
                     Fret(fret) => {
                         let pitch = fret + string_freq[&string];
-                        let (note_on, note_off) =
-                            gen_note_events((pitch as u8).into(), delta_carry.into());
+                        let (note_on, note_off) = gen_note_events(pitch.into(), delta_carry.into());
                         delta_carry = 0;
                         tracks[i].push(note_on);
                         tracks[i].push(note_off);
