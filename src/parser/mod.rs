@@ -66,9 +66,10 @@ fn partline<'a>(
     let mut measures = measures_before..=measures_before;
     let len = |r: &RangeInclusive<usize>| -> usize { r.end() - r.start() };
     let mut tick_cnt = 0;
+    let mut last_measure_len = 16;
     while !rem.is_empty() {
         let mut measure = Measure {
-            content: Vec::with_capacity(16),
+            content: Vec::with_capacity(last_measure_len),
             parent_line: parent_line_idx,
             index_on_parent_line: max(len(&measures), 1) - 1,
         };
@@ -83,6 +84,7 @@ fn partline<'a>(
             parsed_len += 1;
         }
         tick_cnt += measure.content.len();
+        last_measure_len = measure.content.len();
         string_buf.push(measure);
         measures = *measures.start()..=measures.end() + 1;
         rem = char('|').parse(rem)?.0;
