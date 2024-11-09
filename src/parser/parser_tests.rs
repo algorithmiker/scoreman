@@ -34,6 +34,6 @@ E|---|---|"#;
 #[test]
 fn test_partline() {
     let mut string_buf = vec![];
-    partline("e|--4-|-0--5-|", 0, &mut string_buf, 0);
+    partline("e|--4-|-0--5-|", 0, &mut string_buf, 0).unwrap();
     insta::assert_debug_snapshot!(string_buf);
 }

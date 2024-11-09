@@ -9,7 +9,7 @@ use nom::{
     branch::alt,
     bytes::complete::is_not,
     character::complete::{char, digit1, none_of},
-    error::{context, VerboseError},
+    error::VerboseError,
     sequence::preceded,
     IResult, Parser,
 };
@@ -46,10 +46,15 @@ impl Partline {
     pub fn len(&self) -> usize {
         rlen(&self.measures)
     }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 /// like `e|--------------4-----------|-----0--------------5-----|`
 /// If called with append_to, the returned Partline will have no measures itself
-fn partline<'a, 'b>(
+fn partline<'a>(
     s: &'a str,
     parent_line_idx: usize,
     string_buf: &mut Vec<Measure>,

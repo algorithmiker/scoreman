@@ -1,5 +1,3 @@
-use std::ops::RangeInclusive;
-
 use super::errors::{backend_error::BackendError, diagnostic::Diagnostic};
 use crate::{
     backend::Backend,

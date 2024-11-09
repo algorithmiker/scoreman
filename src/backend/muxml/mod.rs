@@ -1,8 +1,8 @@
 use crate::{
-    backend::errors::{diagnostic_kind::DiagnosticKind, error_location::ErrorLocation},
+    backend::errors::diagnostic_kind::DiagnosticKind,
     parser::{
         parser2::Parse2Result,
-        Measure, Score,
+        Measure,
         TabElement::{self, Fret},
     },
 };
@@ -18,7 +18,7 @@ impl Backend for MuxmlBackend {
         out: &mut Out,
         _settings: Self::BackendSettings,
     ) -> Result<Vec<Diagnostic>, BackendError> {
-        use ErrorLocation::*;
+        use super::errors::error_location::ErrorLocation::*;
         let mut diagnostics = vec![Diagnostic::warn(NoLocation, DiagnosticKind::Muxml1IsBad)];
         let raw_tracks = (parse_result.string_names, parse_result.strings);
         let (xml_out, mut xml_diagnostics) = raw_tracks_to_xml(raw_tracks)?;

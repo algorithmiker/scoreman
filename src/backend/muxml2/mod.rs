@@ -14,7 +14,6 @@ use crate::{
     backend::errors::error_location::ErrorLocation,
     parser::{
         parser2::Parse2Result,
-        Score,
         TabElement::{self, Fret, Rest},
     },
     raw_tracks::RawTracks,

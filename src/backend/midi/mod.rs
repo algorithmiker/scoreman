@@ -5,7 +5,7 @@ use midly::{
     Format, Header, MetaMessage, MidiMessage, Smf, TrackEvent, TrackEventKind,
 };
 
-use crate::parser::{parser2::Parse2Result, Measure, Score, TabElement::*};
+use crate::parser::{parser2::Parse2Result, Measure, TabElement::*};
 
 use super::{
     errors::{backend_error::BackendError, diagnostic::Diagnostic},

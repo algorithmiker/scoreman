@@ -1,7 +1,4 @@
-use crate::{
-    backend::errors::backend_error::BackendError,
-    parser::{Measure, RawTick, Score, Section, TabElement},
-};
+use crate::parser::{Measure, RawTick, TabElement};
 
 pub type RawTracks = ([char; 6], [Vec<Measure>; 6]);
 

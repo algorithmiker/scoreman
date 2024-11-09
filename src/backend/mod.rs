@@ -1,6 +1,6 @@
 use errors::{backend_error::BackendError, diagnostic::Diagnostic};
 
-use crate::parser::{parser2::Parse2Result, Score};
+use crate::parser::parser2::Parse2Result;
 use std::fmt::Display;
 pub mod errors;
 pub mod format;
