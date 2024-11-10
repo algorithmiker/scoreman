@@ -6,9 +6,8 @@ mod parser_tests;
 use std::ops::RangeInclusive;
 
 use nom::{
-    branch::alt,
     bytes::complete::is_not,
-    character::complete::{char, digit1, none_of},
+    character::complete::{char, none_of},
     error::VerboseError,
     sequence::preceded,
     IResult, Parser,
@@ -145,21 +144,27 @@ impl Measure {
     }
 }
 
-#[inline]
-fn tab_element(s: &str) -> VerboseResult<&str, TabElement> {
-    use TabElement::*;
-    alt((
-        char('-').map(|_| Rest),
-        digit1.map(|x: &str| {
-            Fret(
-                x.parse::<u8>().unwrap_or_else(|_| {
-                    panic!("failed to parse {x} to a fret position, in Measure")
-                }),
-            )
-        }),
-        char('x').map(|_| DeadNote),
-    ))
-    .parse(s)
+fn tab_element(s: &str) -> Result<(&str, TabElement), &str> {
+    let mut chars = s.chars();
+    match chars.next() {
+        Some('-') => Ok((&s[1..], TabElement::Rest)),
+        Some('x') => Ok((&s[1..], TabElement::DeadNote)),
+        Some(c) if c.is_numeric() => {
+            let mut len = 1;
+            // 123a
+            for cc in chars {
+                if !cc.is_numeric() {
+                    break;
+                }
+                len += 1;
+            }
+            match s[0..len].parse() {
+                Ok(x) => Ok((&s[len..], TabElement::Fret(x))),
+                Err(_) => Err(s),
+            }
+        }
+        Some(_) | None => Err(s),
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
