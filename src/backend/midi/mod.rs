@@ -5,7 +5,7 @@ use midly::{
     Format, Header, MetaMessage, MidiMessage, Smf, TrackEvent, TrackEventKind,
 };
 
-use crate::parser::{parser2::Parse2Result, Measure, TabElement::*};
+use crate::parser::{parser2::Parse2Result, TabElement::*};
 
 use super::{
     errors::{backend_error::BackendError, diagnostic::Diagnostic},
@@ -27,8 +27,9 @@ impl Backend for MidiBackend {
         _settings: Self::BackendSettings,
     ) -> Result<Vec<Diagnostic>, BackendError> {
         let diagnostics = vec![];
-        let raw_tracks = (parse_result.string_names, parse_result.strings);
-        let mut midi_tracks = raw_tracks_to_midi(raw_tracks);
+        // TODO: the parser now gives us things like tick count, can probably preallocate based on
+        // that.
+        let mut midi_tracks = convert_to_midi(parse_result);
         let mut tracks = vec![vec![
             TrackEvent {
                 delta: 0.into(),
@@ -55,7 +56,7 @@ impl Backend for MidiBackend {
     }
 }
 
-fn raw_tracks_to_midi(raw_tracks: ([char; 6], [Vec<Measure>; 6])) -> Vec<Vec<TrackEvent<'static>>> {
+fn convert_to_midi(parse_result: Parse2Result) -> Vec<Vec<TrackEvent<'static>>> {
     let mut string_freq = HashMap::new();
     string_freq.insert('E', 52);
     string_freq.insert('A', 57);
@@ -68,23 +69,21 @@ fn raw_tracks_to_midi(raw_tracks: ([char; 6], [Vec<Measure>; 6])) -> Vec<Vec<Tra
 
     #[allow(clippy::needless_range_loop)]
     for i in 0..6 {
-        let string = raw_tracks.0[i];
-        let raw_track = &raw_tracks.1[i];
+        let string_name = parse_result.string_names[i];
+        let raw_track = &parse_result.strings[i];
         let mut delta_carry: u32 = 0;
-        for measure in raw_track {
-            for raw_tick in measure.content.iter() {
-                match raw_tick.element {
-                    Fret(fret) => {
-                        let pitch = fret + string_freq[&string];
-                        let (note_on, note_off) = gen_note_events(pitch.into(), delta_carry.into());
-                        delta_carry = 0;
-                        tracks[i].push(note_on);
-                        tracks[i].push(note_off);
-                    }
-                    Rest => delta_carry += LENGTH_OF_EIGHT,
-                    // dead notes are purely cosmetic in this implementation
-                    DeadNote => (),
+        for raw_tick in raw_track {
+            match raw_tick.element {
+                Fret(fret) => {
+                    let pitch = fret + string_freq[&string_name];
+                    let (note_on, note_off) = gen_note_events(pitch.into(), delta_carry.into());
+                    delta_carry = 0;
+                    tracks[i].push(note_on);
+                    tracks[i].push(note_off);
                 }
+                Rest => delta_carry += LENGTH_OF_EIGHT,
+                // dead notes are purely cosmetic in this implementation
+                DeadNote => (),
             }
         }
         tracks[i].push(TrackEvent {

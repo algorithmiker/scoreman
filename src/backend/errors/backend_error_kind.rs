@@ -1,4 +1,4 @@
-use crate::collect_parse_error;
+use crate::{collect_parse_error, parser::TabElement};
 
 #[derive(Debug)]
 pub enum BackendErrorKind<'a> {
@@ -12,8 +12,8 @@ pub enum BackendErrorKind<'a> {
     BadMulticharTick {
         /// string and fret
         multichar: (char, u8),
-        /// string and fret
-        invalid: (char, u8),
+        /// something else
+        invalid: (char, TabElement),
         tick_idx: usize,
     },
     InvalidPartlineSyntax(&'a str),
@@ -42,11 +42,11 @@ The measure has {ticks_before} ticks on string {string_before} and {ticks_after}
 
 Tip: If you get a lot of errors like this, consider using the muxml1 backend.")
             ),
-            BackendErrorKind::BadMulticharTick { multichar : (multichar_string,multichar_fret), invalid: (invalid_string,invalid_fret), tick_idx } =>
+            BackendErrorKind::BadMulticharTick { multichar : (multichar_string,multichar_fret), invalid: (invalid_string,invalid_elem), tick_idx } =>
             (
                 "Invalid multichar tick".into(),
                 format!(
-"Tick {} has a multi-char fret ({multichar_fret}) on string {multichar_string}, but on the same tick there is an invalid fret {invalid_fret} on string {invalid_string}", tick_idx+1)
+"Tick {} has a multi-char fret ({multichar_fret}) on string {multichar_string}, but on the same tick there is an invalid element {invalid_elem:?} on string {invalid_string}", tick_idx+1)
             ),
             BackendErrorKind::InvalidPartlineSyntax(rem) => ("Invalid partline syntax".into(), format!("Got remaining content: `{rem}`")),
             BackendErrorKind::ParseError(x) => ("Invalid syntax".into(), collect_parse_error(x)),

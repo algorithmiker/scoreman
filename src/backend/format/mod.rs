@@ -25,10 +25,10 @@ impl Backend for FormatBackend {
                     for measure_idx in 0..measures_in_part {
                         formatted += &format!("// SYS: Measure {}\n", measure_cnt + 1);
                         for (l_idx, line) in part.iter().enumerate() {
-                            let line_measures = &parse_result.strings[l_idx][line.measures.clone()];
                             formatted.push(line.string_name);
                             formatted.push('|');
-                            formatted += &line_measures[measure_idx].print_pretty_string();
+                            formatted += &parse_result.measures[l_idx][measure_idx]
+                                .print_pretty_string(&parse_result.strings[l_idx]);
                             formatted.push('|');
                             formatted.push('\n');
                         }

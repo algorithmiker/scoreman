@@ -2,25 +2,29 @@ use crate::parser::{Measure, RawTick, TabElement};
 
 pub type RawTracks = ([char; 6], [Vec<Measure>; 6]);
 
-pub fn find_multichar_tick(
-    tracks: &[Vec<Measure>; 6],
+pub fn find_multichar_tick<'a>(
+    strings: &'a [Vec<RawTick>; 6],
+    measures: &[Vec<Measure>; 6],
     measure_idx: usize,
-    track_names: [char; 6],
+    track_names: &[char; 6],
     tick_idx: usize,
-) -> std::option::Option<(usize, &RawTick)> {
-    tracks
+) -> std::option::Option<(usize, &'a RawTick)> {
+    strings
         .iter()
         .enumerate()
         .map(|(t_idx, track)| {
             (
                 t_idx,
-                track[measure_idx].content.get(tick_idx).unwrap_or_else(|| {
-                    panic!(
-                        "Measure {} on string {} doesn't have tick {t_idx}\n",
-                        measure_idx + 1,
-                        track_names[t_idx]
-                    );
-                }),
+                measures[t_idx][measure_idx]
+                    .get_content(track)
+                    .get(tick_idx)
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "Measure {} on string {} doesn't have tick {t_idx}\n",
+                            measure_idx + 1,
+                            track_names[t_idx]
+                        );
+                    }),
             )
         })
         .find(|(_, x)| match x.element {

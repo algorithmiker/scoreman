@@ -1,18 +1,20 @@
 use core::fmt;
-use std::fmt::Write;
-use std::io::StdoutLock;
 use std::{
+    fmt::Write,
     fs::{File, OpenOptions},
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader, StdoutLock},
 };
 
 use anyhow::Context;
 use clap::Parser;
-use guitar_tab::backend::errors::backend_error::BackendError;
-use guitar_tab::backend::errors::diagnostic::Diagnostic;
-use guitar_tab::backend::errors::error_location::ErrorLocation;
-use guitar_tab::backend::errors::{extend_error_range, get_digit_cnt};
-use guitar_tab::{parser::parser2::parse2, time};
+use guitar_tab::{
+    backend::errors::{
+        backend_error::BackendError, diagnostic::Diagnostic, error_location::ErrorLocation,
+        extend_error_range, get_digit_cnt,
+    },
+    parser::parser2::parse2,
+    time,
+};
 use yansi::{Paint, Painted};
 
 mod cli_args;

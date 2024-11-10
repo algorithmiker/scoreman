@@ -1,6 +1,7 @@
 use crate::backend::errors::backend_error_kind::BackendErrorKind;
 use crate::backend::errors::diagnostic::Diagnostic;
 use crate::backend::errors::error_location::ErrorLocation;
+use crate::parser::TabElement;
 use std::ops::RangeInclusive;
 
 /// Produced [diagnostics.len()] diagnostics and one error.
@@ -70,7 +71,7 @@ impl<'a> BackendError<'a> {
         multichar_track: char,
         multichar_fret: u8,
         invalid_track: char,
-        invalid_fret: u8,
+        invalid: TabElement,
         tick_idx: usize,
     ) -> Self {
         Self {
@@ -78,7 +79,7 @@ impl<'a> BackendError<'a> {
             relevant_lines: parent_line..=parent_line,
             kind: BackendErrorKind::BadMulticharTick {
                 multichar: (multichar_track, multichar_fret),
-                invalid: (invalid_track, invalid_fret),
+                invalid: (invalid_track, invalid),
                 tick_idx,
             },
             diagnostics,

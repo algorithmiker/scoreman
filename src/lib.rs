@@ -9,8 +9,11 @@ mod fs_test;
 pub mod parser;
 pub mod raw_tracks;
 
-pub fn rlen<T: std::ops::Sub<Output = T> + Copy>(r: &RangeInclusive<T>) -> T {
-    return *r.end() - *r.start();
+// FIXME: I think a bunch of things have off-by-one errors because of this
+pub fn rlen<T: std::ops::Sub<Output = T> + Copy + std::ops::Add<usize, Output = T>>(
+    r: &RangeInclusive<T>,
+) -> T {
+    return *r.end() - *r.start() + 1;
 }
 
 pub fn time<T, F: FnOnce() -> T>(f: F) -> (Duration, T) {

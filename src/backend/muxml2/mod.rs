@@ -16,7 +16,6 @@ use crate::{
         parser2::Parse2Result,
         TabElement::{self, Fret, Rest},
     },
-    raw_tracks::RawTracks,
 };
 
 use super::{
@@ -36,9 +35,7 @@ impl Backend for Muxml2Backend {
         settings: Self::BackendSettings,
     ) -> Result<Vec<Diagnostic>, BackendError> {
         let mut diagnostics = vec![];
-        let raw_tracks = (parse_result.string_names, parse_result.strings);
-        let (xml_out, mut inner_diagnostics) =
-            raw_tracks_to_muxml2(raw_tracks, settings, parse_result.tick_cnt)?;
+        let (xml_out, mut inner_diagnostics) = gen_muxml2(parse_result, settings)?;
         diagnostics.append(&mut inner_diagnostics);
         out.write_all(xml_out.as_bytes())
             .map_err(|x| BackendError::from_io_error(x, diagnostics.clone()))?;
@@ -88,23 +85,22 @@ impl Muxml2TabElement {
     }
 }
 
-fn raw_tracks_to_muxml2<'a>(
-    raw_tracks: RawTracks,
+fn gen_muxml2<'a>(
+    parse_result: Parse2Result,
     settings: <Muxml2Backend as Backend>::BackendSettings,
-    tick_cnt: usize,
 ) -> Result<(String, Vec<Diagnostic>), BackendError<'a>> {
     // the muxml2 backend assumes
     // 1. that there are the same number of measures for every string (which should be true)
-    // 2. that there are the same number of elements in the same measure for each string (also
+    // 2. that there are the same number of ticks in the same measure for each string (also
     //    generally true)
     let diagnostics = vec![];
-    let number_of_measures = raw_tracks.1[0].len();
+    let number_of_measures = parse_result.measures[0].len();
     let mut document = String::from(MUXML_INCOMPLETE_DOC_PRELUDE);
     // this looks like a good setting for -nmt based on trial and error
-    document.reserve(tick_cnt * 10);
+    document.reserve(parse_result.tick_cnt * 10);
     //println!("Reserved capacity: {}", document.capacity());
     for measure_idx in 0..number_of_measures {
-        let ticks_in_measure = raw_tracks.1[0][measure_idx].content.len();
+        let ticks_in_measure = parse_result.measures[0][measure_idx].len(); // see assumption 2
 
         // Length of actual content in measure. `remove_space_between_notes` will reduce this for
         // example
@@ -113,25 +109,19 @@ fn raw_tracks_to_muxml2<'a>(
         for tick in 0..ticks_in_measure {
             let mut notes_in_tick = Vec::with_capacity(6);
             for string_idx in 0..6 {
-                let measure = &raw_tracks.1[string_idx][measure_idx];
-                let raw_tick = match measure.content.get(tick) {
-                    Some(x) => x,
-                    _ => {
-                        return _tick_mismatch_err(
-                            raw_tracks,
-                            string_idx,
-                            measure_idx,
-                            diagnostics,
-                        );
-                    }
+                let Some(raw_tick) = parse_result.measures[string_idx][measure_idx]
+                    .get_content(&parse_result.strings[string_idx])
+                    .get(tick)
+                else {
+                    return _tick_mismatch_err(parse_result, string_idx, measure_idx, diagnostics);
                 };
                 match raw_tick.element {
                     Fret(fret) => {
-                        let x = get_fretboard_note2(raw_tracks.0[string_idx], fret)?;
+                        let x = get_fretboard_note2(parse_result.string_names[string_idx], fret)?;
                         notes_in_tick.push(x);
                     }
                     TabElement::DeadNote => {
-                        let mut x = get_fretboard_note2(raw_tracks.0[string_idx], 0)?;
+                        let mut x = get_fretboard_note2(parse_result.string_names[string_idx], 0)?;
                         x.dead = true;
                         notes_in_tick.push(x);
                     }
@@ -307,13 +297,13 @@ impl MuxmlNote2 {
 }
 
 fn _tick_mismatch_err<T>(
-    raw_tracks: RawTracks,
+    parse_result: Parse2Result,
     string_idx: usize,
     measure_idx: usize,
     diagnostics: Vec<Diagnostic>,
 ) -> Result<T, BackendError<'static>> {
-    let before_measure = &raw_tracks.1[string_idx - 1][measure_idx];
-    let this_measure = &raw_tracks.1[string_idx][measure_idx];
+    let before_measure = &parse_result.measures[string_idx - 1][measure_idx];
+    let this_measure = &parse_result.measures[string_idx][measure_idx];
 
     Err(BackendError {
         main_location: ErrorLocation::LineAndMeasure(
@@ -323,10 +313,10 @@ fn _tick_mismatch_err<T>(
         diagnostics,
         relevant_lines: before_measure.parent_line..=this_measure.parent_line,
         kind: BackendErrorKind::TickMismatch(
-            raw_tracks.0[string_idx - 1],
-            raw_tracks.0[string_idx],
-            before_measure.content.len(),
-            this_measure.content.len(),
+            parse_result.string_names[string_idx - 1],
+            parse_result.string_names[string_idx],
+            before_measure.len(),
+            this_measure.len(),
         ),
     })
 }

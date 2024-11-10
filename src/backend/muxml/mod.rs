@@ -2,9 +2,9 @@ use crate::{
     backend::errors::diagnostic_kind::DiagnosticKind,
     parser::{
         parser2::Parse2Result,
-        Measure,
         TabElement::{self, Fret},
     },
+    rlen,
 };
 
 use super::{muxml2::fretboard::get_fretboard_note2, Backend, BackendError, Diagnostic};
@@ -20,8 +20,7 @@ impl Backend for MuxmlBackend {
     ) -> Result<Vec<Diagnostic>, BackendError> {
         use super::errors::error_location::ErrorLocation::*;
         let mut diagnostics = vec![Diagnostic::warn(NoLocation, DiagnosticKind::Muxml1IsBad)];
-        let raw_tracks = (parse_result.string_names, parse_result.strings);
-        let (xml_out, mut xml_diagnostics) = raw_tracks_to_xml(raw_tracks)?;
+        let (xml_out, mut xml_diagnostics) = gen_muxml1(parse_result)?;
         diagnostics.append(&mut xml_diagnostics);
         diagnostics.push(Diagnostic::info(
             NoLocation,
@@ -34,24 +33,23 @@ impl Backend for MuxmlBackend {
     }
 }
 
-fn raw_tracks_to_xml<'a>(
-    raw_tracks: ([char; 6], [Vec<Measure>; 6]),
+fn gen_muxml1<'a>(
+    parse_result: Parse2Result,
 ) -> Result<(String, Vec<Diagnostic>), BackendError<'a>> {
     let mut parts_xml = String::new();
     let diagnostics = vec![];
     for i in 0..6 {
-        let part = &raw_tracks.1[i];
         let mut measures_xml = String::new();
-        for (measure_idx, measure) in part.iter().enumerate() {
+        for (measure_idx, measure) in parse_result.measures[i].iter().enumerate() {
             let mut notes_xml = String::new();
-            for raw_tick in &measure.content {
+            for raw_tick in measure.get_content(&parse_result.strings[i]) {
                 match raw_tick.element {
                     Fret(fret) => {
-                        let x = get_fretboard_note2(raw_tracks.0[i], fret)?;
+                        let x = get_fretboard_note2(parse_result.string_names[i], fret)?;
                         x.write_muxml(&mut notes_xml, false).unwrap();
                     }
                     TabElement::DeadNote => {
-                        let mut x = get_fretboard_note2(raw_tracks.0[i], 0)?;
+                        let mut x = get_fretboard_note2(parse_result.string_names[i], 0)?;
                         x.dead = true;
                         x.write_muxml(&mut notes_xml, false).unwrap();
                     }
@@ -61,7 +59,7 @@ fn raw_tracks_to_xml<'a>(
             //println!("[D]: finished {measure:?}");
             measures_xml.push_str(&muxml_measure(
                 measure_idx as u32,
-                measure.content.len(),
+                rlen(&measure.content),
                 &notes_xml,
             ));
         }
