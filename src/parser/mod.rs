@@ -5,13 +5,7 @@ mod parser_tests;
 
 use std::ops::RangeInclusive;
 
-use nom::{
-    bytes::complete::is_not,
-    character::complete::{char, none_of},
-    error::VerboseError,
-    sequence::preceded,
-    IResult, Parser,
-};
+use nom::{bytes::complete::is_not, error::VerboseError, sequence::preceded, IResult, Parser};
 
 use nom_supreme::tag::complete::tag;
 
@@ -56,9 +50,9 @@ fn partline<'a>(
     parent_line_idx: usize,
     string_buf: &mut Vec<RawTick>,
     string_measure_buf: &mut Vec<Measure>,
-) -> VerboseResult<&'a str, (Partline, usize)> {
-    let (rem, string_name) = none_of("|").parse(s)?;
-    let (mut rem, _) = char('|').parse(rem)?;
+) -> Result<(&'a str, Partline, usize), &'a str> {
+    let (rem, string_name) = string_name()(s)?;
+    let (mut rem, _) = char('|')(rem)?;
     let mut last_parsed_idx = 1;
     let mut measures = string_measure_buf.len()..=string_measure_buf.len();
     let mut tick_cnt = 0;
@@ -85,7 +79,7 @@ fn partline<'a>(
         measure.content = *measure.content.start()..=measure.content.end() - 1;
         string_measure_buf.push(measure);
         measures = *measures.start()..=measures.end() + 1;
-        rem = char('|').parse(rem)?.0;
+        rem = char('|')(rem)?.0;
         last_parsed_idx += 1;
     }
     // off by one: because we are using inclusive ranges, for example the first line, with only 1
@@ -93,13 +87,11 @@ fn partline<'a>(
     measures = *measures.start()..=measures.end() - 1;
     Ok((
         rem,
-        (
-            Partline {
-                string_name,
-                measures,
-            },
-            tick_cnt,
-        ),
+        Partline {
+            string_name,
+            measures,
+        },
+        tick_cnt,
     ))
 }
 
@@ -143,7 +135,19 @@ impl Measure {
         pretty
     }
 }
+fn char(c: char) -> impl Fn(&str) -> Result<(&str, char), &str> {
+    move |s: &str| match s.chars().next() {
+        Some(cc) if cc == c => Ok((&s[1..], c)),
+        _ => Err(s),
+    }
+}
 
+fn string_name() -> impl Fn(&str) -> Result<(&str, char), &str> {
+    move |s: &str| match s.chars().next() {
+        Some(c) if c.is_alphabetic() => Ok((&s[1..], c)),
+        _ => Err(s),
+    }
+}
 fn tab_element(s: &str) -> Result<(&str, TabElement), &str> {
     let mut chars = s.chars();
     match chars.next() {

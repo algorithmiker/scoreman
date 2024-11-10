@@ -64,7 +64,7 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
                 &mut strings[part_buf.len()],
                 &mut string_measures[part_buf.len()],
             ) {
-                Ok((rem, (line, l_tick_count))) => {
+                Ok((rem, line, l_tick_count)) => {
                     if !rem.is_empty() {
                         return Err(BackendError {
                             main_location: ErrorLocation::LineAndMeasure(
@@ -108,11 +108,11 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
                         part_start_tick = strings[0].len();
                     }
                 }
-                Err(x) => {
+                Err(_) => {
                     return Err(BackendError {
                         main_location: ErrorLocation::LineOnly(line_idx),
                         relevant_lines: line_idx..=line_idx,
-                        kind: BackendErrorKind::ParseError(x),
+                        kind: BackendErrorKind::ParseError,
                         diagnostics,
                     });
                 }

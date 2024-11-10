@@ -20,6 +20,11 @@ use yansi::{Paint, Painted};
 mod cli_args;
 use crate::cli_args::Cli;
 
+// TODO: error reporting without slurping up the whole file
+// The parser already works on a streaming basis, it's only the printing of errors which requires
+// this
+//
+// Not very high priority, because it is not that slow.
 fn get_lines(input_path: &str) -> anyhow::Result<Vec<String>> {
     if input_path == "-" {
         let mut f = std::io::stdin();
