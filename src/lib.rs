@@ -9,7 +9,6 @@ mod fs_test;
 pub mod parser;
 pub mod raw_tracks;
 
-// FIXME: I think a bunch of things have off-by-one errors because of this
 pub fn rlen<T: std::ops::Sub<Output = T> + Copy + std::ops::Add<usize, Output = T>>(
     r: &RangeInclusive<T>,
 ) -> T {

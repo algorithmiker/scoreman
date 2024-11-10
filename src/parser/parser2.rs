@@ -18,6 +18,9 @@ pub struct Parse2Result {
     pub strings: [Vec<RawTick>; 6],
     pub measures: [Vec<Measure>; 6],
 }
+
+// TODO: add a way to discard measure information for backends that don't need it
+// Will probably involve a restructuring of the parsing step to be controlled by the backend.
 pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
     lines: A,
 ) -> Result<Parse2Result, BackendError<'a>> {
@@ -117,7 +120,6 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
         }
     }
 
-    // TODO: do this *while constructing the track somehow, for optimal performance
     Ok(Parse2Result {
         diagnostics,
         sections,
@@ -186,7 +188,7 @@ fn fixup_part(
                 if let Some(next) = strings[string_idx].get(tick_idx + 1) {
                     if let TabElement::Rest = next.element {
                         // remove the next tick
-                        // TODO: O(N) but should be few elements after
+                        // O(N) but should be few elements after
                         strings[string_idx].remove(tick_idx + 1);
                         // now also update measure information to stay correct
                         for measure_idx in part[string_idx].measures.clone() {
@@ -218,65 +220,6 @@ fn fixup_part(
         tick_idx += 1;
     }
     Ok(())
-    //let measure_count = strings[0].len();
-    //for measure_idx in part[0].measures {
-    //    let (mut tick_count, track_with_least_ticks) = strings
-    //        .iter()
-    //        .enumerate()
-    //        .map(|(track_idx, track)| (measures[track_idx][measure_idx].len(), track_idx))
-    //        .min() // the string with the least ticks has the most twochar frets
-    //        .expect("Empty score");
-    //    //println!("[T]: tick count for measure {measure_idx}: {tick_count} (least on {track_with_least_ticks})");
-    //    let mut tick_idx = 0;
-    //    while tick_idx < tick_count {
-    //        let Some((
-    //            multichar_t_idx,
-    //            RawTick {
-    //                element: TabElement::Fret(multichar_fret),
-    //                ..
-    //            },
-    //        )) = find_multichar_tick(&strings, &measures, measure_idx, string_names, tick_idx)
-    //        else {
-    //            tick_idx += 1;
-    //            continue;
-    //        };
-    //        let multichar_fret = *multichar_fret;
-
-    //        for track_idx in 0..strings.len() {
-    //            let track = &mut strings[track_idx];
-    //            // This is a multi-char tick. Remove adjacent rest everywhere where it is not
-    //            // multi-char.
-    //            let tick_onechar_on_this_track = match measures[track_idx][measure_idx]
-    //                .get_content(&strings[track_idx])[tick_idx]
-    //                .element
-    //            {
-    //                TabElement::Fret(x) => x < 10,
-    //                TabElement::Rest => true,
-    //                TabElement::DeadNote => true,
-    //            };
-    //            if tick_onechar_on_this_track {
-    //                if let Some(next) = measures[track_idx][measure_idx]
-    //                    .get_content(&strings[track_idx])
-    //                    .get(tick_idx + 1)
-    //                {
-    //                    if let TabElement::Fret(fret) = next.element {
-    //                        #[rustfmt::skip]
-    //                            return Err(BackendError::bad_multichar_tick(diagnostics, measure.parent_line, next.idx_on_parent_line, string_names[multichar_t_idx], multichar_fret, string_names[track_idx], fret, tick_idx));
-    //                    }
-
-    //                    // remove this tick
-    //                    measures[track_idx][measure_idx].pop_1();
-    //                    // HACK: O(N)
-    //                    strings[track_idx].
-    //                    if track_idx == track_with_least_ticks {
-    //                        tick_count -= 1;
-    //                    }
-    //                }
-    //            }
-    //        }
-    //        tick_idx += 1;
-    //    }
-    //}
 }
 #[test]
 fn test_parse2() {
