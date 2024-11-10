@@ -5,16 +5,10 @@ mod parser_tests;
 
 use std::ops::RangeInclusive;
 
-use nom::{bytes::complete::is_not, error::VerboseError, sequence::preceded, IResult, Parser};
-
-use nom_supreme::tag::complete::tag;
-
 use crate::rlen;
 
 #[derive(Debug, PartialEq)]
 pub struct Score(pub Vec<Section>);
-
-type VerboseResult<Input, Parsed> = IResult<Input, Parsed, VerboseError<Input>>;
 
 #[derive(Debug, PartialEq)]
 pub enum Section {
@@ -22,8 +16,18 @@ pub enum Section {
     Comment(String),
 }
 
-fn comment_line(s: &str) -> VerboseResult<&str, &str> {
-    preceded(tag("//"), is_not("\n\r")).parse(s)
+fn comment_line(s: &str) -> Result<(&str, &str), &str> {
+    if s.len() < 2 || &s[0..2] != "//" {
+        return Err(s);
+    }
+    let mut len = 0;
+    for c in s.chars() {
+        if c == '\n' || c == '\r' {
+            break;
+        }
+        len += 1;
+    }
+    Ok((&s[len..], &s[0..len]))
 }
 
 #[derive(Debug, PartialEq, Clone)]

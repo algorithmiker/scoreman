@@ -119,7 +119,6 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
             }
         }
     }
-
     Ok(Parse2Result {
         diagnostics,
         sections,
