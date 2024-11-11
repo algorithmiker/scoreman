@@ -26,7 +26,7 @@ pub enum BackendSelector {
     Midi(()),
     Muxml(()),
     Muxml2(muxml2::settings::Settings),
-    Format(()),
+    Format(format::FormatBackendSettings),
 }
 
 impl BackendSelector {

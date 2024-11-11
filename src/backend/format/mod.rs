@@ -7,14 +7,22 @@ use crate::{
 
 pub struct FormatBackend();
 
+#[derive(Clone)]
+pub struct FormatBackendSettings {
+    pub dump: bool,
+}
+
 impl Backend for FormatBackend {
-    type BackendSettings = ();
+    type BackendSettings = FormatBackendSettings;
 
     fn process<Out: std::io::Write>(
         parse_result: Parse2Result,
         out: &mut Out,
-        _settings: Self::BackendSettings,
+        settings: Self::BackendSettings,
     ) -> Result<Vec<Diagnostic>, BackendError> {
+        if settings.dump {
+            println!("{parse_result:?}")
+        }
         let diagnostics = vec![];
         let mut formatted = String::new();
         let mut measure_cnt = 0;

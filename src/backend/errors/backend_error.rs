@@ -1,7 +1,6 @@
 use crate::backend::errors::backend_error_kind::BackendErrorKind;
 use crate::backend::errors::diagnostic::Diagnostic;
 use crate::backend::errors::error_location::ErrorLocation;
-use crate::parser::TabElement;
 use std::ops::RangeInclusive;
 
 /// Produced [diagnostics.len()] diagnostics and one error.
@@ -62,27 +61,6 @@ impl<'a> BackendError<'a> {
             diagnostics,
             kind: BackendErrorKind::NoSuchFret(string_name, fret),
             relevant_lines: location_a..=location_a,
-        }
-    }
-    pub fn bad_multichar_tick(
-        diagnostics: Vec<Diagnostic>,
-        parent_line: usize,
-        chr: usize,
-        multichar_track: char,
-        multichar_fret: u8,
-        invalid_track: char,
-        invalid: TabElement,
-        tick_idx: usize,
-    ) -> Self {
-        Self {
-            main_location: ErrorLocation::LineAndCharIdx(parent_line, chr),
-            relevant_lines: parent_line..=parent_line,
-            kind: BackendErrorKind::BadMulticharTick {
-                multichar: (multichar_track, multichar_fret),
-                invalid: (invalid_track, invalid),
-                tick_idx,
-            },
-            diagnostics,
         }
     }
 }

@@ -1,3 +1,4 @@
+use crate::backend::errors::error_location::SourceOffset;
 use crate::{
     backend::errors::{
         backend_error::BackendError, backend_error_kind::BackendErrorKind, diagnostic::Diagnostic,
@@ -19,8 +20,9 @@ pub struct Parse2Result {
     pub measures: [Vec<Measure>; 6],
 }
 
-// TODO: add a way to discard measure information for backends that don't need it
+// TODO: add a way to discard measure/part information for backends that don't need it
 // Will probably involve a restructuring of the parsing step to be controlled by the backend.
+// I imagine a Parser {settings: ParserSettings }.parse()
 pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
     lines: A,
 ) -> Result<Parse2Result, BackendError<'a>> {
@@ -33,7 +35,7 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
     let mut string_measures: [Vec<Measure>; 6] = [vec![], vec![], vec![], vec![], vec![], vec![]];
     let mut string_names = ['\0'; 6];
     let mut tick_cnt = 0;
-    //    let mut idx_in_src = 0;
+    let mut source_offset = 0;
     for (line_idx, line) in lines.enumerate() {
         if line.trim().is_empty() {
             if !part_buf.is_empty() {
@@ -42,10 +44,9 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
                     DiagnosticKind::EmptyLineInPart,
                 ));
             }
+            source_offset += line.len() + 1;
             continue;
         }
-        // +1 for \n
-        //idx_in_src += line.len() + 1;
 
         if let Ok((rem, comment)) = comment_line(line) {
             // I don't think there is a way to write an invalid comment after a valid start, just to be safe
@@ -61,6 +62,7 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
             match partline(
                 line,
                 line_idx,
+                source_offset,
                 &mut strings[part_buf.len()],
                 &mut string_measures[part_buf.len()],
             ) {
@@ -77,6 +79,7 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
                             diagnostics,
                         });
                     }
+
                     tick_cnt += l_tick_count;
                     string_names[part_buf.len()] = line.string_name;
                     part_buf.push(line);
@@ -84,7 +87,7 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
                         // This part is for correcting multichar frets (fret >=10)
                         // because the parser will errorneously generate two rests
                         // when there's a multichar fret on another string
-                        if let Err((kind, char)) = fixup_part(
+                        if let Err((kind, invalid_offset, invalid_line_idx)) = fixup_part(
                             part_start_tick,
                             &mut part_buf,
                             &mut strings,
@@ -92,8 +95,10 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
                             &string_names,
                         ) {
                             return Err(BackendError {
-                                main_location: ErrorLocation::LineAndCharIdx(line_idx, char),
-                                relevant_lines: line_idx..=line_idx,
+                                main_location: ErrorLocation::SourceOffset(SourceOffset::new(
+                                    invalid_offset,
+                                )),
+                                relevant_lines: invalid_line_idx..=invalid_line_idx,
                                 kind,
                                 diagnostics,
                             });
@@ -108,16 +113,19 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
                         part_start_tick = strings[0].len();
                     }
                 }
-                Err(_) => {
+                Err(x) => {
                     return Err(BackendError {
                         main_location: ErrorLocation::LineOnly(line_idx),
                         relevant_lines: line_idx..=line_idx,
-                        kind: BackendErrorKind::ParseError,
+                        kind: BackendErrorKind::InvalidPartlineSyntax(x),
                         diagnostics,
                     });
                 }
             }
         }
+
+        // +1 for \n
+        source_offset += line.len() + 1;
     }
     Ok(Parse2Result {
         diagnostics,
@@ -135,7 +143,7 @@ fn fixup_part(
     strings: &mut [Vec<RawTick>; 6],
     measures: &mut [Vec<Measure>; 6],
     string_names: &[char; 6],
-) -> Result<(), (BackendErrorKind<'static>, usize)> {
+) -> Result<(), (BackendErrorKind<'static>, usize, usize)> {
     let (mut tick_count, track_with_least_ticks) = strings
         .iter()
         .enumerate()
@@ -210,7 +218,8 @@ fn fixup_part(
                                 invalid: (string_names[string_idx], next.element.clone()),
                                 tick_idx,
                             },
-                            next.idx_on_parent_line,
+                            next.src_offset,
+                            string_idx,
                         ));
                     }
                 }

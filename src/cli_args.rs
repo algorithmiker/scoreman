@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use clap::{Parser, Subcommand};
-use guitar_tab::backend::{muxml2, BackendSelector};
+use guitar_tab::backend::{format::FormatBackendSettings, muxml2, BackendSelector};
 
 #[derive(Parser)]
 #[command(
@@ -64,6 +64,9 @@ pub enum Commands {
     Format {
         input_path: String,
         output_path: String,
+        /// Dump the parse tree
+        #[arg(short = 'd', long)]
+        dump: bool,
     },
 }
 
@@ -100,7 +103,9 @@ impl Commands {
             }),
             Commands::Muxml { .. } => BackendSelector::Muxml(()),
             Commands::Midi { .. } => BackendSelector::Midi(()),
-            Commands::Format { .. } => BackendSelector::Format(()),
+            Commands::Format { dump, .. } => {
+                BackendSelector::Format(FormatBackendSettings { dump: *dump })
+            }
         }
     }
 }

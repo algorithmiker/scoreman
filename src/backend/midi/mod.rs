@@ -28,7 +28,7 @@ impl Backend for MidiBackend {
     ) -> Result<Vec<Diagnostic>, BackendError> {
         let diagnostics = vec![];
         // TODO: the parser now gives us things like tick count, can probably preallocate based on
-        // that.
+        // that
         let mut midi_tracks = convert_to_midi(parse_result);
         let mut tracks = vec![vec![
             TrackEvent {

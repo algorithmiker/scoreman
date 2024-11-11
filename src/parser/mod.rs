@@ -8,9 +8,6 @@ use std::ops::RangeInclusive;
 use crate::rlen;
 
 #[derive(Debug, PartialEq)]
-pub struct Score(pub Vec<Section>);
-
-#[derive(Debug, PartialEq)]
 pub enum Section {
     Part { part: [Partline; 6] },
     Comment(String),
@@ -52,6 +49,7 @@ impl Partline {
 fn partline<'a>(
     s: &'a str,
     parent_line_idx: usize,
+    start_source_offset: usize,
     string_buf: &mut Vec<RawTick>,
     string_measure_buf: &mut Vec<Measure>,
 ) -> Result<(&'a str, Partline, usize), &'a str> {
@@ -74,8 +72,7 @@ fn partline<'a>(
             last_parsed_idx += rl_before - rem.len(); // multichar frets
             string_buf.push(RawTick {
                 element: x.1,
-                parent_line: parent_line_idx,
-                idx_on_parent_line: last_parsed_idx,
+                src_offset: start_source_offset + last_parsed_idx,
             });
             measure.extend_1();
             tick_cnt += 1;
@@ -178,8 +175,10 @@ fn tab_element(s: &str) -> Result<(&str, TabElement), &str> {
 #[derive(Debug, PartialEq, Clone)]
 pub struct RawTick {
     pub element: TabElement,
-    pub idx_on_parent_line: usize,
-    pub parent_line: usize,
+    // offset into the source file
+    pub src_offset: usize,
+    //pub idx_on_parent_line: usize,
+    //pub parent_line: usize,
 }
 
 #[derive(Debug, PartialEq, Clone)]

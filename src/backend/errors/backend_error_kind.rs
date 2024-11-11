@@ -17,8 +17,7 @@ pub enum BackendErrorKind<'a> {
         tick_idx: usize,
     },
     InvalidPartlineSyntax(&'a str),
-    /// TODO: a parser error for invalid string names
-    ParseError,
+    // TODO: a parser error for invalid string names
 }
 
 impl<'a> BackendErrorKind<'a> {
@@ -50,7 +49,6 @@ Tip: If you get a lot of errors like this, consider using the muxml1 backend.")
 "Tick {} has a multi-char fret ({multichar_fret}) on string {multichar_string}, but on the same tick there is an invalid element {invalid_elem:?} on string {invalid_string}", tick_idx+1)
             ),
             BackendErrorKind::InvalidPartlineSyntax(rem) => ("Invalid partline syntax".into(), format!("Got remaining content: `{rem}`")),
-            BackendErrorKind::ParseError => ("Invalid syntax".to_owned(), "Invalid syntax".to_owned()),
 
         }
     }

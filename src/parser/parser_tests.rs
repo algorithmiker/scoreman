@@ -38,6 +38,7 @@ fn test_partline() {
     partline(
         "e|--4-|-0--5-|",
         0,
+        0,
         &mut string_buf,
         &mut string_measure_buf,
     )
