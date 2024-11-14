@@ -35,13 +35,15 @@ E|---|---|"#;
 fn test_partline() {
     let mut string_buf = vec![];
     let mut string_measure_buf = vec![];
+    let mut offsets = vec![];
     partline(
         "e|--4-|-0--5-|",
         0,
         0,
         &mut string_buf,
         &mut string_measure_buf,
+        &mut offsets,
     )
     .unwrap();
-    insta::assert_debug_snapshot!((string_buf, string_measure_buf));
+    insta::assert_debug_snapshot!((string_buf, offsets));
 }

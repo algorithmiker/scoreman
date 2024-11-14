@@ -107,6 +107,8 @@ fn gen_muxml2<'a>(
         let mut measure_content_len = ticks_in_measure;
         let mut measure_processed: Vec<Muxml2TabElement> = vec![];
         for tick in 0..ticks_in_measure {
+            // this was benchmarked and found to be
+            // faster than a [MuxmlNote2;6]
             let mut notes_in_tick = Vec::with_capacity(6);
             for string_idx in 0..6 {
                 let Some(raw_tick) = parse_result.measures[string_idx][measure_idx]

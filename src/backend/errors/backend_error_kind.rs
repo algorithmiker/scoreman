@@ -14,7 +14,7 @@ pub enum BackendErrorKind<'a> {
         multichar: (char, u8),
         /// something else
         invalid: (char, TabElement),
-        tick_idx: usize,
+        tick_idx: u32,
     },
     InvalidPartlineSyntax(&'a str),
     // TODO: a parser error for invalid string names

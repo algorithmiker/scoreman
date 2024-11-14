@@ -18,6 +18,7 @@ pub struct Parse2Result {
     pub string_names: [char; 6],
     pub strings: [Vec<RawTick>; 6],
     pub measures: [Vec<Measure>; 6],
+    pub offsets: [Vec<u32>; 6],
 }
 
 // TODO: add a way to discard measure/part information for backends that don't need it
@@ -33,9 +34,10 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
     let mut part_start_tick = 0;
     let mut strings: [Vec<RawTick>; 6] = [vec![], vec![], vec![], vec![], vec![], vec![]];
     let mut string_measures: [Vec<Measure>; 6] = [vec![], vec![], vec![], vec![], vec![], vec![]];
+    let mut offsets: [Vec<u32>; 6] = [vec![], vec![], vec![], vec![], vec![], vec![]];
     let mut string_names = ['\0'; 6];
     let mut tick_cnt = 0;
-    let mut source_offset = 0;
+    let mut source_offset = 0u32;
     for (line_idx, line) in lines.enumerate() {
         if line.trim().is_empty() {
             if !part_buf.is_empty() {
@@ -44,7 +46,7 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
                     DiagnosticKind::EmptyLineInPart,
                 ));
             }
-            source_offset += line.len() + 1;
+            source_offset += line.len() as u32 + 1;
             continue;
         }
 
@@ -65,6 +67,7 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
                 source_offset,
                 &mut strings[part_buf.len()],
                 &mut string_measures[part_buf.len()],
+                &mut offsets[part_buf.len()],
             ) {
                 Ok((rem, line, l_tick_count)) => {
                     if !rem.is_empty() {
@@ -92,6 +95,7 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
                             &mut part_buf,
                             &mut strings,
                             &mut string_measures,
+                            &offsets,
                             &string_names,
                         ) {
                             return Err(BackendError {
@@ -125,7 +129,7 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
         }
 
         // +1 for \n
-        source_offset += line.len() + 1;
+        source_offset += line.len() as u32 + 1;
     }
     Ok(Parse2Result {
         diagnostics,
@@ -134,6 +138,7 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
         strings,
         string_names,
         tick_cnt,
+        offsets,
     })
 }
 fn fixup_part(
@@ -142,6 +147,7 @@ fn fixup_part(
     part: &mut [Partline],
     strings: &mut [Vec<RawTick>; 6],
     measures: &mut [Vec<Measure>; 6],
+    offsets: &[Vec<u32>; 6],
     string_names: &[char; 6],
 ) -> Result<(), (BackendErrorKind<'static>, usize, usize)> {
     let (mut tick_count, track_with_least_ticks) = strings
@@ -216,9 +222,9 @@ fn fixup_part(
                             BackendErrorKind::BadMulticharTick {
                                 multichar: (string_names[multichar_t_idx], multichar_fret),
                                 invalid: (string_names[string_idx], next.element.clone()),
-                                tick_idx,
+                                tick_idx: tick_idx as u32,
                             },
-                            next.src_offset,
+                            offsets[string_idx][tick_idx + 1] as usize,
                             string_idx,
                         ));
                     }

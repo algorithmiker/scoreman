@@ -49,13 +49,14 @@ impl Partline {
 fn partline<'a>(
     s: &'a str,
     parent_line_idx: usize,
-    start_source_offset: usize,
+    start_source_offset: u32,
     string_buf: &mut Vec<RawTick>,
     string_measure_buf: &mut Vec<Measure>,
+    string_offsets_buf: &mut Vec<u32>,
 ) -> Result<(&'a str, Partline, usize), &'a str> {
     let (rem, string_name) = string_name()(s)?;
     let (mut rem, _) = char('|')(rem)?;
-    let mut last_parsed_idx = 1;
+    let mut last_parsed_idx: u32 = 1;
     let mut measures = string_measure_buf.len()..=string_measure_buf.len();
     let mut tick_cnt = 0;
 
@@ -66,14 +67,12 @@ fn partline<'a>(
             index_on_parent_line: rlen(&measures),
         };
         loop {
-            let rl_before = rem.len();
+            let rl_before = rem.len() as u32;
             let Ok(x) = tab_element(rem) else { break };
             rem = x.0;
-            last_parsed_idx += rl_before - rem.len(); // multichar frets
-            string_buf.push(RawTick {
-                element: x.1,
-                src_offset: start_source_offset + last_parsed_idx,
-            });
+            last_parsed_idx += rl_before - rem.len() as u32; // multichar frets
+            string_buf.push(RawTick { element: x.1 });
+            string_offsets_buf.push(start_source_offset + last_parsed_idx);
             measure.extend_1();
             tick_cnt += 1;
         }
@@ -175,10 +174,6 @@ fn tab_element(s: &str) -> Result<(&str, TabElement), &str> {
 #[derive(Debug, PartialEq, Clone)]
 pub struct RawTick {
     pub element: TabElement,
-    // offset into the source file
-    pub src_offset: usize,
-    //pub idx_on_parent_line: usize,
-    //pub parent_line: usize,
 }
 
 #[derive(Debug, PartialEq, Clone)]
