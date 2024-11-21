@@ -15,7 +15,9 @@
       devShells.${system}.default = pkgs.mkShell {
         nativeBuildInputs = [
           pkgs.samply
+          pkgs.valgrind
           pkgs.mold-wrapped
+          pkgs.kcachegrind
         ];
       };
 
