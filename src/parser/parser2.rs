@@ -193,36 +193,41 @@ fn fixup_part(
                 TabElement::Rest | TabElement::DeadNote => true,
             };
             if tick_onechar_on_this_track {
-                if let Some(next) = strings[string_idx].get(tick_idx + 1) {
-                    if let TabElement::Rest = next.element {
-                        // remove the next tick
-                        // O(N) but should be few elements after
-                        strings[string_idx].remove(tick_idx + 1);
-                        // now also update measure information to stay correct
-                        for measure_idx in part[string_idx].measures.clone() {
-                            let mc = &mut measures[string_idx][measure_idx].content;
-                            if *mc.start() > tick_idx {
-                                // move measure to the right
-                                *mc = mc.start() - 1..=mc.end() - 1;
-                            } else if *mc.end() > tick_idx {
-                                // pop one from end
-                                *mc = *mc.start()..=mc.end() - 1
-                            }
-                        }
-                        if string_idx == track_with_least_ticks {
-                            tick_count -= 1;
-                        }
-                    } else {
-                        return Err((
-                            BackendErrorKind::BadMulticharTick {
-                                multichar: (string_names[multichar_t_idx], multichar_fret),
-                                invalid: (string_names[string_idx], next.element.clone()),
-                                tick_idx: tick_idx as u32,
-                            },
-                            offsets[string_idx][tick_idx + 1] as usize,
-                            string_idx,
-                        ));
+                let idx_to_remove = [tick_idx + 1, tick_idx - 1].into_iter().find(|x| {
+                    strings[string_idx]
+                        .get(*x)
+                        //.inspect(|x| println!("affine: {x:?}"))
+                        .is_some_and(|y| y.element == TabElement::Rest)
+                });
+                let Some(idx_to_remove) = idx_to_remove else {
+                    return Err((
+                        BackendErrorKind::BadMulticharTick {
+                            multichar: (string_names[multichar_t_idx], multichar_fret),
+                            invalid: (
+                                string_names[string_idx],
+                                strings[string_idx][tick_idx].element.clone(),
+                            ),
+                            tick_idx: tick_idx as u32,
+                        },
+                        offsets[string_idx][tick_idx + 1] as usize,
+                        string_idx,
+                    ));
+                };
+                strings[string_idx].remove(idx_to_remove);
+
+                // now also update measure information to stay correct
+                for measure_idx in part[string_idx].measures.clone() {
+                    let mc = &mut measures[string_idx][measure_idx].content;
+                    if *mc.start() > tick_idx {
+                        // move measure to the right
+                        *mc = mc.start() - 1..=mc.end() - 1;
+                    } else if *mc.end() > tick_idx {
+                        // pop one from end
+                        *mc = *mc.start()..=mc.end() - 1
                     }
+                }
+                if string_idx == track_with_least_ticks {
+                    tick_count -= 1;
                 }
             }
         }
