@@ -47,8 +47,8 @@ impl Backend for Muxml2Backend {
 #[derive(Debug)]
 pub enum Muxml2TabElement {
     Rest(usize),
-    Notes([MuxmlNote2; 6]),
-    /// used in optimization, should generate no code for this type
+    Notes(Vec<MuxmlNote2>),
+    /// used in optimizing, should generate no code for this type
     Invalid,
 }
 
@@ -107,9 +107,7 @@ fn gen_muxml2<'a>(
         let mut measure_content_len = ticks_in_measure;
         let mut measure_processed: Vec<Muxml2TabElement> = vec![];
         for tick in 0..ticks_in_measure {
-            let mut notes_in_tick = [const { MuxmlNote2::_uninit() }; 6];
-            let mut tick_note_len = 0;
-
+            let mut notes_in_tick = Vec::with_capacity(6);
             for string_idx in 0..6 {
                 let Some(raw_tick) = parse_result.measures[string_idx][measure_idx]
                     .get_content(&parse_result.strings[string_idx])
@@ -119,21 +117,19 @@ fn gen_muxml2<'a>(
                 };
                 match raw_tick.element {
                     Fret(fret) => {
-                        notes_in_tick[tick_note_len] =
-                            get_fretboard_note2(parse_result.string_names[string_idx], fret)?;
-                        tick_note_len += 1;
+                        let x = get_fretboard_note2(parse_result.string_names[string_idx], fret)?;
+                        notes_in_tick.push(x);
                     }
                     TabElement::DeadNote => {
                         let mut x = get_fretboard_note2(parse_result.string_names[string_idx], 0)?;
                         x.dead = true;
-                        notes_in_tick[tick_note_len] = x;
-                        tick_note_len += 1
+                        notes_in_tick.push(x);
                     }
                     Rest => continue,
                 }
             }
             // if there were no notes inserted in this tick, add a rest
-            measure_processed.push(if tick_note_len == 0 {
+            measure_processed.push(if notes_in_tick.is_empty() {
                 Muxml2TabElement::Rest(1)
             } else {
                 Muxml2TabElement::Notes(notes_in_tick)
@@ -297,12 +293,6 @@ impl MuxmlNote2 {
     ) -> Result<(), std::fmt::Error> {
         let (step, octave, sharp) = self.step_octave_sharp();
         write_muxml2_note(buf, step, octave, sharp, chord, self.dead)
-    }
-    const fn _uninit() -> Self {
-        Self {
-            step: 0,
-            dead: false,
-        }
     }
 }
 
