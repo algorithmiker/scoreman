@@ -149,23 +149,32 @@ fn string_name() -> impl Fn(&str) -> Result<(&str, char), &str> {
     }
 }
 fn tab_element(s: &str) -> Result<(&str, TabElement), &str> {
-    let mut chars = s.chars();
-    match chars.next() {
-        Some('-') => Ok((&s[1..], TabElement::Rest)),
-        Some('x') => Ok((&s[1..], TabElement::DeadNote)),
-        Some(c) if c.is_numeric() => {
+    let bytes = s.as_bytes();
+    match bytes.first() {
+        Some(b'-') => Ok((&s[1..], TabElement::Rest)),
+        Some(b'x') => Ok((&s[1..], TabElement::DeadNote)),
+        Some(48..=58) => {
             let mut len = 1;
             // 123a
-            for cc in chars {
-                if !cc.is_numeric() {
+            for cc in &bytes[1..] {
+                if !matches!(cc, 48..=58) {
                     break;
                 }
                 len += 1;
             }
-            match s[0..len].parse() {
-                Ok(x) => Ok((&s[len..], TabElement::Fret(x))),
-                Err(_) => Err(s),
-            }
+            let parsed: u8 = bytes[0..len]
+                .iter()
+                .rev()
+                .map(|x| x - 48)
+                .enumerate()
+                .map(|(idx, x)| 10u8.pow(idx as u32) * x)
+                .sum();
+            debug_assert_eq!(Ok(parsed), s[0..len].parse());
+            Ok((&s[len..], TabElement::Fret(parsed)))
+            // match s[0..len].parse() {
+            //     Ok(x) => Ok((&s[len..], TabElement::Fret(x))),
+            //     Err(_) => Err(s),
+            // }
         }
         Some(_) | None => Err(s),
     }
