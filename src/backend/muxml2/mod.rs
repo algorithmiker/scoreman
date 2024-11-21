@@ -97,7 +97,7 @@ fn gen_muxml2<'a>(
     let number_of_measures = parse_result.measures[0].len();
     let mut document = String::from(MUXML_INCOMPLETE_DOC_PRELUDE);
     // this looks like a good setting for -nmt based on trial and error
-    document.reserve(parse_result.tick_cnt * 10);
+    document.reserve(parse_result.strings[0].len() * 6 * 10);
     //println!("Reserved capacity: {}", document.capacity());
     for measure_idx in 0..number_of_measures {
         let ticks_in_measure = parse_result.measures[0][measure_idx].len(); // see assumption 2

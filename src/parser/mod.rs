@@ -53,12 +53,11 @@ fn partline<'a>(
     string_buf: &mut Vec<RawTick>,
     string_measure_buf: &mut Vec<Measure>,
     string_offsets_buf: &mut Vec<u32>,
-) -> Result<(&'a str, Partline, usize), &'a str> {
+) -> Result<(&'a str, Partline), &'a str> {
     let (rem, string_name) = string_name()(s)?;
     let (mut rem, _) = char('|')(rem)?;
     let mut last_parsed_idx: u32 = 1;
     let mut measures = string_measure_buf.len()..=string_measure_buf.len();
-    let mut tick_cnt = 0;
 
     while !rem.is_empty() {
         let mut measure = Measure {
@@ -74,7 +73,6 @@ fn partline<'a>(
             string_buf.push(RawTick { element: x.1 });
             string_offsets_buf.push(start_source_offset + last_parsed_idx);
             measure.extend_1();
-            tick_cnt += 1;
         }
         measure.content = *measure.content.start()..=measure.content.end() - 1;
         string_measure_buf.push(measure);
@@ -91,7 +89,6 @@ fn partline<'a>(
             string_name,
             measures,
         },
-        tick_cnt,
     ))
 }
 

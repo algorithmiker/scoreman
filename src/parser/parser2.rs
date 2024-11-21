@@ -13,8 +13,6 @@ pub struct Parse2Result {
     pub diagnostics: Vec<Diagnostic>,
     pub sections: Vec<Section>,
 
-    /// How many ticks there are in the document (sum of the line-tick-counts)
-    pub tick_cnt: usize,
     pub string_names: [char; 6],
     pub strings: [Vec<RawTick>; 6],
     pub measures: [Vec<Measure>; 6],
@@ -36,7 +34,6 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
     let mut string_measures: [Vec<Measure>; 6] = [vec![], vec![], vec![], vec![], vec![], vec![]];
     let mut offsets: [Vec<u32>; 6] = [vec![], vec![], vec![], vec![], vec![], vec![]];
     let mut string_names = ['\0'; 6];
-    let mut tick_cnt = 0;
     let mut source_offset = 0u32;
     for (line_idx, line) in lines.enumerate() {
         if line.trim().is_empty() {
@@ -69,7 +66,7 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
                 &mut string_measures[part_buf.len()],
                 &mut offsets[part_buf.len()],
             ) {
-                Ok((rem, line, l_tick_count)) => {
+                Ok((rem, line)) => {
                     if !rem.is_empty() {
                         return Err(BackendError {
                             main_location: ErrorLocation::LineAndMeasure(
@@ -83,7 +80,6 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
                         });
                     }
 
-                    tick_cnt += l_tick_count;
                     string_names[part_buf.len()] = line.string_name;
                     part_buf.push(line);
                     if part_buf.len() == 6 {
@@ -137,7 +133,6 @@ pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
         measures: string_measures,
         strings,
         string_names,
-        tick_cnt,
         offsets,
     })
 }
