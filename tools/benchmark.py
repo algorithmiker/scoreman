@@ -10,7 +10,7 @@ def to_canonical_revision(s:str) -> (str,str):
     return subprocess.run(["git", "rev-parse", "--short",s],capture_output=True,check=True).stdout.strip().decode("utf-8")
 
 DEVNULL=open("/dev/null")
-def run_silent(*args,**kwargs) -> (str,str):
+def run_silent(*args,**kwargs):
     subprocess.run(*args, stdout=DEVNULL, stderr=DEVNULL, **kwargs)
 def main(dir_path:str,old_revision:str,new_revision:str, *args): 
     try: os.mkdir(dir_path)

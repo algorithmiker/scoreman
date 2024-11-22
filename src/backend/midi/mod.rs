@@ -17,6 +17,18 @@ const MINUTE_IN_MICROSECONDS: u32 = 60 * 1000;
 const LENGTH_OF_QUARTER: u32 = MINUTE_IN_MICROSECONDS / BPM;
 const LENGTH_OF_EIGHT: u32 = LENGTH_OF_QUARTER / 2;
 
+/// TODO: streaming midi for live playback
+/// this works well already for normal size tabs (like a guitar solo or something)
+/// but for larger tabs you have to skip a frame (~10ms) to parse and export the tab to a midi,
+/// which will be parsed back when playing using some other program anyway.
+/// Try to do this ourselves, by having a streaming parser, which will yield to the backend after
+/// parsing a Part (~100us at most). The backend then would have spun off a thread that writes to a
+/// MIDI file descriptor.
+/// I think we can assume that parsing a Part will never take longer than playing the Part. If the
+/// Part has at least one rest, it will play for 100ms and we'll have parsed the next one already
+/// by then.
+/// This idea requires us to switch to the "backend drives parser" model, and of course to a
+/// streaming parser.
 pub struct MidiBackend();
 impl Backend for MidiBackend {
     type BackendSettings = ();
