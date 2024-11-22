@@ -1,14 +1,10 @@
 /target
 input/
 output/
-justfile
-gt-new
-gt-old
-gt_new
-gt_old
-timings.json
 perf*
 profile.json
 flamegraph*
 profile.sh
 benchmark_each_revision.py
+.benchmark
+callgrind.*
