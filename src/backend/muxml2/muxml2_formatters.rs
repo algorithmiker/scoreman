@@ -19,7 +19,7 @@ pub fn write_muxml2_rest(
 <type>"#,
     )?;
     buf.write_str(r#type)?;
-    buf.write_str("</type>\n</note>")?;
+    buf.write_str("</type>\n</note>\n")?;
     Ok(())
 }
 
@@ -36,7 +36,7 @@ pub fn write_muxml2_note(
     if chord {
         buf.write_str("<chord/>\n")?
     }
-    buf.write_str("<pitch>\n<step>")?;
+    buf.write_str("<pitch><step>")?;
     buf.write_char(step)?;
     buf.write_str("</step>\n")?;
     if sharp {
@@ -57,7 +57,7 @@ pub fn write_muxml2_note(
     if dead {
         buf.write_str("<notehead>x</notehead>\n")?;
     }
-    buf.write_str("</note>")?;
+    buf.write_str("</note>\n")?;
     Ok(())
 }
 #[inline]
@@ -78,19 +78,19 @@ pub fn write_muxml2_measure_prelude(
 "#,
     )?;
     if first_measure {
-        buf.write_str("<key><fifths>0</fifths></key>")?
+        buf.write_str("<key><fifths>0</fifths></key>\n")?
     };
-    buf.write_str(r#"<time>\n<beats>"#)?;
+    buf.write_str("<time><beats>")?;
     let mut note_count_buf = Buffer::new();
     buf.write_str(note_count_buf.format(note_count))?;
-    buf.write_str("</beats>\n<beat-type>")?;
+    buf.write_str("</beats><beat-type>")?;
     let mut note_type_buf = Buffer::new();
     buf.write_str(note_type_buf.format(note_type))?;
-    buf.write_str("</beat-type>\n</time>")?;
+    buf.write_str("</beat-type></time>\n")?;
     if first_measure {
-        buf.write_str("<clef><sign>G</sign><line>2</line></clef>")?
+        buf.write_str("<clef><sign>G</sign><line>2</line></clef>\n")?
     }
-    buf.write_str("\n</attributes>")?;
+    buf.write_str("</attributes>\n")?;
     Ok(())
     //    write!(
     //        buf,
