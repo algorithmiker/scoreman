@@ -85,6 +85,7 @@ impl Muxml2TabElement {
     }
 }
 
+/// TODO: don't use global strings, use Partline strings
 fn gen_muxml2<'a>(
     parse_result: Parse2Result,
     settings: <Muxml2Backend as Backend>::BackendSettings,

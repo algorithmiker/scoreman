@@ -61,6 +61,7 @@ impl std::io::Write for OutputType {
 }
 
 /// TODO: fix the GUI and merge this into this workspace
+/// TODO: benchmarking: cache old build
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     let input_path = cli.command.input_path();
