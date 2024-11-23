@@ -28,7 +28,6 @@ impl Backend for FormatBackend {
         let mut diagnostics = vec![];
         let parser = Parser2 {
             track_measures: true,
-            track_offsets: false,
             track_sections: true,
         };
         let (parse_time, parse_result) = match time(|| parser.parse(parser_input)) {

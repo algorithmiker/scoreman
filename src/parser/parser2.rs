@@ -23,14 +23,12 @@ pub struct Parse2Result {
 pub struct Parser2 {
     pub track_measures: bool,
     pub track_sections: bool,
-    pub track_offsets: bool,
 }
 impl Default for Parser2 {
     fn default() -> Self {
         Self {
             track_measures: true,
             track_sections: true,
-            track_offsets: true,
         }
     }
 }
@@ -43,17 +41,20 @@ impl Parser2 {
     // I imagine a Parser {settings: ParserSettings }.parse()
     pub fn parse<'a>(&self, lines: impl ParserInput<'a>) -> Result<Parse2Result, BackendError<'a>> {
         let mut diagnostics = vec![];
-        let mut sections = Vec::with_capacity(10);
+        #[rustfmt::skip]
+        let mut sections = if self.track_sections{Vec::with_capacity(10)} else {vec![]};
         let mut part_buf = Vec::with_capacity(6);
+        let mut line_in_part = 0;
         let mut part_start_tick = 0;
         let mut strings: [Vec<RawTick>; 6] = [const { Vec::new() }; 6];
         let mut string_measures: [Vec<Measure>; 6] = [const { Vec::new() }; 6];
         let mut offsets: [Vec<u32>; 6] = [const { Vec::new() }; 6];
         let mut string_names = ['\0'; 6];
         let mut source_offset = 0u32;
+
         for (line_idx, line) in lines.enumerate() {
             if line.trim().is_empty() {
-                if !part_buf.is_empty() {
+                if line_in_part != 0 {
                     diagnostics.push(Diagnostic::warn(
                         ErrorLocation::LineOnly(line_idx),
                         DiagnosticKind::EmptyLineInPart,
@@ -66,21 +67,24 @@ impl Parser2 {
             if let Ok((rem, comment)) = comment_line(line) {
                 // I don't think there is a way to write an invalid comment after a valid start, just to be safe
                 assert!(rem.is_empty(), "Invalid comment syntax (line {line_idx})");
-                if !part_buf.is_empty() {
+                if line_in_part != 0 {
                     diagnostics.push(Diagnostic::warn(
                         ErrorLocation::LineOnly(line_idx),
                         DiagnosticKind::CommentInPart,
                     ));
                 }
-                sections.push(Section::Comment(comment.to_string()));
+                if self.track_sections {
+                    sections.push(Section::Comment(comment.to_string()))
+                };
             } else {
                 match partline(
                     line,
                     line_idx,
                     source_offset,
-                    &mut strings[part_buf.len()],
-                    &mut string_measures[part_buf.len()],
-                    &mut offsets[part_buf.len()],
+                    &mut strings[line_in_part],
+                    &mut string_measures[line_in_part],
+                    &mut offsets[line_in_part],
+                    self.track_measures,
                 ) {
                     Ok((rem, line)) => {
                         if !rem.is_empty() {
@@ -92,9 +96,10 @@ impl Parser2 {
                             });
                         }
 
-                        string_names[part_buf.len()] = line.string_name;
+                        string_names[line_in_part] = line.string_name;
                         part_buf.push(line);
-                        if part_buf.len() == 6 {
+                        line_in_part += 1;
+                        if line_in_part == 6 {
                             // This part is for correcting multichar frets (fret >=10)
                             // because the parser will errorneously generate two rests
                             // when there's a multichar fret on another string
@@ -105,6 +110,7 @@ impl Parser2 {
                                 &mut string_measures,
                                 &offsets,
                                 &string_names,
+                                self.track_measures,
                             ) {
                                 return Err(BackendError {
                                     main_location: ErrorLocation::SourceOffset(SourceOffset::new(
@@ -114,11 +120,14 @@ impl Parser2 {
                                     kind,
                                 });
                             }
-                            // flush part buf
-                            sections.push(Section::Part {
-                                part: part_buf.try_into().unwrap(),
-                            });
+                            if self.track_sections {
+                                // flush part buf
+                                sections.push(Section::Part {
+                                    part: part_buf.try_into().unwrap(),
+                                });
+                            }
                             part_buf = Vec::with_capacity(6);
+                            line_in_part = 0;
                             part_start_tick = strings[0].len();
                         }
                     }
@@ -133,7 +142,7 @@ impl Parser2 {
             }
 
             // +1 for \n
-            source_offset += line.len() as u32 + 1;
+            source_offset += line.len() as u32 + 1
         }
         Ok(Parse2Result {
             diagnostics,
@@ -154,6 +163,7 @@ fn fixup_part(
     measures: &mut [Vec<Measure>; 6],
     offsets: &[Vec<u32>; 6],
     string_names: &[char; 6],
+    track_measures: bool,
 ) -> Result<(), (BackendErrorKind<'static>, usize, usize)> {
     let (mut tick_count, track_with_least_ticks) = strings
         .iter()
@@ -226,16 +236,17 @@ fn fixup_part(
                     ));
                 };
                 strings[string_idx].remove(idx_to_remove);
-
-                // now also update measure information to stay correct
-                for measure_idx in part[string_idx].measures.clone() {
-                    let mc = &mut measures[string_idx][measure_idx].content;
-                    if *mc.start() > tick_idx {
-                        // move measure to the right
-                        *mc = mc.start() - 1..=mc.end() - 1;
-                    } else if *mc.end() > tick_idx {
-                        // pop one from end
-                        *mc = *mc.start()..=mc.end() - 1
+                if track_measures {
+                    // now also update measure information to stay correct
+                    for measure_idx in part[string_idx].measures.clone() {
+                        let mc = &mut measures[string_idx][measure_idx].content;
+                        if *mc.start() > tick_idx {
+                            // move measure to the right
+                            *mc = mc.start() - 1..=mc.end() - 1;
+                        } else if *mc.end() > tick_idx {
+                            // pop one from end
+                            *mc = *mc.start()..=mc.end() - 1
+                        }
                     }
                 }
                 if string_idx == track_with_least_ticks {

@@ -45,7 +45,6 @@ impl Backend for MidiBackend {
         let parser = Parser2 {
             track_measures: false,
             track_sections: false,
-            track_offsets: false,
         };
         let (parse_time, parse_result) = match time(|| parser.parse(input)) {
             (parse_time, Ok(parse_result)) => (parse_time, parse_result),

@@ -37,8 +37,7 @@ impl Backend for Muxml2Backend {
     ) -> BackendResult<'a> {
         let parser = Parser2 {
             track_measures: true,
-            track_sections: true,
-            track_offsets: true,
+            track_sections: false,
         };
         let (parse_time, parse_result) = match time(|| parser.parse(input)) {
             (parse_time, Ok(parse_result)) => (parse_time, parse_result),

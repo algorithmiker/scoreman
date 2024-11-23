@@ -53,6 +53,7 @@ fn partline<'a>(
     string_buf: &mut Vec<RawTick>,
     string_measure_buf: &mut Vec<Measure>,
     string_offsets_buf: &mut Vec<u32>,
+    track_measures: bool,
 ) -> Result<(&'a str, Partline), &'a str> {
     let (rem, string_name) = string_name()(s)?;
     let (mut rem, _) = char('|')(rem)?;
@@ -72,17 +73,23 @@ fn partline<'a>(
             last_parsed_idx += rl_before - rem.len() as u32; // multichar frets
             string_buf.push(RawTick { element: x.1 });
             string_offsets_buf.push(start_source_offset + last_parsed_idx);
-            measure.extend_1();
+            if track_measures {
+                measure.extend_1();
+            }
         }
-        measure.content = *measure.content.start()..=measure.content.end() - 1;
-        string_measure_buf.push(measure);
-        measures = *measures.start()..=measures.end() + 1;
+        if track_measures {
+            measure.content = *measure.content.start()..=measure.content.end() - 1;
+            string_measure_buf.push(measure);
+            measures = *measures.start()..=measures.end() + 1;
+        }
         rem = char('|')(rem)?.0;
         last_parsed_idx += 1;
     }
     // off by one: because we are using inclusive ranges, for example the first line, with only 1
     // measure, would be 0..=1 but we want it to be 0..=0
-    measures = *measures.start()..=measures.end() - 1;
+    if track_measures {
+        measures = *measures.start()..=measures.end() - 1
+    };
     Ok((
         rem,
         Partline {

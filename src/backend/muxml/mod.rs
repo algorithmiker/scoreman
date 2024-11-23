@@ -24,7 +24,6 @@ impl Backend for MuxmlBackend {
         let parser = Parser2 {
             track_measures: true,
             track_sections: false,
-            track_offsets: true,
         };
 
         let (parse_time, parse_result) = match time(|| parser.parse(input)) {

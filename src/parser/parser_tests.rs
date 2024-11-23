@@ -44,6 +44,7 @@ fn test_partline() {
         &mut string_buf,
         &mut string_measure_buf,
         &mut offsets,
+        true,
     )
     .unwrap();
     insta::assert_debug_snapshot!((string_buf, offsets));
