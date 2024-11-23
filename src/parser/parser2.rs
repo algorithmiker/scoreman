@@ -203,13 +203,15 @@ fn fixup_part(
                 TabElement::Rest | TabElement::DeadNote => true,
             };
             if tick_onechar_on_this_track {
-                let idx_to_remove = [tick_idx + 1, tick_idx - 1].into_iter().find(|x| {
-                    strings[string_idx]
-                        .get(*x)
-                        //.inspect(|x| println!("affine: {x:?}"))
-                        .is_some_and(|y| y.element == TabElement::Rest)
-                });
-                let Some(idx_to_remove) = idx_to_remove else {
+                let idx_to_remove: usize = if tick_idx < strings[string_idx].len() - 1
+                    && strings[string_idx][tick_idx + 1].element == TabElement::Rest
+                {
+                    tick_idx + 1
+                } else if tick_idx > 0
+                    && strings[string_idx][tick_idx - 1].element == TabElement::Rest
+                {
+                    tick_idx - 1
+                } else {
                     return Err((
                         BackendErrorKind::BadMulticharTick {
                             multichar: (string_names[multichar_t_idx], multichar_fret),
