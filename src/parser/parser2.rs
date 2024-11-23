@@ -19,123 +19,133 @@ pub struct Parse2Result {
     pub offsets: [Vec<u32>; 6],
 }
 
-// TODO: add a way to discard measure/part information for backends that don't need it
-// Will probably involve a restructuring of the parsing step to be controlled by the backend.
-// I imagine a Parser {settings: ParserSettings }.parse()
-pub fn parse2<'a, A: std::iter::Iterator<Item = &'a str>>(
-    lines: A,
-) -> Result<Parse2Result, BackendError<'a>> {
-    let mut diagnostics = vec![];
-    let mut sections = Vec::with_capacity(10);
-    // Todo eventually remove Part
-    let mut part_buf = Vec::with_capacity(6);
-    let mut part_start_tick = 0;
-    let mut strings: [Vec<RawTick>; 6] = [vec![], vec![], vec![], vec![], vec![], vec![]];
-    let mut string_measures: [Vec<Measure>; 6] = [vec![], vec![], vec![], vec![], vec![], vec![]];
-    let mut offsets: [Vec<u32>; 6] = [vec![], vec![], vec![], vec![], vec![], vec![]];
-    let mut string_names = ['\0'; 6];
-    let mut source_offset = 0u32;
-    for (line_idx, line) in lines.enumerate() {
-        if line.trim().is_empty() {
-            if !part_buf.is_empty() {
-                diagnostics.push(Diagnostic::warn(
-                    ErrorLocation::LineOnly(line_idx),
-                    DiagnosticKind::EmptyLineInPart,
-                ));
-            }
-            source_offset += line.len() as u32 + 1;
-            continue;
+// TODO: try if using bitflags would speed this up
+pub struct Parser2 {
+    pub track_measures: bool,
+    pub track_sections: bool,
+    pub track_offsets: bool,
+}
+impl Default for Parser2 {
+    fn default() -> Self {
+        Self {
+            track_measures: true,
+            track_sections: true,
+            track_offsets: true,
         }
+    }
+}
+pub trait ParserInput<'a>: std::iter::Iterator<Item = &'a str> {}
+impl<'a, T: std::iter::Iterator<Item = &'a str>> ParserInput<'a> for T {}
 
-        if let Ok((rem, comment)) = comment_line(line) {
-            // I don't think there is a way to write an invalid comment after a valid start, just to be safe
-            assert!(rem.is_empty(), "Invalid comment syntax (line {line_idx})");
-            if !part_buf.is_empty() {
-                diagnostics.push(Diagnostic::warn(
-                    ErrorLocation::LineOnly(line_idx),
-                    DiagnosticKind::CommentInPart,
-                ));
+impl Parser2 {
+    // TODO: add a way to discard measure/part information for backends that don't need it
+    // Will probably involve a restructuring of the parsing step to be controlled by the backend.
+    // I imagine a Parser {settings: ParserSettings }.parse()
+    pub fn parse<'a>(&self, lines: impl ParserInput<'a>) -> Result<Parse2Result, BackendError<'a>> {
+        let mut diagnostics = vec![];
+        let mut sections = Vec::with_capacity(10);
+        let mut part_buf = Vec::with_capacity(6);
+        let mut part_start_tick = 0;
+        let mut strings: [Vec<RawTick>; 6] = [const { Vec::new() }; 6];
+        let mut string_measures: [Vec<Measure>; 6] = [const { Vec::new() }; 6];
+        let mut offsets: [Vec<u32>; 6] = [const { Vec::new() }; 6];
+        let mut string_names = ['\0'; 6];
+        let mut source_offset = 0u32;
+        for (line_idx, line) in lines.enumerate() {
+            if line.trim().is_empty() {
+                if !part_buf.is_empty() {
+                    diagnostics.push(Diagnostic::warn(
+                        ErrorLocation::LineOnly(line_idx),
+                        DiagnosticKind::EmptyLineInPart,
+                    ));
+                }
+                source_offset += line.len() as u32 + 1;
+                continue;
             }
-            sections.push(Section::Comment(comment.to_string()));
-        } else {
-            match partline(
-                line,
-                line_idx,
-                source_offset,
-                &mut strings[part_buf.len()],
-                &mut string_measures[part_buf.len()],
-                &mut offsets[part_buf.len()],
-            ) {
-                Ok((rem, line)) => {
-                    if !rem.is_empty() {
-                        return Err(BackendError {
-                            main_location: ErrorLocation::LineAndMeasure(
-                                line_idx,
-                                // the measure with the problem is the first that is not parsed
-                                line.len(),
-                            ),
-                            relevant_lines: line_idx..=line_idx,
-                            kind: BackendErrorKind::InvalidPartlineSyntax(rem),
-                            diagnostics,
-                        });
-                    }
 
-                    string_names[part_buf.len()] = line.string_name;
-                    part_buf.push(line);
-                    if part_buf.len() == 6 {
-                        // This part is for correcting multichar frets (fret >=10)
-                        // because the parser will errorneously generate two rests
-                        // when there's a multichar fret on another string
-                        if let Err((kind, invalid_offset, invalid_line_idx)) = fixup_part(
-                            part_start_tick,
-                            &mut part_buf,
-                            &mut strings,
-                            &mut string_measures,
-                            &offsets,
-                            &string_names,
-                        ) {
+            if let Ok((rem, comment)) = comment_line(line) {
+                // I don't think there is a way to write an invalid comment after a valid start, just to be safe
+                assert!(rem.is_empty(), "Invalid comment syntax (line {line_idx})");
+                if !part_buf.is_empty() {
+                    diagnostics.push(Diagnostic::warn(
+                        ErrorLocation::LineOnly(line_idx),
+                        DiagnosticKind::CommentInPart,
+                    ));
+                }
+                sections.push(Section::Comment(comment.to_string()));
+            } else {
+                match partline(
+                    line,
+                    line_idx,
+                    source_offset,
+                    &mut strings[part_buf.len()],
+                    &mut string_measures[part_buf.len()],
+                    &mut offsets[part_buf.len()],
+                ) {
+                    Ok((rem, line)) => {
+                        if !rem.is_empty() {
                             return Err(BackendError {
-                                main_location: ErrorLocation::SourceOffset(SourceOffset::new(
-                                    invalid_offset,
-                                )),
-                                relevant_lines: invalid_line_idx..=invalid_line_idx,
-                                kind,
-                                diagnostics,
+                                // the measure with the problem is the first that is not parsed
+                                main_location: ErrorLocation::LineAndMeasure(line_idx, line.len()),
+                                relevant_lines: line_idx..=line_idx,
+                                kind: BackendErrorKind::InvalidPartlineSyntax(rem),
                             });
                         }
-                        // flush part buf
-                        sections.push(Section::Part {
-                            part: part_buf
-                                .try_into()
-                                .expect("Unreachable: more than 6 elements in part_buf"),
+
+                        string_names[part_buf.len()] = line.string_name;
+                        part_buf.push(line);
+                        if part_buf.len() == 6 {
+                            // This part is for correcting multichar frets (fret >=10)
+                            // because the parser will errorneously generate two rests
+                            // when there's a multichar fret on another string
+                            if let Err((kind, invalid_offset, invalid_line_idx)) = fixup_part(
+                                part_start_tick,
+                                &mut part_buf,
+                                &mut strings,
+                                &mut string_measures,
+                                &offsets,
+                                &string_names,
+                            ) {
+                                return Err(BackendError {
+                                    main_location: ErrorLocation::SourceOffset(SourceOffset::new(
+                                        invalid_offset,
+                                    )),
+                                    relevant_lines: invalid_line_idx..=invalid_line_idx,
+                                    kind,
+                                });
+                            }
+                            // flush part buf
+                            sections.push(Section::Part {
+                                part: part_buf.try_into().unwrap(),
+                            });
+                            part_buf = Vec::with_capacity(6);
+                            part_start_tick = strings[0].len();
+                        }
+                    }
+                    Err(x) => {
+                        return Err(BackendError {
+                            main_location: ErrorLocation::LineOnly(line_idx),
+                            relevant_lines: line_idx..=line_idx,
+                            kind: BackendErrorKind::InvalidPartlineSyntax(x),
                         });
-                        part_buf = Vec::with_capacity(6);
-                        part_start_tick = strings[0].len();
                     }
                 }
-                Err(x) => {
-                    return Err(BackendError {
-                        main_location: ErrorLocation::LineOnly(line_idx),
-                        relevant_lines: line_idx..=line_idx,
-                        kind: BackendErrorKind::InvalidPartlineSyntax(x),
-                        diagnostics,
-                    });
-                }
             }
-        }
 
-        // +1 for \n
-        source_offset += line.len() as u32 + 1;
+            // +1 for \n
+            source_offset += line.len() as u32 + 1;
+        }
+        Ok(Parse2Result {
+            diagnostics,
+            sections,
+            measures: string_measures,
+            strings,
+            string_names,
+            offsets,
+        })
     }
-    Ok(Parse2Result {
-        diagnostics,
-        sections,
-        measures: string_measures,
-        strings,
-        string_names,
-        offsets,
-    })
 }
+
 fn fixup_part(
     // we only need to check after this
     start_tick: usize,
@@ -237,6 +247,7 @@ fn fixup_part(
 }
 #[test]
 fn test_parse2() {
+    let parser = Parser2::default();
     let i1 = r#"
 e|---|
 B|-3-|
@@ -253,7 +264,7 @@ G|-6-|
 D|---|
 A|---|
 E|---|"#;
-    insta::assert_debug_snapshot!(parse2(i1.lines()));
+    insta::assert_debug_snapshot!(parser.parse(i1.lines()));
     let i2 = r#"
 e|---|
 B|-3-|
@@ -270,7 +281,7 @@ G|-6-|
 D|---|
 A|---|
 E|---|"#;
-    insta::assert_debug_snapshot!(parse2(i2.lines()));
+    insta::assert_debug_snapshot!(parser.parse(i2.lines()));
 
     let i3 = r#"
 e|-------------12---------------------|
@@ -279,5 +290,13 @@ G|---------0-2-------2-0--------------|
 D|---0-2-3---------------3-2-0--------|
 A|-3---------------------------3------|
 E|------------------------------------|"#;
-    insta::assert_debug_snapshot!(parse2(i3.lines()));
+    insta::assert_debug_snapshot!(parser.parse(i3.lines()));
+    let i3 = r#"
+e|-------------12---------------------|
+B|-------------3---0--------------3---|
+G|---------0-2-------2-0--------------|
+D|---0-2-3---------------3-2-0--------|
+A|-3---------------------------3------|
+E|0-----------------------------------|"#;
+    insta::assert_debug_snapshot!(parser.parse(i3.lines()));
 }

@@ -7,13 +7,9 @@ use std::{
 
 use anyhow::Context;
 use clap::Parser;
-use guitar_tab::{
-    backend::errors::{
-        backend_error::BackendError, diagnostic::Diagnostic, error_location::ErrorLocation,
-        extend_error_range, get_digit_cnt,
-    },
-    parser::parser2::parse2,
-    time,
+use guitar_tab::backend::errors::{
+    backend_error::BackendError, diagnostic::Diagnostic, error_location::ErrorLocation,
+    extend_error_range, get_digit_cnt,
 };
 use yansi::{Paint, Painted};
 
@@ -65,17 +61,6 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     let input_path = cli.command.input_path();
     let lines: Vec<String> = get_lines(input_path)?;
-    let mut diagnostics = vec![];
-    let (input_parsing, parsed) = time(|| parse2(lines.iter().map(|x| x.as_str())));
-    let parsed = match parsed {
-        Ok(mut x) => {
-            diagnostics.append(&mut x.diagnostics);
-            x
-        }
-        Err(mut err) => {
-            return handle_error(&mut err, None, &lines);
-        }
-    };
 
     let mut output_fd = if cli.command.output_path() == "-" {
         OutputType::Stdout(std::io::stdout().lock())
@@ -91,46 +76,44 @@ fn main() -> anyhow::Result<()> {
 
     let command = &cli.command;
     let backend = command.to_backend_selector();
-    let (export, res) = time(|| backend.process(parsed, &mut output_fd));
-
-    match res {
-        Ok(mut x) if !x.is_empty() && !cli.quiet => {
-            diagnostics.append(&mut x);
-            println!(
-                "Produced {} diagnostics and no errors",
-                diagnostics.len().bold()
-            );
-            print_diagnostics(diagnostics.iter_mut(), &lines);
-        }
-        Ok(_empty) => {
-            if !cli.quiet {
-                print_diagnostics(diagnostics.iter_mut(), &lines)
+    let mut result = backend.process(lines.iter().map(|x| x.as_str()), &mut output_fd);
+    match result.err {
+        Some(mut x) => handle_error(&mut x, &mut result.diagnostics, &lines)?,
+        None => {
+            if !result.diagnostics.is_empty() && !cli.quiet {
+                println!(
+                    "Produced {} diagnostics and no errors",
+                    result.diagnostics.len().bold()
+                );
+                print_diagnostics(result.diagnostics.iter_mut(), &lines);
             }
         }
-        Err(mut x) => handle_error(&mut x, Some(&mut diagnostics), &lines)?,
-    };
+    }
     if !cli.quiet {
-        println!("[D]: Performance timings:\nparsing input file: {input_parsing:?}\ncreating file using {command} backend: {export:?}");
+        println!("[D]: Performance timings:");
+        match (result.timing_parse, result.timing_gen) {
+            (None, None) => println!("Not available"),
+            (None, Some(_gen)) => unreachable!(),
+            (Some(parse), None) => println!("Parsed file in {parse:?}"),
+            (Some(parse), Some(gen)) => {
+                println!("Parsed file in {parse:?}\nGenerated output in {gen:?}")
+            }
+        }
     }
     Ok(())
 }
 
 pub fn handle_error(
     err: &mut BackendError,
-    previous_diags: Option<&mut [Diagnostic]>,
+    diagnostics: &mut [Diagnostic],
     lines: &[String],
 ) -> anyhow::Result<()> {
     let BackendError {
         ref mut main_location,
         relevant_lines,
         kind,
-        diagnostics,
     } = err;
-    let diag_count = diagnostics.len()
-        + match previous_diags {
-            Some(ref x) => x.len(),
-            _ => 0,
-        };
+    let diag_count = diagnostics.len();
 
     println!(
         "Produced {} and {}.",
@@ -138,10 +121,7 @@ pub fn handle_error(
         "one error".red().bold(),
     );
     if diag_count != 0 {
-        match previous_diags {
-            Some(x) => print_diagnostics(x.iter_mut().chain(diagnostics), lines),
-            None => print_diagnostics(diagnostics.iter_mut(), lines),
-        };
+        print_diagnostics(diagnostics.iter_mut(), lines);
     }
 
     let mut location_explainer = String::new();

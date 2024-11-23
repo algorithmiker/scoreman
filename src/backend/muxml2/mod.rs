@@ -4,6 +4,8 @@ mod muxml2_formatters;
 mod muxml2_tests;
 pub mod settings;
 
+use std::time::Duration;
+
 use fretboard::get_fretboard_note2;
 use muxml2_formatters::{
     write_muxml2_measure_prelude, write_muxml2_note, write_muxml2_rest, MUXML2_DOCUMENT_END,
@@ -13,34 +15,45 @@ use muxml2_formatters::{
 use crate::{
     backend::errors::error_location::ErrorLocation,
     parser::{
-        parser2::Parse2Result,
+        parser2::{Parse2Result, Parser2, ParserInput},
         TabElement::{self, Fret, Rest},
     },
+    time,
 };
 
 use super::{
-    errors::{
-        backend_error::BackendError, backend_error_kind::BackendErrorKind, diagnostic::Diagnostic,
-    },
-    Backend,
+    errors::{backend_error::BackendError, backend_error_kind::BackendErrorKind},
+    Backend, BackendResult,
 };
 
 pub struct Muxml2Backend();
 impl Backend for Muxml2Backend {
     type BackendSettings = settings::Settings;
 
-    fn process<Out: std::io::Write>(
-        parse_result: Parse2Result,
+    fn process<'a, Out: std::io::Write>(
+        input: impl ParserInput<'a>,
         out: &mut Out,
         settings: Self::BackendSettings,
-    ) -> Result<Vec<Diagnostic>, BackendError> {
-        let mut diagnostics = vec![];
-        let (xml_out, mut inner_diagnostics) = gen_muxml2(parse_result, settings)?;
-        diagnostics.append(&mut inner_diagnostics);
-        out.write_all(xml_out.as_bytes())
-            .map_err(|x| BackendError::from_io_error(x, diagnostics.clone()))?;
-
-        Ok(diagnostics)
+    ) -> BackendResult<'a> {
+        let parser = Parser2 {
+            track_measures: true,
+            track_sections: true,
+            track_offsets: true,
+        };
+        let (parse_time, parse_result) = match time(|| parser.parse(input)) {
+            (parse_time, Ok(parse_result)) => (parse_time, parse_result),
+            (_, Err(err)) => return BackendResult::new(vec![], Some(err), None, None),
+        };
+        let (gen_time, (xml_out, mut gen_result)) =
+            time(|| gen_muxml2(parse_time, parse_result, settings));
+        gen_result.timing_gen = Some(gen_time);
+        if gen_result.err.is_some() {
+            return gen_result;
+        }
+        if let Err(x) = out.write_all(xml_out.unwrap().as_bytes()) {
+            gen_result.err = Some(x.into());
+        }
+        gen_result
     }
 }
 
@@ -87,9 +100,10 @@ impl Muxml2TabElement {
 
 /// TODO: don't use global strings, use Partline strings
 fn gen_muxml2<'a>(
+    parse_time: Duration,
     parse_result: Parse2Result,
     settings: <Muxml2Backend as Backend>::BackendSettings,
-) -> Result<(String, Vec<Diagnostic>), BackendError<'a>> {
+) -> (Option<String>, BackendResult<'a>) {
     // the muxml2 backend assumes
     // 1. that there are the same number of measures for every string (which should be true)
     // 2. that there are the same number of ticks in the same measure for each string (also
@@ -116,15 +130,27 @@ fn gen_muxml2<'a>(
                     .get_content(&parse_result.strings[string_idx])
                     .get(tick)
                 else {
-                    return _tick_mismatch_err(parse_result, string_idx, measure_idx, diagnostics);
+                    let err = _tick_mismatch_err(parse_result, string_idx, measure_idx);
+                    return (
+                        None,
+                        BackendResult::new(diagnostics, Some(err), Some(parse_time), None),
+                    );
                 };
                 match raw_tick.element {
                     Fret(fret) => {
-                        let x = get_fretboard_note2(parse_result.string_names[string_idx], fret)?;
+                        #[rustfmt::skip]
+                        let x = match get_fretboard_note2(parse_result.string_names[string_idx], fret) {
+                            Ok(x) => x,
+                            Err(err) => return (None, BackendResult::new(diagnostics, Some(err),Some(parse_time), None)),
+                        };
                         notes_in_tick.push(x);
                     }
                     TabElement::DeadNote => {
-                        let mut x = get_fretboard_note2(parse_result.string_names[string_idx], 0)?;
+                        #[rustfmt::skip]
+                        let mut x = match get_fretboard_note2(parse_result.string_names[string_idx], 0) {
+                            Ok(x) => x,
+                            Err(err) => return (None, BackendResult::new(diagnostics, Some(err),Some(parse_time), None)),
+                        };
                         x.dead = true;
                         notes_in_tick.push(x);
                     }
@@ -214,7 +240,10 @@ fn gen_muxml2<'a>(
         .unwrap();
         for proc_elem in measure_processed {
             if let Err(x) = proc_elem.write_muxml(&mut document) {
-                return Err(BackendError::from_fmt_error(x, diagnostics));
+                return (
+                    None,
+                    BackendResult::new(diagnostics, Some(x.into()), None, None),
+                );
             }
         }
         document.push_str("</measure>");
@@ -222,7 +251,10 @@ fn gen_muxml2<'a>(
 
     document += MUXML2_DOCUMENT_END;
     //println!("Actual len: {}", document.len());
-    Ok((document, diagnostics))
+    (
+        Some(document),
+        BackendResult::new(diagnostics, None, Some(parse_time), None),
+    )
 }
 
 enum Direction {
@@ -299,21 +331,19 @@ impl MuxmlNote2 {
     }
 }
 
-fn _tick_mismatch_err<T>(
+fn _tick_mismatch_err(
     parse_result: Parse2Result,
     string_idx: usize,
     measure_idx: usize,
-    diagnostics: Vec<Diagnostic>,
-) -> Result<T, BackendError<'static>> {
+) -> BackendError<'static> {
     let before_measure = &parse_result.measures[string_idx - 1][measure_idx];
     let this_measure = &parse_result.measures[string_idx][measure_idx];
 
-    Err(BackendError {
+    BackendError {
         main_location: ErrorLocation::LineAndMeasure(
             this_measure.parent_line,
             this_measure.index_on_parent_line,
         ),
-        diagnostics,
         relevant_lines: before_measure.parent_line..=this_measure.parent_line,
         kind: BackendErrorKind::TickMismatch(
             parse_result.string_names[string_idx - 1],
@@ -321,5 +351,5 @@ fn _tick_mismatch_err<T>(
             before_measure.len(),
             this_measure.len(),
         ),
-    })
+    }
 }

@@ -1,23 +1,41 @@
 use errors::{backend_error::BackendError, diagnostic::Diagnostic};
 
-use crate::parser::parser2::Parse2Result;
-use std::fmt::Display;
+use crate::parser::parser2::ParserInput;
+use std::{fmt::Display, time::Duration};
 pub mod errors;
 pub mod format;
 pub mod midi;
 pub mod muxml;
 pub mod muxml2;
-
+pub struct BackendResult<'a> {
+    pub diagnostics: Vec<Diagnostic>,
+    pub err: Option<BackendError<'a>>,
+    pub timing_parse: Option<Duration>,
+    pub timing_gen: Option<Duration>,
+}
+impl<'a> BackendResult<'a> {
+    pub fn new(
+        diagnostics: Vec<Diagnostic>,
+        err: Option<BackendError<'a>>,
+        timing_parse: Option<Duration>,
+        timing_gen: Option<Duration>,
+    ) -> Self {
+        Self {
+            diagnostics,
+            err,
+            timing_parse,
+            timing_gen,
+        }
+    }
+}
 pub trait Backend {
     type BackendSettings;
 
-    /// A backend takes a Score, processes it to some format
-    /// and writes the output to out.
-    fn process<Out: std::io::Write>(
-        parse_result: Parse2Result,
+    fn process<'a, Out: std::io::Write>(
+        input: impl ParserInput<'a>,
         ou: &mut Out,
         settings: Self::BackendSettings,
-    ) -> Result<Vec<Diagnostic>, BackendError>;
+    ) -> BackendResult<'a>;
 }
 
 /// Handles backend dispatch. Can be easily created from a string identifier
@@ -30,19 +48,19 @@ pub enum BackendSelector {
 }
 
 impl BackendSelector {
-    pub fn process<Out: std::io::Write>(
+    pub fn process<'a, Out: std::io::Write>(
         self,
-        parsed: Parse2Result,
-        out: &mut Out,
-    ) -> Result<Vec<Diagnostic>, BackendError> {
+        input: impl ParserInput<'a>,
+        out: &'a mut Out,
+    ) -> BackendResult {
         match self {
-            BackendSelector::Midi(settings) => midi::MidiBackend::process(parsed, out, settings),
-            BackendSelector::Muxml(settings) => muxml::MuxmlBackend::process(parsed, out, settings),
+            BackendSelector::Midi(settings) => midi::MidiBackend::process(input, out, settings),
+            BackendSelector::Muxml(settings) => muxml::MuxmlBackend::process(input, out, settings),
             BackendSelector::Muxml2(settings) => {
-                muxml2::Muxml2Backend::process(parsed, out, settings)
+                muxml2::Muxml2Backend::process(input, out, settings)
             }
             BackendSelector::Format(settings) => {
-                format::FormatBackend::process(parsed, out, settings)
+                format::FormatBackend::process(input, out, settings)
             }
         }
     }

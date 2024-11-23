@@ -1,7 +1,8 @@
-use crate::parser::{parser2::parse2, partline};
+use crate::parser::{parser2::Parser2, partline};
 
 #[test]
 fn test_score() {
+    let parser = Parser2::default();
     let example_score = r#"
 e|---|
 B|-3-|
@@ -17,7 +18,7 @@ D|---|
 A|---|
 E|---|
 "#;
-    insta::assert_debug_snapshot!(parse2(example_score.lines()));
+    insta::assert_debug_snapshot!(parser.parse(example_score.lines()));
 }
 #[test]
 fn test_part() {
@@ -28,7 +29,7 @@ G|6-6|-6-|
 D|---|---|
 A|---|---|
 E|---|---|"#;
-    insta::assert_debug_snapshot!(parse2(example_part.lines()));
+    insta::assert_debug_snapshot!(Parser2::default().parse(example_part.lines()));
 }
 
 #[test]

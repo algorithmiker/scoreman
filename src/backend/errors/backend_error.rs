@@ -1,5 +1,4 @@
 use crate::backend::errors::backend_error_kind::BackendErrorKind;
-use crate::backend::errors::diagnostic::Diagnostic;
 use crate::backend::errors::error_location::ErrorLocation;
 use std::ops::RangeInclusive;
 
@@ -17,50 +16,41 @@ pub struct BackendError<'a> {
     pub main_location: ErrorLocation,
     pub relevant_lines: RangeInclusive<usize>,
     pub kind: BackendErrorKind<'a>,
-    pub diagnostics: Vec<Diagnostic>,
 }
 
 impl<'a> BackendError<'a> {
-    pub fn from_io_error(x: std::io::Error, diagnostics: Vec<Diagnostic>) -> Self {
+    pub fn empty_score_err() -> Self {
         BackendError {
             main_location: ErrorLocation::NoLocation,
-            kind: BackendErrorKind::IOError(x),
-            relevant_lines: 0..=0,
-            diagnostics,
-        }
-    }
-    pub fn from_fmt_error(x: std::fmt::Error, diagnostics: Vec<Diagnostic>) -> Self {
-        BackendError {
-            main_location: ErrorLocation::NoLocation,
-            //short: "Cannot write to internal buffer".to_string(),
-            //long: format!("Format error:\n{x}"),
-            diagnostics,
-            relevant_lines: 0..=0,
-            kind: BackendErrorKind::FmtError(x),
-        }
-    }
-
-    pub fn empty_score_err(diagnostics: Vec<Diagnostic>) -> Self {
-        BackendError {
-            main_location: ErrorLocation::NoLocation,
-            diagnostics,
             kind: BackendErrorKind::EmptyScore,
             relevant_lines: 0..=0,
         }
     }
 
-    pub fn no_such_fret(
-        location_a: usize,
-        location_b: usize,
-        string_name: char,
-        fret: u8,
-        diagnostics: Vec<Diagnostic>,
-    ) -> Self {
+    pub fn no_such_fret(location_a: usize, location_b: usize, string_name: char, fret: u8) -> Self {
         Self {
             main_location: ErrorLocation::LineAndMeasure(location_a, location_b),
-            diagnostics,
             kind: BackendErrorKind::NoSuchFret(string_name, fret),
             relevant_lines: location_a..=location_a,
+        }
+    }
+}
+
+impl<'a> From<std::io::Error> for BackendError<'a> {
+    fn from(value: std::io::Error) -> Self {
+        BackendError {
+            main_location: ErrorLocation::NoLocation,
+            kind: BackendErrorKind::IOError(value),
+            relevant_lines: 0..=0,
+        }
+    }
+}
+impl<'a> From<std::fmt::Error> for BackendError<'a> {
+    fn from(value: std::fmt::Error) -> Self {
+        BackendError {
+            main_location: ErrorLocation::NoLocation,
+            relevant_lines: 0..=0,
+            kind: BackendErrorKind::FmtError(value),
         }
     }
 }

@@ -1,16 +1,19 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Instant};
 
 use midly::{
     num::{u28, u7},
     Format, Header, MetaMessage, MidiMessage, Smf, TrackEvent, TrackEventKind,
 };
 
-use crate::parser::{parser2::Parse2Result, TabElement::*};
-
-use super::{
-    errors::{backend_error::BackendError, diagnostic::Diagnostic},
-    Backend,
+use crate::{
+    parser::{
+        parser2::{Parse2Result, Parser2, ParserInput},
+        TabElement::*,
+    },
+    time,
 };
+
+use super::{Backend, BackendResult};
 
 const BPM: u32 = 80;
 const MINUTE_IN_MICROSECONDS: u32 = 60 * 1000;
@@ -33,15 +36,26 @@ pub struct MidiBackend();
 impl Backend for MidiBackend {
     type BackendSettings = ();
 
-    fn process<Out: std::io::Write>(
-        parse_result: Parse2Result,
+    fn process<'a, Out: std::io::Write>(
+        input: impl ParserInput<'a>,
         out: &mut Out,
         _settings: Self::BackendSettings,
-    ) -> Result<Vec<Diagnostic>, BackendError> {
-        let diagnostics = vec![];
+    ) -> BackendResult<'a> {
+        let mut diagnostics = vec![];
+        let parser = Parser2 {
+            track_measures: false,
+            track_sections: false,
+            track_offsets: false,
+        };
+        let (parse_time, parse_result) = match time(|| parser.parse(input)) {
+            (parse_time, Ok(parse_result)) => (parse_time, parse_result),
+            (_, Err(err)) => return BackendResult::new(diagnostics, Some(err), None, None),
+        };
         // TODO: the parser now gives us things like tick count, can probably preallocate based on
         // that
-        let mut midi_tracks = convert_to_midi(parse_result);
+        let gen_start = Instant::now();
+        let mut midi_tracks = convert_to_midi(&parse_result);
+        diagnostics.extend(parse_result.diagnostics);
         let mut tracks = vec![vec![
             TrackEvent {
                 delta: 0.into(),
@@ -61,14 +75,20 @@ impl Backend for MidiBackend {
             header: Header::new(Format::Parallel, midly::Timing::Metrical(4.into())),
             tracks,
         };
+        let gen_time = gen_start.elapsed();
         if let Err(x) = smf.write_std(out) {
-            return Err(BackendError::from_io_error(x, diagnostics));
+            return BackendResult::new(
+                diagnostics,
+                Some(x.into()),
+                Some(parse_time),
+                Some(gen_time),
+            );
         }
-        Ok(diagnostics)
+        BackendResult::new(diagnostics, None, Some(parse_time), Some(gen_time))
     }
 }
 
-fn convert_to_midi(parse_result: Parse2Result) -> Vec<Vec<TrackEvent<'static>>> {
+fn convert_to_midi(parse_result: &Parse2Result) -> Vec<Vec<TrackEvent<'static>>> {
     let mut string_freq = HashMap::new();
     string_freq.insert('E', 52);
     string_freq.insert('A', 57);

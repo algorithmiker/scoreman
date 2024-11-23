@@ -1,8 +1,13 @@
-use super::errors::{backend_error::BackendError, diagnostic::Diagnostic};
+use std::time::Instant;
+
+use super::BackendResult;
 use crate::{
     backend::Backend,
-    parser::{parser2::Parse2Result, Section},
-    rlen,
+    parser::{
+        parser2::{Parser2, ParserInput},
+        Section,
+    },
+    rlen, time,
 };
 
 pub struct FormatBackend();
@@ -15,15 +20,27 @@ pub struct FormatBackendSettings {
 impl Backend for FormatBackend {
     type BackendSettings = FormatBackendSettings;
 
-    fn process<Out: std::io::Write>(
-        parse_result: Parse2Result,
+    fn process<'a, Out: std::io::Write>(
+        parser_input: impl ParserInput<'a>,
         out: &mut Out,
         settings: Self::BackendSettings,
-    ) -> Result<Vec<Diagnostic>, BackendError> {
+    ) -> BackendResult<'a> {
+        let mut diagnostics = vec![];
+        let parser = Parser2 {
+            track_measures: true,
+            track_offsets: false,
+            track_sections: true,
+        };
+        let (parse_time, parse_result) = match time(|| parser.parse(parser_input)) {
+            (parse_time, Ok(parse_result)) => (parse_time, parse_result),
+            (_, Err(err)) => return BackendResult::new(diagnostics, Some(err), None, None),
+        };
         if settings.dump {
             println!("{parse_result:?}")
         }
-        let diagnostics = vec![];
+        diagnostics.extend(parse_result.diagnostics);
+
+        let gen_start = Instant::now();
         let mut formatted = String::new();
         let mut measure_cnt = 0;
         for section in parse_result.sections {
@@ -55,11 +72,17 @@ impl Backend for FormatBackend {
                 }
             }
         }
+        let gen_time = gen_start.elapsed();
 
         if let Err(x) = out.write_all(formatted.as_bytes()) {
-            return Err(BackendError::from_io_error(x, diagnostics));
+            return BackendResult::new(
+                diagnostics,
+                Some(x.into()),
+                Some(parse_time),
+                Some(gen_time),
+            );
         }
 
-        Ok(diagnostics)
+        BackendResult::new(diagnostics, None, Some(parse_time), Some(gen_time))
     }
 }

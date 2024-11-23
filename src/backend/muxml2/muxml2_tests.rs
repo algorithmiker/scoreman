@@ -1,9 +1,6 @@
-use crate::{
-    backend::{
-        muxml2::{settings::Settings, Muxml2Backend},
-        Backend,
-    },
-    parser::parser2::parse2,
+use crate::backend::{
+    muxml2::{settings::Settings, Muxml2Backend},
+    Backend,
 };
 
 #[test]
@@ -22,7 +19,7 @@ E|--------------|
         trim_measure: true,
         simplify_time_signature: true,
     };
-    Muxml2Backend::process(parse2(i1.lines()).unwrap(), &mut out, settings).unwrap();
+    Muxml2Backend::process(i1.lines(), &mut out, settings);
     insta::assert_snapshot!(String::from_utf8_lossy(&out));
     Ok(())
 }

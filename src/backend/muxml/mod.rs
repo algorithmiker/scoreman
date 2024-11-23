@@ -1,35 +1,57 @@
 use crate::{
     backend::errors::diagnostic_kind::DiagnosticKind,
     parser::{
-        parser2::Parse2Result,
+        parser2::{Parse2Result, Parser2, ParserInput},
         TabElement::{self, Fret},
     },
-    rlen,
+    rlen, time,
 };
 
-use super::{muxml2::fretboard::get_fretboard_note2, Backend, BackendError, Diagnostic};
+use super::{
+    muxml2::fretboard::get_fretboard_note2, Backend, BackendError, BackendResult, Diagnostic,
+};
 
 pub struct MuxmlBackend();
 impl Backend for MuxmlBackend {
     type BackendSettings = ();
 
-    fn process<Out: std::io::Write>(
-        parse_result: Parse2Result,
+    fn process<'a, Out: std::io::Write>(
+        input: impl ParserInput<'a>,
         out: &mut Out,
         _settings: Self::BackendSettings,
-    ) -> Result<Vec<Diagnostic>, BackendError> {
-        use super::errors::error_location::ErrorLocation::*;
+    ) -> BackendResult<'a> {
         let mut diagnostics = vec![Diagnostic::warn(NoLocation, DiagnosticKind::Muxml1IsBad)];
-        let (xml_out, mut xml_diagnostics) = gen_muxml1(parse_result)?;
+        let parser = Parser2 {
+            track_measures: true,
+            track_sections: false,
+            track_offsets: true,
+        };
+
+        let (parse_time, parse_result) = match time(|| parser.parse(input)) {
+            (parse_time, Ok(parse_result)) => (parse_time, parse_result),
+            (_, Err(err)) => return BackendResult::new(diagnostics, Some(err), None, None),
+        };
+        use super::errors::error_location::ErrorLocation::*;
+        let (gen_time, xml_out, mut xml_diagnostics) = match time(|| gen_muxml1(parse_result)) {
+            (gen_time, Ok((xml_out, xml_diagnostics))) => (gen_time, xml_out, xml_diagnostics),
+            (gen_time, Err(x)) => {
+                return BackendResult::new(diagnostics, Some(x), Some(parse_time), Some(gen_time))
+            }
+        };
         diagnostics.append(&mut xml_diagnostics);
         diagnostics.push(Diagnostic::info(
             NoLocation,
             DiagnosticKind::Muxml1SeperateTracks,
         ));
         if let Err(x) = out.write_all(xml_out.as_bytes()) {
-            return Err(BackendError::from_io_error(x, diagnostics));
+            return BackendResult::new(
+                diagnostics,
+                Some(x.into()),
+                Some(parse_time),
+                Some(gen_time),
+            );
         }
-        Ok(diagnostics)
+        BackendResult::new(diagnostics, None, Some(parse_time), Some(gen_time))
     }
 }
 

@@ -145,6 +145,12 @@ fn string_name() -> impl Fn(&str) -> Result<(&str, char), &str> {
         _ => Err(s),
     }
 }
+#[derive(Debug, PartialEq, Clone)]
+pub enum TabElement {
+    Fret(u8),
+    Rest,
+    DeadNote,
+}
 fn tab_element(s: &str) -> Result<(&str, TabElement), &str> {
     let bytes = s.as_bytes();
     match bytes.first() {
@@ -168,10 +174,6 @@ fn tab_element(s: &str) -> Result<(&str, TabElement), &str> {
                 .sum();
             debug_assert_eq!(Ok(parsed), s[0..len].parse());
             Ok((&s[len..], TabElement::Fret(parsed)))
-            // match s[0..len].parse() {
-            //     Ok(x) => Ok((&s[len..], TabElement::Fret(x))),
-            //     Err(_) => Err(s),
-            // }
         }
         Some(_) | None => Err(s),
     }
@@ -180,11 +182,4 @@ fn tab_element(s: &str) -> Result<(&str, TabElement), &str> {
 #[derive(Debug, PartialEq, Clone)]
 pub struct RawTick {
     pub element: TabElement,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum TabElement {
-    Fret(u8),
-    Rest,
-    DeadNote,
 }
