@@ -1,0 +1,257 @@
+---
+source: src/raw_tracks.rs
+expression: "Parser2::default().parse(input.lines())"
+---
+Ok(
+    Parse2Result {
+        diagnostics: [],
+        sections: [
+            Part {
+                part: [
+                    Partline {
+                        string_name: 'e',
+                        measures: 0..=0,
+                    },
+                    Partline {
+                        string_name: 'B',
+                        measures: 0..=0,
+                    },
+                    Partline {
+                        string_name: 'G',
+                        measures: 0..=0,
+                    },
+                    Partline {
+                        string_name: 'D',
+                        measures: 0..=0,
+                    },
+                    Partline {
+                        string_name: 'A',
+                        measures: 0..=0,
+                    },
+                    Partline {
+                        string_name: 'E',
+                        measures: 0..=0,
+                    },
+                ],
+            },
+        ],
+        string_names: [
+            'e',
+            'B',
+            'G',
+            'D',
+            'A',
+            'E',
+        ],
+        strings: [
+            [
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Fret(
+                        5,
+                    ),
+                },
+                RawTick {
+                    element: Rest,
+                },
+            ],
+            [
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Fret(
+                        3,
+                    ),
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+            ],
+            [
+                RawTick {
+                    element: Fret(
+                        10,
+                    ),
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Fret(
+                        12,
+                    ),
+                },
+            ],
+            [
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+            ],
+            [
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+            ],
+            [
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+            ],
+        ],
+        measures: [
+            [
+                Measure {
+                    content: 0..=4,
+                    parent_line: 1,
+                    index_on_parent_line: 1,
+                },
+            ],
+            [
+                Measure {
+                    content: 0..=4,
+                    parent_line: 2,
+                    index_on_parent_line: 1,
+                },
+            ],
+            [
+                Measure {
+                    content: 0..=4,
+                    parent_line: 3,
+                    index_on_parent_line: 1,
+                },
+            ],
+            [
+                Measure {
+                    content: 0..=4,
+                    parent_line: 4,
+                    index_on_parent_line: 1,
+                },
+            ],
+            [
+                Measure {
+                    content: 0..=4,
+                    parent_line: 5,
+                    index_on_parent_line: 1,
+                },
+            ],
+            [
+                Measure {
+                    content: 0..=4,
+                    parent_line: 6,
+                    index_on_parent_line: 1,
+                },
+            ],
+        ],
+        offsets: [
+            [
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+            ],
+            [
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+            ],
+            [
+                26,
+                27,
+                28,
+                29,
+                31,
+            ],
+            [
+                36,
+                37,
+                38,
+                39,
+                40,
+                41,
+                42,
+            ],
+            [
+                47,
+                48,
+                49,
+                50,
+                51,
+                52,
+                53,
+            ],
+            [
+                58,
+                59,
+                60,
+                61,
+                62,
+                63,
+                64,
+            ],
+        ],
+    },
+)

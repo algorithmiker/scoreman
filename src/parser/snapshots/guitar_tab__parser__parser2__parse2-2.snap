@@ -1,6 +1,6 @@
 ---
 source: src/parser/parser2.rs
-expression: parse2(i2.lines())
+expression: parser.parse(i2.lines())
 ---
 Err(
     BackendError {
@@ -8,20 +8,8 @@ Err(
             5,
         ),
         relevant_lines: 5..=5,
-        kind: ParseError(
-            Error(
-                VerboseError {
-                    errors: [
-                        (
-                            "o-|",
-                            Char(
-                                '|',
-                            ),
-                        ),
-                    ],
-                },
-            ),
+        kind: InvalidPartlineSyntax(
+            "o-|",
         ),
-        diagnostics: [],
     },
 )
