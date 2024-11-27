@@ -1,3 +1,5 @@
+/// TODO: extract common formatters between muxml and muxml2
+use crate::backend::muxml2::muxml2_formatters::write_muxml2_note;
 use crate::{
     backend::errors::diagnostic_kind::DiagnosticKind,
     parser::{
@@ -7,6 +9,7 @@ use crate::{
     rlen, time,
 };
 
+use super::muxml2::ToMuxml;
 use super::{
     muxml2::fretboard::get_fretboard_note2, Backend, BackendError, BackendResult, Diagnostic,
 };
@@ -59,23 +62,22 @@ fn gen_muxml1<'a>(
 ) -> Result<(String, Vec<Diagnostic>), BackendError<'a>> {
     let mut parts_xml = String::new();
     let diagnostics = vec![];
+    let mut slur_cnt = 0;
     for i in 0..6 {
         let mut measures_xml = String::new();
         for (measure_idx, measure) in parse_result.measures[i].iter().enumerate() {
             let mut notes_xml = String::new();
-            for raw_tick in measure.get_content(&parse_result.strings[i]) {
-                match raw_tick.element {
-                    Fret(fret) => {
-                        let x = get_fretboard_note2(parse_result.string_names[i], fret)?;
-                        x.write_muxml(&mut notes_xml, false).unwrap();
-                    }
-                    TabElement::DeadNote => {
-                        let mut x = get_fretboard_note2(parse_result.string_names[i], 0)?;
-                        x.dead = true;
-                        x.write_muxml(&mut notes_xml, false).unwrap();
-                    }
-                    TabElement::Rest => notes_xml.push_str(&muxml_rest("eighth", 1)),
-                }
+            for tick_idx in measure.content.clone() {
+                let raw_tick = &parse_result.strings[i][tick_idx];
+                raw_tick.element.write_muxml(
+                    &mut notes_xml,
+                    parse_result.string_names[i],
+                    false,
+                    &mut slur_cnt,
+                    // TODO: pull this out of muxml2 and make configurable
+                    super::muxml2::settings::Muxml2BendMode::EmulateBends,
+                    &parse_result.bend_targets.get(&(i as u8, tick_idx as u32)),
+                )?;
             }
             //println!("[D]: finished {measure:?}");
             measures_xml.push_str(&muxml_measure(

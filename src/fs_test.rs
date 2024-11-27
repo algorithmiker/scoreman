@@ -24,6 +24,7 @@ fn test_goldens() {
     let muxml2_backend = BackendSelector::Muxml2(muxml2::settings::Settings {
         remove_rest_between_notes: false,
         trim_measure: false,
+        bend_mode: muxml2::settings::Muxml2BendMode::EmulateBends,
         simplify_time_signature: false,
     });
     for entry in std::fs::read_dir(input_dir).unwrap() {

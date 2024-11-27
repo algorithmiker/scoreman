@@ -58,6 +58,12 @@ impl std::io::Write for OutputType {
 
 /// TODO: fix the GUI and merge this into this workspace
 fn main() -> anyhow::Result<()> {
+    //    panic!(
+    //        "Before releasing bends,
+    //1. Fix the TODOs
+    //2. Fix the performance loss (i think by storing bend targets out of band it should fix itself)
+    //3. add some more tests"
+    //    );
     let cli = Cli::parse();
     let input_path = cli.command.input_path();
     let lines: Vec<String> = get_lines(input_path)?;

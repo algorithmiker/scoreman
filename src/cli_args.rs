@@ -1,7 +1,11 @@
 use std::fmt::Display;
 
 use clap::{Parser, Subcommand};
-use guitar_tab::backend::{format::FormatBackendSettings, muxml2, BackendSelector};
+use guitar_tab::backend::{
+    format::{FormatBackendSettings, FormatDumpOptions},
+    muxml2::{self, settings::Muxml2BendMode},
+    BackendSelector,
+};
 
 #[derive(Parser)]
 #[command(
@@ -37,6 +41,8 @@ pub enum Commands {
         #[arg(short = 't', long)]
         /// Simplify time signature, e.g. 8/8 to 4/4
         simplify_time_signature: bool,
+        #[arg(value_enum, long, default_value_t=Muxml2BendMode::EmulateBends)]
+        bend_mode: Muxml2BendMode,
         input_path: String,
         output_path: String,
     },
@@ -65,8 +71,8 @@ pub enum Commands {
         input_path: String,
         output_path: String,
         /// Dump the parse tree
-        #[arg(short = 'd', long)]
-        dump: bool,
+        #[arg(value_enum, short = 'd', long)]
+        dump: Option<FormatDumpOptions>,
     },
 }
 
@@ -95,16 +101,18 @@ impl Commands {
                 trim_measure,
                 remove_rest_between_notes,
                 simplify_time_signature,
+                bend_mode,
                 ..
             } => BackendSelector::Muxml2(muxml2::settings::Settings {
                 remove_rest_between_notes: *remove_rest_between_notes,
                 trim_measure: *trim_measure,
                 simplify_time_signature: *simplify_time_signature,
+                bend_mode: bend_mode.clone(),
             }),
             Commands::Muxml { .. } => BackendSelector::Muxml(()),
             Commands::Midi { .. } => BackendSelector::Midi(()),
             Commands::Format { dump, .. } => {
-                BackendSelector::Format(FormatBackendSettings { dump: *dump })
+                BackendSelector::Format(FormatBackendSettings { dump: dump.clone() })
             }
         }
     }

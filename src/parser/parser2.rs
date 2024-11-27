@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::backend::errors::error_location::SourceOffset;
 use crate::{
     backend::errors::{
@@ -8,6 +10,7 @@ use crate::{
 };
 
 use super::{comment_line, partline, Measure, Partline, Section};
+pub type BendTargets = HashMap<(u8, u32), u8>;
 #[derive(Debug)]
 pub struct Parse2Result {
     pub diagnostics: Vec<Diagnostic>,
@@ -17,6 +20,7 @@ pub struct Parse2Result {
     pub strings: [Vec<RawTick>; 6],
     pub measures: [Vec<Measure>; 6],
     pub offsets: [Vec<u32>; 6],
+    pub bend_targets: BendTargets,
 }
 
 // TODO: try if using bitflags would speed this up
@@ -34,7 +38,6 @@ impl Default for Parser2 {
 }
 pub trait ParserInput<'a>: std::iter::Iterator<Item = &'a str> {}
 impl<'a, T: std::iter::Iterator<Item = &'a str>> ParserInput<'a> for T {}
-
 impl Parser2 {
     // TODO: add a way to discard measure/part information for backends that don't need it
     // Will probably involve a restructuring of the parsing step to be controlled by the backend.
@@ -51,7 +54,8 @@ impl Parser2 {
         let mut offsets: [Vec<u32>; 6] = [const { Vec::new() }; 6];
         let mut string_names = ['\0'; 6];
         let mut source_offset = 0u32;
-
+        // TODO: try using integer hashing
+        let mut bend_targets = HashMap::new();
         for (line_idx, line) in lines.enumerate() {
             if line.trim().is_empty() {
                 if line_in_part != 0 {
@@ -84,6 +88,8 @@ impl Parser2 {
                     &mut strings[line_in_part],
                     &mut string_measures[line_in_part],
                     &mut offsets[line_in_part],
+                    &mut bend_targets,
+                    line_in_part,
                     self.track_measures,
                 ) {
                     Ok((rem, line)) => {
@@ -108,8 +114,9 @@ impl Parser2 {
                                 &mut part_buf,
                                 &mut strings,
                                 &mut string_measures,
-                                &offsets,
+                                &mut offsets,
                                 &string_names,
+                                &bend_targets,
                                 self.track_measures,
                             ) {
                                 return Err(BackendError {
@@ -151,6 +158,7 @@ impl Parser2 {
             strings,
             string_names,
             offsets,
+            bend_targets,
         })
     }
 }
@@ -161,25 +169,23 @@ fn fixup_part(
     part: &mut [Partline],
     strings: &mut [Vec<RawTick>; 6],
     measures: &mut [Vec<Measure>; 6],
-    offsets: &[Vec<u32>; 6],
+    offsets: &mut [Vec<u32>; 6],
     string_names: &[char; 6],
+    bend_targets: &BendTargets,
     track_measures: bool,
 ) -> Result<(), (BackendErrorKind<'static>, usize, usize)> {
+    //println!("initial view of fixup_parts:\n{}", dump_tracks(strings));
+    // TODO: i think we can early exit here if we have the same length on all strings, not sure tho
     let (mut tick_count, track_with_least_ticks) = strings
         .iter()
         .enumerate()
         .map(|(track_idx, track)| (track.len(), track_idx))
-        .min() // the string with the least ticks has the most twochar frets
+        .min() // the string with the least ticks has the most multichar frets
         .expect("Empty score");
     let mut tick_idx = start_tick;
     while tick_idx < tick_count {
-        let Some((
-            multichar_t_idx,
-            RawTick {
-                element: TabElement::Fret(multichar_fret),
-                ..
-            },
-        )) = ({
+        //println!("tick_idx={tick_idx}");
+        let Some((multichar_track, multichar_len, RawTick { .. })) = ({
             strings
                 .iter()
                 .enumerate()
@@ -194,37 +200,76 @@ fn fixup_part(
                         }),
                     )
                 })
-                .find(|(_, x)| match x.element {
-                    TabElement::Fret(x) => x >= 10,
-                    _ => false,
+                .map(|(t_idx, x)| {
+                    (
+                        t_idx,
+                        x.element
+                            .repr_len(bend_targets, &(t_idx as u8, tick_idx as u32)),
+                        x,
+                    )
                 })
-        })
-        else {
+                .find(|(_, len, _)| *len > 1)
+        }) else {
             tick_idx += 1;
             continue;
         };
-        // so we stop borrowing strings
-        let multichar_fret = *multichar_fret;
+        //println!("  this is a multi-char tick");
         // This is a multi-char tick. Remove adjacent rest everywhere where it is not
         // multi-char.
         for string_idx in 0..6 {
-            let tick_onechar_on_this_track = match strings[string_idx][tick_idx].element {
-                TabElement::Fret(x) => x < 10,
-                TabElement::Rest | TabElement::DeadNote => true,
-            };
-            if tick_onechar_on_this_track {
-                let idx_to_remove: usize = if tick_idx < strings[string_idx].len() - 1
-                    && strings[string_idx][tick_idx + 1].element == TabElement::Rest
+            let chars_here = strings[string_idx][tick_idx]
+                .element
+                .repr_len(bend_targets, &(string_idx as u8, tick_idx as u32));
+            //println!(
+            //    "  string {string_idx}, chars here: {chars_here} (elem: {:?})",
+            //    strings[string_idx][tick_idx]
+            //);
+            fn try_remove_from_right(
+                string: &mut Vec<RawTick>,
+                offsets: &mut Vec<u32>,
+                tick_idx: usize,
+                count: usize,
+            ) -> bool {
+                let first_rest = string[tick_idx].element == TabElement::Rest;
+                let shared_range_good = tick_idx + count < string.len() + 1
+                    && string[tick_idx + 1..tick_idx + count]
+                        .iter()
+                        .all(|x| x.element == TabElement::Rest);
+                if first_rest && shared_range_good {
+                    string.drain(tick_idx..tick_idx + count).for_each(drop);
+                    offsets.drain(tick_idx..tick_idx + count).for_each(drop);
+                    return true;
+                } else if shared_range_good
+                    && tick_idx + count < string.len()
+                    && string[tick_idx + count].element == TabElement::Rest
                 {
-                    tick_idx + 1
-                } else if tick_idx > 0
-                    && strings[string_idx][tick_idx - 1].element == TabElement::Rest
-                {
-                    tick_idx - 1
-                } else {
+                    string
+                        .drain(tick_idx + 1..tick_idx + count + 1)
+                        .for_each(drop);
+                    offsets.drain(tick_idx..tick_idx + count).for_each(drop);
+                    return true;
+                }
+                false
+            }
+
+            if chars_here < multichar_len {
+                let cnt_to_remove = (multichar_len - chars_here) as usize;
+
+                if !try_remove_from_right(
+                    &mut strings[string_idx],
+                    &mut offsets[string_idx],
+                    tick_idx,
+                    (multichar_len - chars_here) as usize,
+                ) {
+                    // TODO: make the internal track representation part of the error
+                    // println!("  view before hitting error:");
+                    // println!("{}", dump_tracks(strings));
                     return Err((
                         BackendErrorKind::BadMulticharTick {
-                            multichar: (string_names[multichar_t_idx], multichar_fret),
+                            multichar: (
+                                string_names[multichar_track],
+                                strings[multichar_track][tick_idx].element.clone(),
+                            ),
                             invalid: (
                                 string_names[string_idx],
                                 strings[string_idx][tick_idx].element.clone(),
@@ -234,28 +279,28 @@ fn fixup_part(
                         offsets[string_idx][tick_idx + 1] as usize,
                         string_idx,
                     ));
-                };
-                strings[string_idx].remove(idx_to_remove);
+                }
                 if track_measures {
                     // now also update measure information to stay correct
                     for measure_idx in part[string_idx].measures.clone() {
                         let mc = &mut measures[string_idx][measure_idx].content;
                         if *mc.start() > tick_idx {
                             // move measure to the right
-                            *mc = mc.start() - 1..=mc.end() - 1;
+                            *mc = mc.start() - cnt_to_remove..=mc.end() - cnt_to_remove;
                         } else if *mc.end() > tick_idx {
                             // pop one from end
-                            *mc = *mc.start()..=mc.end() - 1
+                            *mc = *mc.start()..=mc.end() - cnt_to_remove
                         }
                     }
                 }
                 if string_idx == track_with_least_ticks {
-                    tick_count -= 1;
+                    tick_count -= cnt_to_remove;
                 }
             }
         }
         tick_idx += 1;
     }
+    //println!("after fixup:\n{}", dump_tracks(strings));
     Ok(())
 }
 #[test]

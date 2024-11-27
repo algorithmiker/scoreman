@@ -1,9 +1,12 @@
 use std::time::Instant;
 
+use clap::ValueEnum;
+
 use super::BackendResult;
 use crate::{
     backend::Backend,
     parser::{
+        dump_tracks,
         parser2::{Parser2, ParserInput},
         Section,
     },
@@ -11,10 +14,14 @@ use crate::{
 };
 
 pub struct FormatBackend();
-
+#[derive(ValueEnum, Clone)]
+pub enum FormatDumpOptions {
+    AST,
+    PrettyTracks,
+}
 #[derive(Clone)]
 pub struct FormatBackendSettings {
-    pub dump: bool,
+    pub dump: Option<FormatDumpOptions>,
 }
 
 impl Backend for FormatBackend {
@@ -34,8 +41,15 @@ impl Backend for FormatBackend {
             (parse_time, Ok(parse_result)) => (parse_time, parse_result),
             (_, Err(err)) => return BackendResult::new(diagnostics, Some(err), None, None),
         };
-        if settings.dump {
-            println!("{parse_result:?}")
+        match settings.dump {
+            Some(FormatDumpOptions::AST) => println!("{parse_result:?}"),
+            Some(FormatDumpOptions::PrettyTracks) => {
+                println!(
+                    "{}",
+                    dump_tracks(&parse_result.strings, &parse_result.bend_targets)
+                );
+            }
+            None => (),
         }
         diagnostics.extend(parse_result.diagnostics);
 
@@ -52,7 +66,11 @@ impl Backend for FormatBackend {
                             formatted.push(line.string_name);
                             formatted.push('|');
                             formatted += &parse_result.measures[l_idx][measure_idx]
-                                .print_pretty_string(&parse_result.strings[l_idx]);
+                                .print_pretty_string(
+                                    &parse_result.strings[l_idx],
+                                    l_idx as u8,
+                                    &parse_result.bend_targets,
+                                );
                             formatted.push('|');
                             formatted.push('\n');
                         }

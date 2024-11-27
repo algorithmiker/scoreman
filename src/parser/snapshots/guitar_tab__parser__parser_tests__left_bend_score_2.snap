@@ -1,0 +1,233 @@
+---
+source: src/parser/parser_tests.rs
+expression: "Parser2::default().parse(score.lines())"
+---
+Ok(
+    Parse2Result {
+        diagnostics: [],
+        sections: [
+            Part {
+                part: [
+                    Partline {
+                        string_name: 'e',
+                        measures: 0..=0,
+                    },
+                    Partline {
+                        string_name: 'B',
+                        measures: 0..=0,
+                    },
+                    Partline {
+                        string_name: 'G',
+                        measures: 0..=0,
+                    },
+                    Partline {
+                        string_name: 'D',
+                        measures: 0..=0,
+                    },
+                    Partline {
+                        string_name: 'A',
+                        measures: 0..=0,
+                    },
+                    Partline {
+                        string_name: 'E',
+                        measures: 0..=0,
+                    },
+                ],
+            },
+        ],
+        string_names: [
+            'e',
+            'B',
+            'G',
+            'D',
+            'A',
+            'E',
+        ],
+        strings: [
+            [
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: FretBend(
+                        12,
+                    ),
+                },
+                RawTick {
+                    element: Rest,
+                },
+            ],
+            [
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Fret(
+                        3,
+                    ),
+                },
+                RawTick {
+                    element: Fret(
+                        3,
+                    ),
+                },
+            ],
+            [
+                RawTick {
+                    element: Fret(
+                        2,
+                    ),
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+            ],
+            [
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+            ],
+            [
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+            ],
+            [
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+            ],
+        ],
+        measures: [
+            [
+                Measure {
+                    content: 0..=3,
+                    parent_line: 1,
+                    index_on_parent_line: 1,
+                },
+            ],
+            [
+                Measure {
+                    content: 0..=3,
+                    parent_line: 2,
+                    index_on_parent_line: 1,
+                },
+            ],
+            [
+                Measure {
+                    content: 0..=3,
+                    parent_line: 3,
+                    index_on_parent_line: 1,
+                },
+            ],
+            [
+                Measure {
+                    content: 0..=3,
+                    parent_line: 4,
+                    index_on_parent_line: 1,
+                },
+            ],
+            [
+                Measure {
+                    content: 0..=3,
+                    parent_line: 5,
+                    index_on_parent_line: 1,
+                },
+            ],
+            [
+                Measure {
+                    content: 0..=3,
+                    parent_line: 6,
+                    index_on_parent_line: 1,
+                },
+            ],
+        ],
+        offsets: [
+            [
+                3,
+                4,
+                7,
+                8,
+            ],
+            [
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+            ],
+            [
+                23,
+                24,
+                25,
+                26,
+                27,
+                28,
+            ],
+            [
+                33,
+                34,
+                35,
+                36,
+                37,
+                38,
+            ],
+            [
+                43,
+                44,
+                45,
+                46,
+                47,
+                48,
+            ],
+            [
+                53,
+                54,
+                55,
+                56,
+                57,
+                58,
+            ],
+        ],
+    },
+)

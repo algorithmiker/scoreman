@@ -103,10 +103,34 @@ fn convert_to_midi(parse_result: &Parse2Result) -> Vec<Vec<TrackEvent<'static>>>
         let string_name = parse_result.string_names[i];
         let raw_track = &parse_result.strings[i];
         let mut delta_carry: u32 = 0;
-        for raw_tick in raw_track {
+        for (tick_idx, raw_tick) in raw_track.iter().enumerate() {
             match raw_tick.element {
                 Fret(fret) => {
                     let pitch = fret + string_freq[&string_name];
+                    let (note_on, note_off) = gen_note_events(pitch.into(), delta_carry.into());
+                    delta_carry = 0;
+                    tracks[i].push(note_on);
+                    tracks[i].push(note_off);
+                }
+                FretBend(fret) => {
+                    let pitch = fret + string_freq[&string_name] + 1;
+                    let (note_on, note_off) = gen_note_events(pitch.into(), delta_carry.into());
+                    delta_carry = 0;
+                    tracks[i].push(note_on);
+                    tracks[i].push(note_off);
+                }
+                FretBendTo(from) => {
+                    let pitch = from + string_freq[&string_name];
+                    let (note_on, note_off) = gen_note_events(pitch.into(), delta_carry.into());
+                    delta_carry = 0;
+                    tracks[i].push(note_on);
+                    tracks[i].push(note_off);
+
+                    let to = parse_result
+                        .bend_targets
+                        .get(&(i as u8, tick_idx as u32))
+                        .expect("Unreachable: FretBendTo without target");
+                    let pitch = to + string_freq[&string_name];
                     let (note_on, note_off) = gen_note_events(pitch.into(), delta_carry.into());
                     delta_carry = 0;
                     tracks[i].push(note_on);

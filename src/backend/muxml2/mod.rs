@@ -1,16 +1,17 @@
 pub mod fretboard;
-mod muxml2_formatters;
+pub mod muxml2_formatters;
 #[cfg(test)]
 mod muxml2_tests;
 pub mod settings;
 
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 use fretboard::get_fretboard_note2;
 use muxml2_formatters::{
-    write_muxml2_measure_prelude, write_muxml2_note, write_muxml2_rest, MUXML2_DOCUMENT_END,
+    write_muxml2_measure_prelude, write_muxml2_note, write_muxml2_rest, Slur, MUXML2_DOCUMENT_END,
     MUXML_INCOMPLETE_DOC_PRELUDE,
 };
+use settings::Muxml2BendMode;
 
 use crate::{
     backend::errors::error_location::ErrorLocation,
@@ -59,13 +60,19 @@ impl Backend for Muxml2Backend {
 #[derive(Debug)]
 pub enum Muxml2TabElement {
     Rest(usize),
-    Notes(Vec<MuxmlNote2>),
+    Notes(Vec<(u8, usize)>),
     /// used in optimizing, should generate no code for this type
     Invalid,
 }
 
 impl Muxml2TabElement {
-    fn write_muxml<A: std::fmt::Write>(&self, buf: &mut A) -> std::fmt::Result {
+    fn write_muxml<A: std::fmt::Write>(
+        &self,
+        parse_result: &Parse2Result,
+        buf: &mut A,
+        slur_cnt: &mut u32,
+        bend_mode: &Muxml2BendMode,
+    ) -> std::fmt::Result {
         match self {
             Muxml2TabElement::Rest(mut x) => {
                 while x != 0 {
@@ -87,13 +94,90 @@ impl Muxml2TabElement {
                 Ok(())
             }
             Muxml2TabElement::Notes(notes) => {
-                for (i, note) in notes.iter().enumerate() {
-                    note.write_muxml(buf, i != 0)?;
+                let mut need_chord = notes.len() > 1;
+                for note_pos in notes.iter() {
+                    parse_result.strings[note_pos.0 as usize][note_pos.1]
+                        .element
+                        .write_muxml(
+                            buf,
+                            parse_result.string_names[note_pos.0 as usize],
+                            need_chord,
+                            slur_cnt,
+                            bend_mode.clone(),
+                            &parse_result
+                                .bend_targets
+                                .get(&(note_pos.0, note_pos.1 as u32)),
+                        )?;
+                    need_chord = false;
                 }
                 Ok(())
             }
             Muxml2TabElement::Invalid => Ok(()),
         }
+    }
+}
+
+pub trait ToMuxml {
+    fn write_muxml(
+        &self,
+        buf: &mut impl std::fmt::Write,
+        string: char,
+        chord: bool,
+        slur_cnt: &mut u32,
+        bend_mode: Muxml2BendMode,
+        bend_target: &Option<&u8>,
+    ) -> Result<(), std::fmt::Error>;
+}
+impl ToMuxml for TabElement {
+    fn write_muxml(
+        &self,
+        buf: &mut impl std::fmt::Write,
+        string: char,
+        chord: bool,
+        slur_cnt: &mut u32,
+        bend_mode: Muxml2BendMode,
+        bend_target: &Option<&u8>,
+    ) -> Result<(), std::fmt::Error> {
+        match self {
+            Fret(x) => {
+                let note = get_fretboard_note2(string, *x).unwrap();
+                let (step, octave, sharp) = note.step_octave_sharp();
+                write_muxml2_note(buf, step, octave, sharp, chord, false, Slur::None)?;
+            }
+            TabElement::FretBend(x) => {
+                let note = get_fretboard_note2(string, *x).unwrap();
+                let (step, octave, sharp) = note.step_octave_sharp();
+                let slur = Slur::Start(bend_mode.clone(), *slur_cnt, 1);
+                write_muxml2_note(buf, step, octave, sharp, chord, false, slur)?;
+
+                let note = get_fretboard_note2(string, x + 1).unwrap();
+                let (step, octave, sharp) = note.step_octave_sharp();
+                let slur = Slur::End(bend_mode.clone(), *slur_cnt);
+                write_muxml2_note(buf, step, octave, sharp, chord, false, slur)?;
+                *slur_cnt += 1;
+            }
+            TabElement::FretBendTo(x) => {
+                let y = bend_target.expect("FretBendTo without bend target");
+                let note = get_fretboard_note2(string, *x).unwrap();
+                let (step, octave, sharp) = note.step_octave_sharp();
+                let slur = Slur::Start(bend_mode.clone(), *slur_cnt, *y as i8 - *x as i8);
+                write_muxml2_note(buf, step, octave, sharp, chord, false, slur)?;
+
+                let note = get_fretboard_note2(string, *y).unwrap();
+                let (step, octave, sharp) = note.step_octave_sharp();
+                let slur = Slur::End(bend_mode.clone(), *slur_cnt);
+                write_muxml2_note(buf, step, octave, sharp, chord, false, slur)?;
+
+                *slur_cnt += 1;
+            }
+            Rest => write_muxml2_rest(buf, "eighth", 1)?,
+            TabElement::DeadNote => {
+                let note = get_fretboard_note2(string, 0).unwrap();
+                let (step, octave, sharp) = note.step_octave_sharp();
+                write_muxml2_note(buf, step, octave, sharp, chord, false, Slur::None)?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -113,6 +197,7 @@ fn gen_muxml2<'a>(
     // this looks like a good setting for -nmt based on trial and error
     document.reserve(parse_result.strings[0].len() * 6 * 10);
     //println!("Reserved capacity: {}", document.capacity());
+    let mut slur_count = 0;
     for measure_idx in 0..number_of_measures {
         let ticks_in_measure = parse_result.measures[0][measure_idx].len(); // see assumption 2
 
@@ -135,25 +220,30 @@ fn gen_muxml2<'a>(
                         BackendResult::new(diagnostics, Some(err), Some(parse_time), None),
                     );
                 };
+                use TabElement::*;
                 match raw_tick.element {
-                    Fret(fret) => {
-                        #[rustfmt::skip]
-                        let x = match get_fretboard_note2(parse_result.string_names[string_idx], fret) {
-                            Ok(x) => x,
-                            Err(err) => return (None, BackendResult::new(diagnostics, Some(err),Some(parse_time), None)),
-                        };
-                        notes_in_tick.push(x);
+                    Fret(..) | DeadNote => {
+                        // TODO: not sure if cloning would be faster here
+                        notes_in_tick.push((
+                            string_idx as u8,
+                            parse_result.measures[string_idx][measure_idx]
+                                .content
+                                .start()
+                                + tick,
+                        ));
                     }
-                    TabElement::DeadNote => {
-                        #[rustfmt::skip]
-                        let mut x = match get_fretboard_note2(parse_result.string_names[string_idx], 0) {
-                            Ok(x) => x,
-                            Err(err) => return (None, BackendResult::new(diagnostics, Some(err),Some(parse_time), None)),
-                        };
-                        x.dead = true;
-                        notes_in_tick.push(x);
+                    FretBend(..) | FretBendTo(..) => {
+                        notes_in_tick.push((
+                            string_idx as u8,
+                            parse_result.measures[string_idx][measure_idx]
+                                .content
+                                .start()
+                                + tick,
+                        ));
+                        // fix content len for stuff where we generate 2 notes for a bend
+                        measure_content_len += 1;
                     }
-                    Rest => continue,
+                    _ => (),
                 }
             }
             // if there were no notes inserted in this tick, add a rest
@@ -163,7 +253,6 @@ fn gen_muxml2<'a>(
                 Muxml2TabElement::Notes(notes_in_tick)
             })
         }
-        //println!("[D]: Measure before opt: {measure_processed:?}");
 
         // remove rest between notes if wanted
         if settings.remove_rest_between_notes {
@@ -238,7 +327,12 @@ fn gen_muxml2<'a>(
         )
         .unwrap();
         for proc_elem in measure_processed {
-            if let Err(x) = proc_elem.write_muxml(&mut document) {
+            if let Err(x) = proc_elem.write_muxml(
+                &parse_result,
+                &mut document,
+                &mut slur_count,
+                &settings.bend_mode,
+            ) {
                 return (
                     None,
                     BackendResult::new(diagnostics, Some(x.into()), None, None),
@@ -326,7 +420,7 @@ impl MuxmlNote2 {
         chord: bool,
     ) -> Result<(), std::fmt::Error> {
         let (step, octave, sharp) = self.step_octave_sharp();
-        write_muxml2_note(buf, step, octave, sharp, chord, self.dead)
+        write_muxml2_note(buf, step, octave, sharp, chord, self.dead, Slur::None)
     }
 }
 

@@ -1,0 +1,343 @@
+---
+source: src/parser/parser_tests.rs
+expression: "Parser2::default().parse(example_part.lines())"
+---
+Ok(
+    Parse2Result {
+        diagnostics: [],
+        sections: [
+            Part {
+                part: [
+                    Partline {
+                        string_name: 'e',
+                        measures: 0..=0,
+                    },
+                    Partline {
+                        string_name: 'B',
+                        measures: 0..=0,
+                    },
+                    Partline {
+                        string_name: 'G',
+                        measures: 0..=0,
+                    },
+                    Partline {
+                        string_name: 'D',
+                        measures: 0..=0,
+                    },
+                    Partline {
+                        string_name: 'A',
+                        measures: 0..=0,
+                    },
+                    Partline {
+                        string_name: 'E',
+                        measures: 0..=0,
+                    },
+                ],
+            },
+        ],
+        string_names: [
+            'e',
+            'B',
+            'G',
+            'D',
+            'A',
+            'E',
+        ],
+        strings: [
+            [
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: FretBend(
+                        12,
+                    ),
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: FretBend(
+                        12,
+                    ),
+                },
+                RawTick {
+                    element: Rest,
+                },
+            ],
+            [
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Fret(
+                        3,
+                    ),
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Fret(
+                        0,
+                    ),
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Fret(
+                        3,
+                    ),
+                },
+                RawTick {
+                    element: Rest,
+                },
+            ],
+            [
+                RawTick {
+                    element: Fret(
+                        2,
+                    ),
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+            ],
+            [
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+            ],
+            [
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+            ],
+            [
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+                RawTick {
+                    element: Rest,
+                },
+            ],
+        ],
+        measures: [
+            [
+                Measure {
+                    content: 0..=7,
+                    parent_line: 1,
+                    index_on_parent_line: 1,
+                },
+            ],
+            [
+                Measure {
+                    content: 0..=7,
+                    parent_line: 2,
+                    index_on_parent_line: 1,
+                },
+            ],
+            [
+                Measure {
+                    content: 0..=7,
+                    parent_line: 3,
+                    index_on_parent_line: 1,
+                },
+            ],
+            [
+                Measure {
+                    content: 0..=7,
+                    parent_line: 4,
+                    index_on_parent_line: 1,
+                },
+            ],
+            [
+                Measure {
+                    content: 0..=7,
+                    parent_line: 5,
+                    index_on_parent_line: 1,
+                },
+            ],
+            [
+                Measure {
+                    content: 0..=7,
+                    parent_line: 6,
+                    index_on_parent_line: 1,
+                },
+            ],
+        ],
+        offsets: [
+            [
+                3,
+                4,
+                7,
+                8,
+                9,
+                10,
+                13,
+                14,
+            ],
+            [
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27,
+                28,
+                29,
+                30,
+            ],
+            [
+                35,
+                36,
+                37,
+                38,
+                39,
+                40,
+                41,
+                42,
+                43,
+                44,
+                45,
+                46,
+            ],
+            [
+                51,
+                52,
+                53,
+                54,
+                55,
+                56,
+                57,
+                58,
+                59,
+                60,
+                61,
+                62,
+            ],
+            [
+                67,
+                68,
+                69,
+                70,
+                71,
+                72,
+                73,
+                74,
+                75,
+                76,
+                77,
+                78,
+            ],
+            [
+                83,
+                84,
+                85,
+                86,
+                87,
+                88,
+                89,
+                90,
+                91,
+                92,
+                93,
+                94,
+            ],
+        ],
+    },
+)

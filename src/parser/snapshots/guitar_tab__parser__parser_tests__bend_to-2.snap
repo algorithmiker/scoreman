@@ -1,0 +1,7 @@
+---
+source: src/parser/parser_tests.rs
+expression: err
+---
+Err(
+    "b5-|-0--5-|",
+)

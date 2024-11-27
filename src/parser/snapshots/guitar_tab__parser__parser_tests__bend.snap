@@ -1,0 +1,56 @@
+---
+source: src/parser/parser_tests.rs
+expression: "(string_buf, offsets)"
+---
+(
+    [
+        RawTick {
+            element: Rest,
+        },
+        RawTick {
+            element: Rest,
+        },
+        RawTick {
+            element: FretBend(
+                4,
+            ),
+        },
+        RawTick {
+            element: Rest,
+        },
+        RawTick {
+            element: Rest,
+        },
+        RawTick {
+            element: Fret(
+                0,
+            ),
+        },
+        RawTick {
+            element: Rest,
+        },
+        RawTick {
+            element: Rest,
+        },
+        RawTick {
+            element: Fret(
+                5,
+            ),
+        },
+        RawTick {
+            element: Rest,
+        },
+    ],
+    [
+        2,
+        3,
+        5,
+        6,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+    ],
+)

@@ -1,5 +1,5 @@
 use std::{
-    ops::RangeInclusive,
+    ops::{Range, RangeInclusive},
     time::{Duration, Instant},
 };
 
@@ -13,6 +13,22 @@ pub fn rlen<T: std::ops::Sub<Output = T> + Copy + std::ops::Add<usize, Output = 
     r: &RangeInclusive<T>,
 ) -> T {
     return *r.end() - *r.start() + 1;
+}
+pub fn rcontains<
+    T: std::ops::Sub<Output = T> + Copy + std::ops::Add<usize, Output = T> + std::cmp::PartialOrd<T>,
+>(
+    r: &Range<T>,
+    elem: T,
+) -> bool {
+    elem >= r.start && elem < r.end
+}
+pub fn ricontains<
+    T: std::ops::Sub<Output = T> + Copy + std::ops::Add<usize, Output = T> + std::cmp::PartialOrd<T>,
+>(
+    r: &RangeInclusive<T>,
+    elem: T,
+) -> bool {
+    return elem >= *r.start() && elem <= *r.end();
 }
 
 pub fn time<T, F: FnOnce() -> T>(f: F) -> (Duration, T) {

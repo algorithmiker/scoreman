@@ -1,5 +1,7 @@
 use itoa::Buffer;
 
+use super::settings::Muxml2BendMode;
+
 #[inline]
 pub fn write_muxml2_rest(
     buf: &mut impl std::fmt::Write,
@@ -22,7 +24,11 @@ pub fn write_muxml2_rest(
     buf.write_str("</type>\n</note>\n")?;
     Ok(())
 }
-
+pub enum Slur {
+    None,
+    Start(Muxml2BendMode, u32, i8),
+    End(Muxml2BendMode, u32),
+}
 #[inline]
 pub fn write_muxml2_note(
     buf: &mut impl std::fmt::Write,
@@ -31,6 +37,7 @@ pub fn write_muxml2_note(
     sharp: bool,
     chord: bool,
     dead: bool,
+    slur: Slur,
 ) -> Result<(), std::fmt::Error> {
     buf.write_str("<note>\n")?;
     if chord {
@@ -56,6 +63,30 @@ pub fn write_muxml2_note(
     }
     if dead {
         buf.write_str("<notehead>x</notehead>\n")?;
+    }
+    match slur {
+        Slur::None => (),
+        Slur::Start(mode, idx, u) => match mode {
+            Muxml2BendMode::StandardsCompliant => {
+                buf.write_str(r#"<notations><technical><bend shape="curved"><bend-alter>"#)?;
+                buf.write_str(octave_buf.format(u))?;
+                buf.write_str(r#"</bend-alter></bend></technical></notations>"#)?;
+            }
+            Muxml2BendMode::EmulateBends => {
+                buf.write_str(r#"<notations><slur type="start" number=""#)?;
+                buf.write_str(octave_buf.format(idx))?;
+                buf.write_str(r#""/></notations>"#)?;
+            }
+        },
+        Slur::End(mode, idx) => match mode {
+            Muxml2BendMode::StandardsCompliant => (), // handled in Start
+            Muxml2BendMode::EmulateBends => {
+                buf.write_str(r#"<notations><slur type="stop" number=""#)?;
+                buf.write_str(octave_buf.format(idx))?;
+                buf.write_str(r#"" />"#)?;
+                buf.write_str(r#"</notations>"#)?;
+            }
+        },
     }
     buf.write_str("</note>\n")?;
     Ok(())
