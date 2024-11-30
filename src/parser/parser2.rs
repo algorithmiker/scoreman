@@ -174,7 +174,6 @@ fn fixup_part(
         "fixup_parts: initial view:\n{}",
         dump_tracks(strings, bend_targets)
     );
-    // TODO: i think we can early exit here if we have the same length on all strings, not sure tho
     let (mut tick_count, track_with_least_ticks) = strings
         .iter()
         .enumerate()
@@ -285,17 +284,24 @@ fn fixup_part(
                 }
                 if track_measures {
                     // now also update measure information to stay correct
-                    // TODO: find the first and last measure eagerly here so we have to do less
-                    // comparisons
-                    for measure_idx in part[string_idx].measures.clone() {
-                        let mc = &mut measures[string_idx][measure_idx].content;
-                        if *mc.start() > tick_idx {
-                            // move measure to the right
-                            *mc = mc.start() - cnt_to_remove..=mc.end() - cnt_to_remove;
-                        } else if *mc.end() > tick_idx {
-                            // pop one from end
-                            *mc = *mc.start()..=mc.end() - cnt_to_remove
-                        }
+                    // TODO: this could be a binary search or try iterating over measures in outer
+                    let my_measure_idx = &part[string_idx]
+                        .measures
+                        .clone()
+                        .map(|x| (x, &measures[string_idx][x]))
+                        .find(|(x, m)| m.content.end() > x)
+                        .map(|(x, _)| x)
+                        .unwrap();
+                    // pop one from the end of my measure
+                    let my_mc = &mut measures[string_idx][*my_measure_idx].content;
+                    *my_mc = *my_mc.start()..=(*my_mc.end() - cnt_to_remove);
+
+                    // move everything else to the left
+                    let mut m_idx = my_measure_idx + 1;
+                    while m_idx <= *part[string_idx].measures.end() {
+                        let mc = &mut measures[string_idx][m_idx].content;
+                        *mc = mc.start() - cnt_to_remove..=mc.end() - cnt_to_remove;
+                        m_idx += 1;
                     }
                 }
                 if string_idx == track_with_least_ticks {
