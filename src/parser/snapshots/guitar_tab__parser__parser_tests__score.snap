@@ -1,6 +1,6 @@
 ---
 source: src/parser/parser_tests.rs
-expression: parse2(example_score.lines())
+expression: parser.parse(example_score.lines())
 ---
 Ok(
     Parse2Result {
@@ -329,5 +329,6 @@ Ok(
                 83,
             ],
         ],
+        bend_targets: {},
     },
 )

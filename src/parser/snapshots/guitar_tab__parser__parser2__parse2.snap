@@ -1,6 +1,6 @@
 ---
 source: src/parser/parser2.rs
-expression: parse2(i1.lines())
+expression: parser.parse(i1.lines())
 ---
 Ok(
     Parse2Result {
@@ -332,5 +332,6 @@ Ok(
                 105,
             ],
         ],
+        bend_targets: {},
     },
 )

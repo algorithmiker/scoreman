@@ -13,7 +13,6 @@ expression: "(string_buf, offsets)"
         RawTick {
             element: FretBendTo(
                 4,
-                5,
             ),
         },
         RawTick {

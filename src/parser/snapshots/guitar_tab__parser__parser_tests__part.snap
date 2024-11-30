@@ -1,6 +1,6 @@
 ---
 source: src/parser/parser_tests.rs
-expression: parse2(example_part.lines())
+expression: "Parser2::default().parse(example_part.lines())"
 ---
 Ok(
     Parse2Result {
@@ -301,5 +301,6 @@ Ok(
                 64,
             ],
         ],
+        bend_targets: {},
     },
 )
