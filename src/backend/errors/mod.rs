@@ -21,7 +21,3 @@ pub fn extend_error_range(range: &RangeInclusive<usize>, line_cnt: usize) -> Ran
 
     start..=end
 }
-
-pub fn get_digit_cnt(num: usize) -> u32 {
-    num.checked_ilog10().unwrap_or(0) + 1
-}

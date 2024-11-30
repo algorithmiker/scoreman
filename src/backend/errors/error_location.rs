@@ -40,7 +40,6 @@ impl SourceOffset {
 }
 impl ErrorLocation {
     /// this may not be cheap!
-    /// TODO: cache line idx in sourceoffset errors
     pub fn get_line_idx(&mut self, lines: &[String]) -> Option<usize> {
         match self {
             ErrorLocation::NoLocation => None,

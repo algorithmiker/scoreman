@@ -7,7 +7,7 @@ use std::{cmp::max, collections::HashMap, ops::RangeInclusive};
 
 use parser2::BendTargets;
 
-use crate::rlen;
+use crate::{digit_cnt_u8, digit_cnt_usize, rlen};
 
 #[derive(Debug, PartialEq)]
 pub enum Section {
@@ -220,8 +220,6 @@ fn string_name() -> impl Fn(&str) -> Result<(&str, char), &str> {
 pub enum TabElement {
     Fret(u8),
     FretBend(u8),
-    // FIXME: this adds one byte to TabElement. Try storing the data for frets and bends off-band
-    // in a vec or a hashmap
     FretBendTo(u8),
     Rest,
     DeadNote,
@@ -249,7 +247,6 @@ fn numeric(s: &str) -> Result<(&str, u8), &str> {
         .sum();
     Ok((&s[i..], parsed))
 }
-/// TODO: maybe there is a better way than passing a closure?
 fn tab_element(s: &str, set_bend_target: impl FnOnce(u8)) -> Result<(&str, TabElement), &str> {
     let bytes = s.as_bytes();
     match bytes.first() {
@@ -259,8 +256,6 @@ fn tab_element(s: &str, set_bend_target: impl FnOnce(u8)) -> Result<(&str, TabEl
         Some(48..=58) => {
             // FIXME: this will check for errors even if we know there is one char
             // probably should optimize
-            // FIXME: we are converting string-bytes a lot here. Transmute should be low cost but
-            // not sure if it is free
             let (res, num) = numeric(s).unwrap();
             let bytes = res.as_bytes();
             if let Some(b'b') = bytes.first() {
@@ -283,16 +278,14 @@ fn tab_element(s: &str, set_bend_target: impl FnOnce(u8)) -> Result<(&str, TabEl
 impl TabElement {
     #[inline(always)]
     pub fn repr_len(&self, bend_targets: &BendTargets, pos: &(u8, u32)) -> u8 {
-        // number of digits in a num is x.log10()+1
         match self {
-            // TODO: maybe there is a better/faster way of computing this? (log 0 is undefined)
-            TabElement::Fret(x) => 1 + max(x, &1).ilog10() as u8,
-            TabElement::FretBend(x) => 1 + x.ilog10() as u8 + 1,
+            TabElement::Fret(x) => digit_cnt_u8(x),
+            TabElement::FretBend(x) => digit_cnt_u8(x) + 1,
             TabElement::FretBendTo(x) => {
                 let y = bend_targets
                     .get(pos)
                     .expect("TabElement::repr_len: FretBendTo without target");
-                (x.ilog10() + 1 + 1 + y.ilog10() + 1) as u8
+                digit_cnt_u8(x) + 1 + digit_cnt_u8(y)
             }
             TabElement::Rest => 1,
             TabElement::DeadNote => 1,

@@ -12,9 +12,26 @@ Tools to wrangle guitar tabulature notation.
 - generally well optimized for performance
 
 ## TODO
-- parse chords / lyrics
+- add vibrato
+- add slides
+- new parser with smarter fixup
+
+- streaming midi for live playback
+this works well already for normal size tabs (like a guitar solo or something)
+but for larger tabs you have to skip a frame (~10ms) to parse and export the tab to a midi,
+which will be parsed back when playing using some other program anyway.
+Try to do this ourselves, by having a streaming parser, which will yield to the backend after
+parsing a Part (~100us at most). The backend then would have spun off a thread that writes to a
+MIDI file descriptor.
+I think we can assume that parsing a Part will never take longer than playing the Part. If the
+Part has at least one rest, it will play for 100ms and we'll have parsed the next one already
+by then.
+
+- fix the GUI and merge it into this workspace
+- allow per-part retuning (always use the current specified string name instead of global)
 - "fixup" mode (replace unknown chars with rest), and comment unparseable lines
-- bend parsing shouldn't be that hard now
+    - also accept no string names
+
 ## DONE
 - accept dead notes!
 - desktop / mobile app
@@ -27,3 +44,4 @@ Tools to wrangle guitar tabulature notation.
 - a lot of perf improvements
     - muxml2 right now is just a bunch of string formatting which slows the backend down, so write the ast in one go
 - rethink error and diagnostic handling, right now diagnostics are part of an error but there is no real reason for this.
+- bend parsing shouldn't be that hard now

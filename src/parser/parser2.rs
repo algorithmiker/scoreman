@@ -39,9 +39,6 @@ impl Default for Parser2 {
 pub trait ParserInput<'a>: std::iter::Iterator<Item = &'a str> {}
 impl<'a, T: std::iter::Iterator<Item = &'a str>> ParserInput<'a> for T {}
 impl Parser2 {
-    // TODO: add a way to discard measure/part information for backends that don't need it
-    // Will probably involve a restructuring of the parsing step to be controlled by the backend.
-    // I imagine a Parser {settings: ParserSettings }.parse()
     pub fn parse<'a>(&self, lines: impl ParserInput<'a>) -> Result<Parse2Result, BackendError<'a>> {
         let mut diagnostics = vec![];
         #[rustfmt::skip]
@@ -282,6 +279,8 @@ fn fixup_part(
                 }
                 if track_measures {
                     // now also update measure information to stay correct
+                    // TODO: find the first and last measure eagerly here so we have to do less
+                    // comparisons
                     for measure_idx in part[string_idx].measures.clone() {
                         let mc = &mut measures[string_idx][measure_idx].content;
                         if *mc.start() > tick_idx {

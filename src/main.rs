@@ -7,9 +7,12 @@ use std::{
 
 use anyhow::Context;
 use clap::Parser;
-use guitar_tab::backend::errors::{
-    backend_error::BackendError, diagnostic::Diagnostic, error_location::ErrorLocation,
-    extend_error_range, get_digit_cnt,
+use guitar_tab::{
+    backend::errors::{
+        backend_error::BackendError, diagnostic::Diagnostic, error_location::ErrorLocation,
+        extend_error_range,
+    },
+    digit_cnt_usize,
 };
 use yansi::{Paint, Painted};
 
@@ -56,14 +59,7 @@ impl std::io::Write for OutputType {
     }
 }
 
-/// TODO: fix the GUI and merge this into this workspace
 fn main() -> anyhow::Result<()> {
-    //    panic!(
-    //        "Before releasing bends,
-    //1. Fix the TODOs
-    //2. Fix the performance loss (i think by storing bend targets out of band it should fix itself)
-    //3. add some more tests"
-    //    );
     let cli = Cli::parse();
     let input_path = cli.command.input_path();
     let lines: Vec<String> = get_lines(input_path)?;
@@ -132,21 +128,17 @@ pub fn handle_error(
 
     let mut location_explainer = String::new();
     main_location.write_location_explainer(&mut location_explainer, lines);
-
-    // TODO: make this a range contains
-    let bold_line_indices = relevant_lines.clone().collect::<Vec<usize>>();
-    let max_digit_cnt = get_digit_cnt(*relevant_lines.end());
+    let max_digit_cnt = digit_cnt_usize(*relevant_lines.end());
 
     for line_idx in extend_error_range(relevant_lines, lines.len()) {
-        let zero_pad_cnt = max_digit_cnt - get_digit_cnt(line_idx + 1);
+        let zero_pad_cnt = max_digit_cnt - digit_cnt_usize(line_idx + 1);
         let mut line_num = String::new();
         for _ in 0..zero_pad_cnt {
             write!(&mut line_num, " ").unwrap();
         }
         write!(&mut line_num, "{}", line_idx + 1).unwrap();
 
-        // a faster .contains() on the range since it is sorted
-        let line_num = if bold_line_indices.binary_search(&line_idx).is_ok() {
+        let line_num = if relevant_lines.contains(&line_idx) {
             line_num.bold()
         } else {
             Painted::new(&line_num)
@@ -157,7 +149,7 @@ pub fn handle_error(
             if e_line_idx != line_idx {
                 continue;
             }
-            let padding = get_digit_cnt(line_idx) as usize + 2 + e_char_idx;
+            let padding = digit_cnt_usize(line_idx) as usize + 2 + e_char_idx;
             write_indent(&mut location_explainer, " ", padding);
             writeln!(&mut location_explainer, "{}here", "^".bold()).unwrap();
         }

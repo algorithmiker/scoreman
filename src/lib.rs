@@ -36,6 +36,12 @@ pub fn time<T, F: FnOnce() -> T>(f: F) -> (Duration, T) {
     let val = f();
     (start.elapsed(), val)
 }
+pub fn digit_cnt_usize(num: usize) -> u32 {
+    num.checked_ilog10().unwrap_or(0) + 1
+}
+pub fn digit_cnt_u8(num: &u8) -> u8 {
+    num.checked_ilog10().unwrap_or(0) as u8 + 1
+}
 
 pub fn collect_parse_error(x: &nom::Err<VerboseError<&str>>) -> String {
     let mut collected = String::new();

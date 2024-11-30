@@ -181,7 +181,6 @@ impl ToMuxml for TabElement {
     }
 }
 
-/// TODO: don't use global strings, use Partline strings
 fn gen_muxml2<'a>(
     parse_time: Duration,
     parse_result: Parse2Result,
