@@ -39,7 +39,14 @@ pub fn time<T, F: FnOnce() -> T>(f: F) -> (Duration, T) {
 pub fn digit_cnt_usize(num: usize) -> u32 {
     num.checked_ilog10().unwrap_or(0) + 1
 }
-pub fn digit_cnt_u8(num: &u8) -> u8 {
+pub fn digit_cnt_u8(num: u8) -> u8 {
+    // if num > 99 {
+    //     3
+    // } else if num > 9 {
+    //     2
+    // } else {
+    //     1
+    // }
     num.checked_ilog10().unwrap_or(0) as u8 + 1
 }
 

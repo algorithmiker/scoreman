@@ -279,13 +279,13 @@ impl TabElement {
     #[inline(always)]
     pub fn repr_len(&self, bend_targets: &BendTargets, pos: &(u8, u32)) -> u8 {
         match self {
-            TabElement::Fret(x) => digit_cnt_u8(x),
-            TabElement::FretBend(x) => digit_cnt_u8(x) + 1,
+            TabElement::Fret(x) => digit_cnt_u8(*x),
+            TabElement::FretBend(x) => digit_cnt_u8(*x) + 1,
             TabElement::FretBendTo(x) => {
                 let y = bend_targets
                     .get(pos)
                     .expect("TabElement::repr_len: FretBendTo without target");
-                digit_cnt_u8(x) + 1 + digit_cnt_u8(y)
+                digit_cnt_u8(*x) + 1 + digit_cnt_u8(*y)
             }
             TabElement::Rest => 1,
             TabElement::DeadNote => 1,

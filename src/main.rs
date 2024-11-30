@@ -79,8 +79,8 @@ fn main() -> anyhow::Result<()> {
     let command = &cli.command;
     let backend = command.to_backend_selector();
     let mut result = backend.process(lines.iter().map(|x| x.as_str()), &mut output_fd);
-    match result.err {
-        Some(mut x) => handle_error(&mut x, &mut result.diagnostics, &lines)?,
+    match &mut result.err {
+        Some(x) => handle_error(x, &mut result.diagnostics, &lines)?,
         None => {
             if !result.diagnostics.is_empty() && !cli.quiet {
                 println!(
@@ -101,6 +101,9 @@ fn main() -> anyhow::Result<()> {
                 println!("Parsed file in {parse:?}\nGenerated output in {gen:?}")
             }
         }
+    }
+    if result.err.is_some() {
+        std::process::exit(1)
     }
     Ok(())
 }
