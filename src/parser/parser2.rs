@@ -40,23 +40,26 @@ pub trait ParserInput<'a>: std::iter::Iterator<Item = &'a str> {}
 impl<'a, T: std::iter::Iterator<Item = &'a str>> ParserInput<'a> for T {}
 impl Parser2 {
     pub fn parse<'a>(&self, lines: impl ParserInput<'a>) -> Result<Parse2Result, BackendError<'a>> {
-        let mut diagnostics = vec![];
         #[rustfmt::skip]
         let mut sections = if self.track_sections{Vec::with_capacity(10)} else {vec![]};
+        let mut m = Parse2Result {
+            diagnostics: vec![],
+            sections,
+            string_names: ['\0'; 6],
+            strings: [const { Vec::new() }; 6],
+            measures: [const { Vec::new() }; 6],
+            offsets: [const { Vec::new() }; 6],
+            // TODO: try using integer hashing
+            bend_targets: HashMap::new(),
+        };
         let mut part_buf = Vec::with_capacity(6);
         let mut line_in_part = 0;
         let mut part_start_tick = 0;
-        let mut strings: [Vec<RawTick>; 6] = [const { Vec::new() }; 6];
-        let mut string_measures: [Vec<Measure>; 6] = [const { Vec::new() }; 6];
-        let mut offsets: [Vec<u32>; 6] = [const { Vec::new() }; 6];
-        let mut string_names = ['\0'; 6];
         let mut source_offset = 0u32;
-        // TODO: try using integer hashing
-        let mut bend_targets = HashMap::new();
         for (line_idx, line) in lines.enumerate() {
             if line.trim().is_empty() {
                 if line_in_part != 0 {
-                    diagnostics.push(Diagnostic::warn(
+                    m.diagnostics.push(Diagnostic::warn(
                         ErrorLocation::LineOnly(line_idx),
                         DiagnosticKind::EmptyLineInPart,
                     ));
@@ -69,94 +72,89 @@ impl Parser2 {
                 // I don't think there is a way to write an invalid comment after a valid start, just to be safe
                 assert!(rem.is_empty(), "Invalid comment syntax (line {line_idx})");
                 if line_in_part != 0 {
-                    diagnostics.push(Diagnostic::warn(
+                    m.diagnostics.push(Diagnostic::warn(
                         ErrorLocation::LineOnly(line_idx),
                         DiagnosticKind::CommentInPart,
                     ));
                 }
                 if self.track_sections {
-                    sections.push(Section::Comment(comment.to_string()))
+                    m.sections.push(Section::Comment(comment.to_string()))
                 };
-            } else {
-                match partline(
-                    line,
-                    line_idx,
-                    source_offset,
-                    &mut strings[line_in_part],
-                    &mut string_measures[line_in_part],
-                    &mut offsets[line_in_part],
-                    &mut bend_targets,
-                    line_in_part,
-                    self.track_measures,
-                ) {
-                    Ok((rem, line)) => {
-                        if !rem.is_empty() {
-                            return Err(BackendError {
-                                // the measure with the problem is the first that is not parsed
-                                main_location: ErrorLocation::LineAndMeasure(line_idx, line.len()),
-                                relevant_lines: line_idx..=line_idx,
-                                kind: BackendErrorKind::InvalidPartlineSyntax(rem),
-                            });
-                        }
 
-                        string_names[line_in_part] = line.string_name;
-                        part_buf.push(line);
-                        line_in_part += 1;
-                        if line_in_part == 6 {
-                            // This part is for correcting multichar frets (fret >=10)
-                            // because the parser will errorneously generate two rests
-                            // when there's a multichar fret on another string
-                            if let Err((kind, invalid_offset, invalid_line_idx)) = fixup_part(
-                                part_start_tick,
-                                &mut part_buf,
-                                &mut strings,
-                                &mut string_measures,
-                                &mut offsets,
-                                &string_names,
-                                &bend_targets,
-                                self.track_measures,
-                            ) {
-                                return Err(BackendError {
-                                    main_location: ErrorLocation::SourceOffset(SourceOffset::new(
-                                        invalid_offset,
-                                    )),
-                                    relevant_lines: invalid_line_idx..=invalid_line_idx,
-                                    kind,
-                                });
-                            }
-                            if self.track_sections {
-                                // flush part buf
-                                sections.push(Section::Part {
-                                    part: part_buf.try_into().unwrap(),
-                                });
-                            }
-                            part_buf = Vec::with_capacity(6);
-                            line_in_part = 0;
-                            part_start_tick = strings[0].len();
-                        }
-                    }
-                    Err(x) => {
+                // +1 for \n
+                source_offset += line.len() as u32 + 1;
+                continue;
+            }
+            match partline(
+                line,
+                line_idx,
+                source_offset,
+                &mut m.strings[line_in_part],
+                &mut m.measures[line_in_part],
+                &mut m.offsets[line_in_part],
+                &mut m.bend_targets,
+                line_in_part,
+                self.track_measures,
+            ) {
+                Ok((rem, line)) => {
+                    if !rem.is_empty() {
                         return Err(BackendError {
-                            main_location: ErrorLocation::LineOnly(line_idx),
+                            // the measure with the problem is the first that is not parsed
+                            main_location: ErrorLocation::LineAndMeasure(line_idx, line.len()),
                             relevant_lines: line_idx..=line_idx,
-                            kind: BackendErrorKind::InvalidPartlineSyntax(x),
+                            kind: BackendErrorKind::InvalidPartlineSyntax(rem),
                         });
                     }
+
+                    m.string_names[line_in_part] = line.string_name;
+                    part_buf.push(line);
+                    line_in_part += 1;
+                    if line_in_part == 6 {
+                        // This part is for correcting multichar frets (fret >=10)
+                        // because the parser will errorneously generate two rests
+                        // when there's a multichar fret on another string
+                        if let Err((kind, invalid_offset, invalid_line_idx)) = fixup_part(
+                            part_start_tick,
+                            &mut part_buf,
+                            &mut m.strings,
+                            &mut m.measures,
+                            &mut m.offsets,
+                            &m.string_names,
+                            &m.bend_targets,
+                            self.track_measures,
+                        ) {
+                            return Err(BackendError {
+                                main_location: ErrorLocation::SourceOffset(SourceOffset::new(
+                                    invalid_offset,
+                                )),
+                                relevant_lines: invalid_line_idx..=invalid_line_idx,
+                                kind,
+                            });
+                        }
+                        if self.track_sections {
+                            // flush part buf
+                            m.sections.push(Section::Part {
+                                part: part_buf.try_into().unwrap(),
+                            });
+                        }
+                        part_buf = Vec::with_capacity(6);
+                        line_in_part = 0;
+                        part_start_tick = m.strings[0].len();
+                    }
+                }
+                Err(x) => {
+                    return Err(BackendError {
+                        main_location: ErrorLocation::LineOnly(line_idx),
+                        relevant_lines: line_idx..=line_idx,
+                        kind: BackendErrorKind::InvalidPartlineSyntax(x),
+                    });
                 }
             }
 
             // +1 for \n
             source_offset += line.len() as u32 + 1
         }
-        Ok(Parse2Result {
-            diagnostics,
-            sections,
-            measures: string_measures,
-            strings,
-            string_names,
-            offsets,
-            bend_targets,
-        })
+        Ok(m)
     }
 }
 
