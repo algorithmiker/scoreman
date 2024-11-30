@@ -34,7 +34,6 @@ fn get_lines(input_path: &str) -> anyhow::Result<Vec<String>> {
             File::open(input_path).with_context(|| format!("Failed to open file {input_path}"))?;
 
         let lines: Vec<String> = BufReader::new(&f).lines().map(|x| x.unwrap()).collect();
-        // println!("{:?}", lines);
         Ok(lines)
     }
 }

@@ -16,7 +16,7 @@ use crate::{
         parser2::{Parse2Result, Parser2, ParserInput},
         TabElement::{self, Fret, Rest},
     },
-    time,
+    time, traceln,
 };
 use fretboard::get_fretboard_note2;
 use muxml2_formatters::{
@@ -193,8 +193,12 @@ fn gen_muxml2<'a>(
     let number_of_measures = parse_result.measures[0].len();
     let mut document = String::from(MUXML_INCOMPLETE_DOC_PRELUDE);
     // this looks like a good setting for -nmt based on trial and error
-    document.reserve(parse_result.strings[0].len() * 6 * 10);
-    //println!("Reserved capacity: {}", document.capacity());
+    let cap = parse_result.strings[0].len() * 6 * 10;
+    document.reserve(cap);
+    traceln!(
+        "muxml2: reserved {cap}, actual capacity: {}",
+        document.capacity()
+    );
     let mut slur_count = 0;
     for measure_idx in 0..number_of_measures {
         let ticks_in_measure = parse_result.measures[0][measure_idx].len(); // see assumption 2

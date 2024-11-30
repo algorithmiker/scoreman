@@ -8,6 +8,42 @@ pub mod backend;
 mod fs_test;
 pub mod parser;
 pub mod raw_tracks;
+#[macro_export]
+macro_rules! traceln {
+    (depth=$depth:literal, $($t:expr),*) => {
+        #[cfg(feature="gt_trace")]
+        {
+            use yansi::Paint;
+            let padding=" ".repeat($depth);
+            println!("{padding}{} {}", "[T]:".blue().bold(), format_args!($($t),*));
+        }
+    };
+    ($($t:expr),*) => {
+        #[cfg(feature="gt_trace")]
+        {
+            use yansi::Paint;
+            println!("{} {}", "[T]:".blue().bold(), format_args!($($t),*));
+        }
+    };
+}
+#[macro_export]
+macro_rules! debugln {
+    (depth=$depth:literal, $($t:expr),*) => {
+        #[cfg(feature="gt_debug")]
+        {
+            use yansi::Paint;
+            let padding=" ".repeat($depth);
+            println!("{padding}{} {}", "[D]:".green().bold(), format_args!($($t),*));
+        }
+    };
+    ($($t:expr),*) => {
+        #[cfg(feature="gt_debug")]
+        {
+            use yansi::Paint;
+            println!("{} {}", "[D]:".green().bold(), format_args!($($t),*));
+        }
+    };
+}
 
 pub fn rlen<T: std::ops::Sub<Output = T> + Copy + std::ops::Add<usize, Output = T>>(
     r: &RangeInclusive<T>,
@@ -69,3 +105,4 @@ pub const CLEAR_FORMAT: &str = "\x1b[0m";
 
 use nom::error::VerboseError;
 pub use nom::Err;
+use yansi::Paint;

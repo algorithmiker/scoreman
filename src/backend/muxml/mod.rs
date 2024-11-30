@@ -1,6 +1,7 @@
 /// TODO: extract common formatters between muxml and muxml2
 use crate::{
     backend::errors::diagnostic_kind::DiagnosticKind,
+    debugln,
     parser::parser2::{Parse2Result, Parser2, ParserInput},
     rlen, time,
 };
@@ -73,7 +74,7 @@ fn gen_muxml1<'a>(
                     &parse_result.bend_targets.get(&(i as u8, tick_idx as u32)),
                 )?;
             }
-            //println!("[D]: finished {measure:?}");
+            debugln!("muxml: finished {measure:?}");
             measures_xml.push_str(&muxml_measure(
                 measure_idx as u32,
                 rlen(&measure.content),

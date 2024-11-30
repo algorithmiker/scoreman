@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::backend::errors::error_location::SourceOffset;
+use crate::parser::dump_tracks;
 use crate::{
     backend::errors::{
         backend_error::BackendError, backend_error_kind::BackendErrorKind, diagnostic::Diagnostic,
@@ -8,6 +9,7 @@ use crate::{
     },
     parser::{RawTick, TabElement},
 };
+use crate::{debugln, traceln};
 
 use super::{comment_line, partline, Measure, Partline, Section};
 pub type BendTargets = HashMap<(u8, u32), u8>;
@@ -168,7 +170,10 @@ fn fixup_part(
     bend_targets: &BendTargets,
     track_measures: bool,
 ) -> Result<(), (BackendErrorKind<'static>, usize, usize)> {
-    //println!("initial view of fixup_parts:\n{}", dump_tracks(strings));
+    traceln!(
+        "fixup_parts: initial view:\n{}",
+        dump_tracks(strings, bend_targets)
+    );
     // TODO: i think we can early exit here if we have the same length on all strings, not sure tho
     let (mut tick_count, track_with_least_ticks) = strings
         .iter()
@@ -178,7 +183,7 @@ fn fixup_part(
         .expect("Empty score");
     let mut tick_idx = start_tick;
     while tick_idx < tick_count {
-        //println!("tick_idx={tick_idx}");
+        traceln!("fixup_parts: tick_idx={tick_idx}");
         let Some((multichar_track, multichar_len, RawTick { .. })) = ({
             strings
                 .iter()
@@ -207,17 +212,18 @@ fn fixup_part(
             tick_idx += 1;
             continue;
         };
-        //println!("  this is a multi-char tick");
+        traceln!(depth = 2, "this is a multi-char tick");
         // This is a multi-char tick. Remove adjacent rest everywhere where it is not
         // multi-char.
         for string_idx in 0..6 {
-            let chars_here = strings[string_idx][tick_idx]
+            let elem = &strings[string_idx][tick_idx];
+            let chars_here = elem
                 .element
                 .repr_len(bend_targets, &(string_idx as u8, tick_idx as u32));
-            //println!(
-            //    "  string {string_idx}, chars here: {chars_here} (elem: {:?})",
-            //    strings[string_idx][tick_idx]
-            //);
+            traceln!(
+                depth = 2,
+                "string {string_idx}, chars here: {chars_here} (elem: {elem:?})"
+            );
             fn try_remove_from_right(
                 string: &mut Vec<RawTick>,
                 offsets: &mut Vec<u32>,
@@ -256,8 +262,11 @@ fn fixup_part(
                     (multichar_len - chars_here) as usize,
                 ) {
                     // TODO: make the internal track representation part of the error
-                    // println!("  view before hitting error:");
-                    // println!("{}", dump_tracks(strings));
+                    debugln!(
+                        depth = 2,
+                        "view before hitting error:\n{}",
+                        dump_tracks(strings, bend_targets)
+                    );
                     return Err((
                         BackendErrorKind::BadMulticharTick {
                             multichar: (
@@ -296,7 +305,10 @@ fn fixup_part(
         }
         tick_idx += 1;
     }
-    //println!("after fixup:\n{}", dump_tracks(strings));
+    traceln!(
+        "fixup_parts: after fixup:\n{}",
+        dump_tracks(strings, bend_targets)
+    );
     Ok(())
 }
 #[test]

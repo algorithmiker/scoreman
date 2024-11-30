@@ -248,20 +248,14 @@ fn tab_element(s: &str, set_bend_target: impl FnOnce(u8)) -> Result<(&str, TabEl
     match bytes.first() {
         Some(b'-') => Ok((&s[1..], TabElement::Rest)),
         Some(b'x') => Ok((&s[1..], TabElement::DeadNote)),
-
         Some(48..=58) => {
-            // FIXME: this will check for errors even if we know there is one char
-            // probably should optimize
             let (res, num) = numeric(s).unwrap();
             let bytes = res.as_bytes();
             if let Some(b'b') = bytes.first() {
-                //println!("we have a bend");
                 if let Ok((res, bend_target)) = numeric(&res[1..]) {
-                    //println!("bendTo, will return {num}b{bend_target}, res={res}");
                     set_bend_target(bend_target);
                     return Ok((res, TabElement::FretBendTo(num)));
                 }
-                //println!("bend: will return `{}`, FretBend({num})", &res[1..]);
                 return Ok((&res[1..], TabElement::FretBend(num)));
             }
             Ok((res, TabElement::Fret(num)))
