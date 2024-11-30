@@ -105,7 +105,6 @@ impl Parser2 {
                             kind: BackendErrorKind::InvalidPartlineSyntax(rem),
                         });
                     }
-
                     m.string_names[line_in_part] = line.string_name;
                     part_buf.push(line);
                     line_in_part += 1;

@@ -1,18 +1,12 @@
 /// TODO: extract common formatters between muxml and muxml2
-use crate::backend::muxml2::muxml2_formatters::write_muxml2_note;
 use crate::{
     backend::errors::diagnostic_kind::DiagnosticKind,
-    parser::{
-        parser2::{Parse2Result, Parser2, ParserInput},
-        TabElement::{self, Fret},
-    },
+    parser::parser2::{Parse2Result, Parser2, ParserInput},
     rlen, time,
 };
 
 use super::muxml2::ToMuxml;
-use super::{
-    muxml2::fretboard::get_fretboard_note2, Backend, BackendError, BackendResult, Diagnostic,
-};
+use super::{Backend, BackendError, BackendResult, Diagnostic};
 
 pub struct MuxmlBackend();
 impl Backend for MuxmlBackend {
@@ -91,19 +85,6 @@ fn gen_muxml1<'a>(
     }
 
     Ok((muxml_document(&parts_xml), diagnostics))
-}
-
-fn muxml_rest(r#type: &str, duration: u8) -> String {
-    format!(
-        r#"
-<note>
-  <rest measure="no"/>
-  <duration>{duration}</duration>
-  <voice>1</voice>
-  <type>{type}</type>
-</note>
-"#
-    )
 }
 
 fn muxml_measure(number: u32, note_count: usize, notes: &str) -> String {

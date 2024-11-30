@@ -3,11 +3,9 @@ mod parser3;
 #[cfg(test)]
 mod parser_tests;
 
-use std::{cmp::max, collections::HashMap, ops::RangeInclusive};
-
+use crate::{digit_cnt_u8, rlen};
 use parser2::BendTargets;
-
-use crate::{digit_cnt_u8, digit_cnt_usize, rlen};
+use std::ops::RangeInclusive;
 
 #[derive(Debug, PartialEq)]
 pub enum Section {
@@ -73,14 +71,14 @@ fn partline<'a>(
         };
         loop {
             let rl_before = rem.len() as u32;
-            let Ok(x) = tab_element(rem, |to| {
+            let Ok((rem1, element)) = tab_element(rem, |to| {
                 bend_targets.insert((line_in_part as u8, string_buf.len() as u32), to);
             }) else {
                 break;
             };
-            rem = x.0;
-            last_parsed_idx += rl_before - rem.len() as u32; // multichar frets
-            string_buf.push(RawTick { element: x.1 });
+            last_parsed_idx += rl_before - rem1.len() as u32; // multichar ticks
+            rem = rem1;
+            string_buf.push(RawTick { element });
             string_offsets_buf.push(start_source_offset + last_parsed_idx);
             if track_measures {
                 measure.extend_1();
@@ -229,10 +227,7 @@ pub enum TabElement {
 fn numeric(s: &str) -> Result<(&str, u8), &str> {
     let bytes = s.as_bytes();
     let mut i = 0;
-    while i < bytes.len() {
-        if !matches!(bytes[i], 48..=58) {
-            break;
-        }
+    while i < bytes.len() && matches!(bytes[i], 48..=58) {
         i += 1;
     }
     if i == 0 {
@@ -247,6 +242,7 @@ fn numeric(s: &str) -> Result<(&str, u8), &str> {
         .sum();
     Ok((&s[i..], parsed))
 }
+
 fn tab_element(s: &str, set_bend_target: impl FnOnce(u8)) -> Result<(&str, TabElement), &str> {
     let bytes = s.as_bytes();
     match bytes.first() {
@@ -260,8 +256,7 @@ fn tab_element(s: &str, set_bend_target: impl FnOnce(u8)) -> Result<(&str, TabEl
             let bytes = res.as_bytes();
             if let Some(b'b') = bytes.first() {
                 //println!("we have a bend");
-                if let Some(48..=58) = bytes.get(1) {
-                    let (res, bend_target) = numeric(&res[1..]).unwrap();
+                if let Ok((res, bend_target)) = numeric(&res[1..]) {
                     //println!("bendTo, will return {num}b{bend_target}, res={res}");
                     set_bend_target(bend_target);
                     return Ok((res, TabElement::FretBendTo(num)));
