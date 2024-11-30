@@ -4,28 +4,27 @@ pub mod muxml2_formatters;
 mod muxml2_tests;
 pub mod settings;
 
-use std::{collections::HashMap, time::Duration};
-
-use fretboard::get_fretboard_note2;
-use muxml2_formatters::{
-    write_muxml2_measure_prelude, write_muxml2_note, write_muxml2_rest, Slur, MUXML2_DOCUMENT_END,
-    MUXML_INCOMPLETE_DOC_PRELUDE,
-};
-use settings::Muxml2BendMode;
-
 use crate::{
-    backend::errors::error_location::ErrorLocation,
+    backend::{
+        errors::{
+            backend_error::BackendError, backend_error_kind::BackendErrorKind,
+            error_location::ErrorLocation,
+        },
+        Backend, BackendResult,
+    },
     parser::{
         parser2::{Parse2Result, Parser2, ParserInput},
         TabElement::{self, Fret, Rest},
     },
     time,
 };
-
-use super::{
-    errors::{backend_error::BackendError, backend_error_kind::BackendErrorKind},
-    Backend, BackendResult,
+use fretboard::get_fretboard_note2;
+use muxml2_formatters::{
+    write_muxml2_measure_prelude, write_muxml2_note, write_muxml2_rest, Slur, MUXML2_DOCUMENT_END,
+    MUXML_INCOMPLETE_DOC_PRELUDE,
 };
+use settings::Muxml2BendMode;
+use std::time::Duration;
 
 pub struct Muxml2Backend();
 impl Backend for Muxml2Backend {
@@ -209,7 +208,8 @@ fn gen_muxml2<'a>(
             // faster than a [MuxmlNote2;6]
             let mut notes_in_tick = Vec::with_capacity(6);
             for string_idx in 0..6 {
-                let Some(raw_tick) = parse_result.measures[string_idx][measure_idx]
+                let measure = &parse_result.measures[string_idx][measure_idx];
+                let Some(raw_tick) = measure
                     .get_content(&parse_result.strings[string_idx])
                     .get(tick)
                 else {
@@ -223,24 +223,14 @@ fn gen_muxml2<'a>(
                 match raw_tick.element {
                     Fret(..) | DeadNote => {
                         // TODO: not sure if cloning would be faster here
-                        notes_in_tick.push((
-                            string_idx as u8,
-                            parse_result.measures[string_idx][measure_idx]
-                                .content
-                                .start()
-                                + tick,
-                        ));
+                        notes_in_tick.push((string_idx as u8, measure.content.start() + tick));
                     }
                     FretBend(..) | FretBendTo(..) => {
-                        notes_in_tick.push((
-                            string_idx as u8,
-                            parse_result.measures[string_idx][measure_idx]
-                                .content
-                                .start()
-                                + tick,
-                        ));
-                        // fix content len for stuff where we generate 2 notes for a bend
-                        measure_content_len += 1;
+                        notes_in_tick.push((string_idx as u8, measure.content.start() + tick));
+                        if settings.bend_mode == Muxml2BendMode::EmulateBends {
+                            // fix content len for stuff where we generate 2 notes for a bend
+                            measure_content_len += 1;
+                        }
                     }
                     _ => (),
                 }
@@ -253,52 +243,11 @@ fn gen_muxml2<'a>(
             })
         }
 
-        // remove rest between notes if wanted
         if settings.remove_rest_between_notes {
-            let mut i = 0;
-            while i < measure_processed.len() {
-                use Muxml2TabElement::*;
-                match (
-                    measure_processed.get(i),
-                    measure_processed.get(i + 1),
-                    measure_processed.get(i + 2),
-                ) {
-                    (Some(Notes(_)), Some(Rest(1)), Some(Notes(_))) => {
-                        measure_processed[i + 1] = Muxml2TabElement::Invalid;
-                        i += 3;
-                        measure_content_len -= 1;
-                    }
-                    (Some(Rest(1)), Some(Notes(_)), Some(Rest(1))) => {
-                        measure_processed[i] = Muxml2TabElement::Invalid;
-                        measure_processed[i + 2] = Muxml2TabElement::Invalid;
-                        i += 3;
-                        measure_content_len -= 2;
-                    }
-                    _ => {
-                        i += 1;
-                    }
-                }
-            }
+            remove_rest_between_notes(&mut measure_processed, &mut measure_content_len);
         }
 
-        // merge rests in measure
-        for mut i in 0..measure_processed.len() {
-            match measure_processed[i] {
-                Muxml2TabElement::Rest(x) => {
-                    debug_assert_eq!(x, 1, "Expect Muxml2TabElement::Rest(1) in unprocessed AST, got Muxml2TabElement::Rest({x})");
-                    let original_i = i;
-                    while i < measure_processed.len()
-                        && matches!(measure_processed[i], Muxml2TabElement::Rest(1))
-                    {
-                        measure_processed[i] = Muxml2TabElement::Invalid;
-                        i += 1;
-                    }
-                    measure_processed[original_i] = Muxml2TabElement::Rest(i - original_i);
-                }
-                Muxml2TabElement::Notes(..) | Muxml2TabElement::Invalid => continue,
-            }
-        }
-
+        merge_rests_in_measure(&mut measure_processed);
         if settings.trim_measure {
             trim_measure(
                 &mut measure_processed,
@@ -342,13 +291,52 @@ fn gen_muxml2<'a>(
     }
 
     document += MUXML2_DOCUMENT_END;
-    //println!("Actual len: {}", document.len());
     (
         Some(document),
         BackendResult::new(diagnostics, None, Some(parse_time), None),
     )
 }
 
+fn merge_rests_in_measure(measure: &mut [Muxml2TabElement]) {
+    for mut i in 0..measure.len() {
+        match measure[i] {
+            Muxml2TabElement::Rest(x) => {
+                debug_assert_eq!(x, 1, "Expect Muxml2TabElement::Rest(1) in unprocessed AST, got Muxml2TabElement::Rest({x})");
+                let original_i = i;
+                while i < measure.len() && matches!(measure[i], Muxml2TabElement::Rest(1)) {
+                    measure[i] = Muxml2TabElement::Invalid;
+                    i += 1;
+                }
+                measure[original_i] = Muxml2TabElement::Rest(i - original_i);
+            }
+            Muxml2TabElement::Notes(..) | Muxml2TabElement::Invalid => continue,
+        }
+    }
+}
+
+fn remove_rest_between_notes(measure: &mut [Muxml2TabElement], content_len: &mut usize) {
+    // remove rest between notes if wanted
+    let mut i = 0;
+    while i < measure.len() {
+        use Muxml2TabElement::*;
+        match (measure.get(i), measure.get(i + 1), measure.get(i + 2)) {
+            (Some(Notes(_)), Some(Rest(1)), Some(Notes(_))) => {
+                measure[i + 1] = Muxml2TabElement::Invalid;
+                i += 3;
+                *content_len -= 1;
+            }
+            (Some(Rest(1)), Some(Notes(_)), Some(Rest(1))) => {
+                measure[i] = Muxml2TabElement::Invalid;
+                measure[i + 2] = Muxml2TabElement::Invalid;
+                i += 3;
+                *content_len -= 2;
+            }
+            _ => {
+                i += 1;
+            }
+        }
+    }
+}
 enum Direction {
     Forward,
     Backward,

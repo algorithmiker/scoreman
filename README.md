@@ -15,7 +15,7 @@ Tools to wrangle guitar tabulature notation.
 - add vibrato
 - add slides
 - new parser with smarter fixup
-
+- MUXML2: configurable measure trim
 - streaming midi for live playback
 this works well already for normal size tabs (like a guitar solo or something)
 but for larger tabs you have to skip a frame (~10ms) to parse and export the tab to a midi,

@@ -9,7 +9,7 @@ pub struct Settings {
     pub bend_mode: Muxml2BendMode,
 }
 
-#[derive(ValueEnum, Clone)]
+#[derive(ValueEnum, Clone, PartialEq)]
 pub enum Muxml2BendMode {
     /// Use the <bend> element from the standard for bends. Some MusicXML viewers/sheet music editors do not support this, so you may want to use
     /// [EmulateBends] instead.
