@@ -58,8 +58,8 @@ impl Backend for Muxml2Backend {
 
 #[derive(Debug)]
 pub enum Muxml2TabElement {
-    Rest(usize),
-    Notes(Vec<(u8, usize)>),
+    Rest(u32),
+    CopyTick(u32),
     /// used in optimizing, should generate no code for this type
     Invalid,
 }
@@ -92,21 +92,24 @@ impl Muxml2TabElement {
                 }
                 Ok(())
             }
-            Muxml2TabElement::Notes(notes) => {
-                let mut need_chord = notes.len() > 1;
-                for note_pos in notes.iter() {
-                    parse_result.strings[note_pos.0 as usize][note_pos.1]
-                        .element
-                        .write_muxml(
-                            buf,
-                            parse_result.string_names[note_pos.0 as usize],
-                            need_chord,
-                            slur_cnt,
-                            bend_mode.clone(),
-                            &parse_result
-                                .bend_targets
-                                .get(&(note_pos.0, note_pos.1 as u32)),
-                        )?;
+            Muxml2TabElement::CopyTick(tick_idx) => {
+                let notes_iter = parse_result
+                    .strings
+                    .iter()
+                    .enumerate()
+                    .map(|(track_idx, x)| (track_idx, &x[*tick_idx as usize]))
+                    .filter(|x| !matches!(x.1.element, Rest));
+                // at least two notes here
+                let mut need_chord = notes_iter.clone().take(2).count() == 2;
+                for (track_idx, raw_tick) in notes_iter {
+                    raw_tick.element.write_muxml(
+                        buf,
+                        parse_result.string_names[track_idx],
+                        need_chord,
+                        slur_cnt,
+                        bend_mode.clone(),
+                        &parse_result.bend_targets.get(&(track_idx as u8, *tick_idx)),
+                    )?;
                     need_chord = false;
                 }
                 Ok(())
@@ -210,7 +213,7 @@ fn gen_muxml2<'a>(
         for tick in 0..ticks_in_measure {
             // this was benchmarked and found to be
             // faster than a [MuxmlNote2;6]
-            let mut notes_in_tick = Vec::with_capacity(6);
+            let mut notes_in_tick = 0;
             for string_idx in 0..6 {
                 let measure = &parse_result.measures[string_idx][measure_idx];
                 let Some(raw_tick) = measure
@@ -227,10 +230,12 @@ fn gen_muxml2<'a>(
                 match raw_tick.element {
                     Fret(..) | DeadNote => {
                         // TODO: not sure if cloning would be faster here
-                        notes_in_tick.push((string_idx as u8, measure.content.start() + tick));
+                        //notes_in_tick.push((string_idx as u8, measure.content.start() + tick));
+                        notes_in_tick += 1;
                     }
                     FretBend(..) | FretBendTo(..) => {
-                        notes_in_tick.push((string_idx as u8, measure.content.start() + tick));
+                        //notes_in_tick.push((string_idx as u8, measure.content.start() + tick));
+                        notes_in_tick += 1;
                         if settings.bend_mode == Muxml2BendMode::EmulateBends {
                             // fix content len for stuff where we generate 2 notes for a bend
                             measure_content_len += 1;
@@ -240,10 +245,13 @@ fn gen_muxml2<'a>(
                 }
             }
             // if there were no notes inserted in this tick, add a rest
-            measure_processed.push(if notes_in_tick.is_empty() {
+            measure_processed.push(if notes_in_tick == 0 {
                 Muxml2TabElement::Rest(1)
             } else {
-                Muxml2TabElement::Notes(notes_in_tick)
+                // assumtion 2
+                Muxml2TabElement::CopyTick(
+                    (parse_result.measures[0][measure_idx].content.start() + tick) as u32,
+                )
             })
         }
 
@@ -311,9 +319,9 @@ fn merge_rests_in_measure(measure: &mut [Muxml2TabElement]) {
                     measure[i] = Muxml2TabElement::Invalid;
                     i += 1;
                 }
-                measure[original_i] = Muxml2TabElement::Rest(i - original_i);
+                measure[original_i] = Muxml2TabElement::Rest((i - original_i) as u32);
             }
-            Muxml2TabElement::Notes(..) | Muxml2TabElement::Invalid => continue,
+            Muxml2TabElement::CopyTick(..) | Muxml2TabElement::Invalid => continue,
         }
     }
 }
@@ -324,12 +332,12 @@ fn remove_rest_between_notes(measure: &mut [Muxml2TabElement], content_len: &mut
     while i < measure.len() {
         use Muxml2TabElement::*;
         match (measure.get(i), measure.get(i + 1), measure.get(i + 2)) {
-            (Some(Notes(_)), Some(Rest(1)), Some(Notes(_))) => {
+            (Some(CopyTick(_)), Some(Rest(1)), Some(CopyTick(_))) => {
                 measure[i + 1] = Muxml2TabElement::Invalid;
                 i += 3;
                 *content_len -= 1;
             }
-            (Some(Rest(1)), Some(Notes(_)), Some(Rest(1))) => {
+            (Some(Rest(1)), Some(CopyTick(_)), Some(Rest(1))) => {
                 measure[i] = Muxml2TabElement::Invalid;
                 measure[i + 2] = Muxml2TabElement::Invalid;
                 i += 3;
@@ -354,11 +362,12 @@ fn trim_measure(measure: &mut [Muxml2TabElement], content_len: &mut usize, direc
     loop {
         match &measure[i] {
             Muxml2TabElement::Rest(rest_len) => {
-                *content_len -= rest_len;
+                // HACK: redefine content_len as u32
+                *content_len -= *rest_len as usize;
                 measure[i] = Muxml2TabElement::Invalid;
                 break;
             }
-            Muxml2TabElement::Notes(_) => break,
+            Muxml2TabElement::CopyTick(_) => break,
             Muxml2TabElement::Invalid => {
                 if i == last {
                     break;
