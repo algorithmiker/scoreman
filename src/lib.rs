@@ -85,24 +85,3 @@ pub fn digit_cnt_u8(num: u8) -> u8 {
     // }
     num.checked_ilog10().unwrap_or(0) as u8 + 1
 }
-
-pub fn collect_parse_error(x: &nom::Err<VerboseError<&str>>) -> String {
-    let mut collected = String::new();
-    collected += &format!(
-        "{}",
-        match x {
-            nom::Err::Incomplete(_) => unreachable!(),
-            nom::Err::Error(x) => x,
-            nom::Err::Failure(x) => x,
-        }
-    );
-    collected
-}
-
-pub const BOLD_YELLOW_FORMAT: &str = "\x1b[1;33m";
-pub const GREEN_FORMAT: &str = "\x1b[32m";
-pub const CLEAR_FORMAT: &str = "\x1b[0m";
-
-use nom::error::VerboseError;
-pub use nom::Err;
-use yansi::Paint;
