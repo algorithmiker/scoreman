@@ -92,7 +92,7 @@ fn convert_to_midi(parse_result: &Parse2Result) -> Vec<Vec<TrackEvent<'static>>>
         let raw_track = &parse_result.strings[i];
         let mut delta_carry: u32 = 0;
         for (tick_idx, raw_tick) in raw_track.iter().enumerate() {
-            match raw_tick.element {
+            match &raw_tick.element {
                 Fret(fret) => {
                     let pitch = fret + string_freq[&string_name];
                     let (note_on, note_off) = gen_note_events(pitch.into(), delta_carry.into());
@@ -102,6 +102,12 @@ fn convert_to_midi(parse_result: &Parse2Result) -> Vec<Vec<TrackEvent<'static>>>
                 }
                 FretBend(fret) => {
                     let pitch = fret + string_freq[&string_name] + 1;
+                    let (note_on, note_off) = gen_note_events(pitch.into(), delta_carry.into());
+                    delta_carry = 0;
+                    tracks[i].push(note_on);
+                    tracks[i].push(note_off);
+
+                    let pitch = pitch + 1;
                     let (note_on, note_off) = gen_note_events(pitch.into(), delta_carry.into());
                     delta_carry = 0;
                     tracks[i].push(note_on);
@@ -125,7 +131,6 @@ fn convert_to_midi(parse_result: &Parse2Result) -> Vec<Vec<TrackEvent<'static>>>
                     tracks[i].push(note_off);
                 }
                 Rest => delta_carry += LENGTH_OF_EIGHT,
-                // dead notes are purely cosmetic in this implementation
                 DeadNote => (),
             }
         }
@@ -136,6 +141,7 @@ fn convert_to_midi(parse_result: &Parse2Result) -> Vec<Vec<TrackEvent<'static>>>
     }
     tracks
 }
+
 fn gen_note_events<'a>(key: u7, initial_delta: u28) -> (TrackEvent<'a>, TrackEvent<'a>) {
     let note_on = TrackEvent {
         delta: initial_delta,
