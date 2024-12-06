@@ -227,20 +227,16 @@ pub enum TabElement {
 fn numeric(s: &str) -> Result<(&str, u8), &str> {
     let bytes = s.as_bytes();
     let mut i = 0;
-    while i < bytes.len() && matches!(bytes[i], 48..=58) {
+    let mut sum = 0;
+    while i < bytes.len() && bytes[i].is_ascii_digit() {
+        sum *= 10;
+        sum += bytes[i] - b'0';
         i += 1;
     }
     if i == 0 {
         return Err(s);
     };
-    let parsed: u8 = bytes[0..i]
-        .iter()
-        .rev()
-        .map(|x| x - 48)
-        .enumerate()
-        .map(|(idx, x)| 10u8.pow(idx as u32) * x)
-        .sum();
-    Ok((&s[i..], parsed))
+    Ok((&s[i..], sum))
 }
 
 fn tab_element(s: &str, set_bend_target: impl FnOnce(u8)) -> Result<(&str, TabElement), &str> {
