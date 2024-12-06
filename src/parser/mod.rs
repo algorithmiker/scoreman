@@ -185,16 +185,13 @@ pub fn dump_tracks(tracks: &[Vec<RawTick>; 6], bend_targets: &BendTargets) -> St
                 .map(|(pos, x)| x.element.repr_len(bend_targets, &pos))
                 .max()
                 .unwrap() as usize;
-            match tracks[track][i].element {
-                TabElement::Fret(x) => bufs[track].push_str(&format!("{x:<0$}", tick_len)),
-                TabElement::Rest => {
-                    bufs[track].push_str(&format!("{1:<0$}", tick_len, "-"));
-                }
-                TabElement::DeadNote => {
-                    bufs[track].push_str(&format!("{1:<0$}", tick_len, "x"));
-                }
-                TabElement::FretBend(x) => bufs[track].push_str(&format!("{x:<0$}b", tick_len - 1)),
-                TabElement::FretBendTo(x) => {
+            use TabElement::*;
+            match &tracks[track][i].element {
+                Fret(x) => bufs[track].push_str(&format!("{x:<0$}", tick_len)),
+                Rest => bufs[track].push_str(&format!("{1:<0$}", tick_len, "-")),
+                DeadNote => bufs[track].push_str(&format!("{1:<0$}", tick_len, "x")),
+                FretBend(x) => bufs[track].push_str(&format!("{x:<0$}b", tick_len - 1)),
+                FretBendTo(x) => {
                     let y = bend_targets
                         .get(&(track as u8, i as u32))
                         .expect("Unreachable: FretBendTo without target");
@@ -214,6 +211,7 @@ fn string_name() -> impl Fn(&str) -> Result<(&str, char), &str> {
         _ => Err(s),
     }
 }
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum TabElement {
     Fret(u8),

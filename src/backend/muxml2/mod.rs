@@ -228,20 +228,15 @@ fn gen_muxml2<'a>(
                 };
                 use TabElement::*;
                 match raw_tick.element {
-                    Fret(..) | DeadNote => {
-                        // TODO: not sure if cloning would be faster here
-                        //notes_in_tick.push((string_idx as u8, measure.content.start() + tick));
-                        notes_in_tick += 1;
-                    }
+                    Fret(..) | DeadNote => notes_in_tick += 1,
                     FretBend(..) | FretBendTo(..) => {
-                        //notes_in_tick.push((string_idx as u8, measure.content.start() + tick));
                         notes_in_tick += 1;
                         if settings.bend_mode == Muxml2BendMode::EmulateBends {
                             // fix content len for stuff where we generate 2 notes for a bend
                             measure_content_len += 1;
                         }
                     }
-                    _ => (),
+                    Rest => (),
                 }
             }
             // if there were no notes inserted in this tick, add a rest
