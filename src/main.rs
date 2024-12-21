@@ -152,7 +152,7 @@ pub fn handle_error(
                 continue;
             }
             let padding = digit_cnt_usize(line_idx) as usize + 2 + e_char_idx;
-            write_indent(&mut location_explainer, " ", padding);
+            location_explainer += &" ".repeat(padding);
             writeln!(&mut location_explainer, "{}here", "^".bold()).unwrap();
         }
     }
@@ -181,21 +181,15 @@ pub fn print_diagnostics<'a, A: std::iter::Iterator<Item = &'a mut Diagnostic>>(
     {
         let idx_display = (idx + 1).to_string();
         let mut location_explainer = String::from("\n");
-        write_indent(&mut location_explainer, " ", idx_display.len() + 3);
+        location_explainer += &" ".repeat(idx_display.len() + 3);
         location.write_location_explainer(&mut location_explainer, lines);
         if let Some(x) = location.get_line_idx(lines) {
-            write_indent(&mut location_explainer, " ", idx_display.len() + 3);
+            location_explainer += &" ".repeat(idx_display.len() + 3);
             writeln!(&mut location_explainer, "{}│ {}", x + 1, lines[x]).unwrap();
         }
         println!(
             "({idx_display}) {severity}: {kind}{location_explainer}",
             severity = severity.bold()
         );
-    }
-}
-
-pub fn write_indent(buf: &mut impl fmt::Write, indent: &str, spaces: usize) {
-    for _ in 0..spaces {
-        write!(buf, "{indent}").unwrap();
     }
 }
