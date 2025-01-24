@@ -11,18 +11,10 @@ pub struct Diagnostic {
 
 impl Diagnostic {
     pub fn info(location: ErrorLocation, kind: DiagnosticKind) -> Self {
-        Self {
-            location,
-            kind,
-            severity: DiagnosticSeverity::Info,
-        }
+        Self { location, kind, severity: DiagnosticSeverity::Info }
     }
     pub fn warn(location: ErrorLocation, kind: DiagnosticKind) -> Self {
-        Self {
-            location,
-            kind,
-            severity: DiagnosticSeverity::Warning,
-        }
+        Self { location, kind, severity: DiagnosticSeverity::Warning }
     }
 }
 

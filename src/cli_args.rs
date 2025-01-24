@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use clap::{Parser, Subcommand};
 use guitar_tab::backend::{
-    format::{FormatBackendSettings, FormatDumpOptions},
+    //format::{FormatBackendSettings, FormatDumpOptions},
     muxml2::{self, settings::Muxml2BendMode},
     BackendSelector,
 };
@@ -46,52 +46,45 @@ pub enum Commands {
         input_path: String,
         output_path: String,
     },
-
-    /// The older muxml backend. Needs a less perfect tab than Muxml2, but produces a multi-track
-    /// document which is uglier and harder to work with
-    #[command(visible_alias = "musicxml")]
-    Muxml {
-        input_path: String,
-        output_path: String,
-    },
-
+    // PRERELEASE: decide about muxml backend
+    // /// The older muxml backend. Needs a less perfect tab than Muxml2, but produces a multi-track
+    // /// document which is uglier and harder to work with
+    // #[command(visible_alias = "musicxml")]
+    // Muxml { input_path: String, output_path: String },
     /// The simplest backend, creates a SMF file. Very fast, good for even realtime applications
     /// (usually runs in nanoseconds even for complex tabs), but importing into a score application
     /// will result in an even uglier score than muxml1.
     /// If you need a lot of speed, consider using the library directly (not via cli) because
     /// argument parsing adds ~100us
-    Midi {
-        input_path: String,
-        output_path: String,
-    },
-
-    /// Formats the score into a new .tab annotated with measure indices. Also good for debugging
-    /// scores. Does minimal parsing, so a score that can be formatted isn't neccessarily valid.
-    Format {
-        input_path: String,
-        output_path: String,
-        /// Dump the parse tree
-        #[arg(value_enum, short = 'd', long)]
-        dump: Option<FormatDumpOptions>,
-    },
+    Midi { input_path: String, output_path: String },
+    // PRERELEASE: decide about format backend
+    // /// Formats the score into a new .tab annotated with measure indices. Also good for debugging
+    // /// scores. Does minimal parsing, so a score that can be formatted isn't neccessarily valid.
+    //  Format {
+    //      input_path: String,
+    //      output_path: String,
+    //      /// Dump the parse tree
+    //      #[arg(value_enum, short = 'd', long)]
+    //      dump: Option<FormatDumpOptions>,
+    //  },
 }
 
 impl Commands {
     pub fn input_path(&self) -> &str {
         match self {
             Commands::Muxml2 { input_path, .. }
-            | Commands::Muxml { input_path, .. }
-            | Commands::Midi { input_path, .. }
-            | Commands::Format { input_path, .. } => input_path,
+            //| Commands::Muxml { input_path, .. }
+            | Commands::Midi { input_path, .. } => input_path,
+            //| Commands::Format { input_path, .. } => input_path,
         }
     }
 
     pub fn output_path(&self) -> &str {
         match self {
             Commands::Muxml2 { output_path, .. }
-            | Commands::Muxml { output_path, .. }
-            | Commands::Midi { output_path, .. }
-            | Commands::Format { output_path, .. } => output_path,
+            //| Commands::Muxml { output_path, .. }
+            | Commands::Midi { output_path, .. } => output_path,
+            //  | Commands::Format { output_path, .. } => output_path,
         }
     }
 
@@ -109,11 +102,11 @@ impl Commands {
                 simplify_time_signature: *simplify_time_signature,
                 bend_mode: bend_mode.clone(),
             }),
-            Commands::Muxml { .. } => BackendSelector::Muxml(()),
+            // Commands::Muxml { .. } => BackendSelector::Muxml(()),
             Commands::Midi { .. } => BackendSelector::Midi(()),
-            Commands::Format { dump, .. } => {
-                BackendSelector::Format(FormatBackendSettings { dump: dump.clone() })
-            }
+            // Commands::Format { dump, .. } => {
+            //     BackendSelector::Format(FormatBackendSettings { dump: dump.clone() })
+            // }
         }
     }
 }
@@ -125,9 +118,9 @@ impl Display for Commands {
             "{}",
             match self {
                 Commands::Muxml2 { .. } => "muxml2",
-                Commands::Muxml { .. } => "muxml",
+                //Commands::Muxml { .. } => "muxml",
+                //Commands::Format { .. } => "format",
                 Commands::Midi { .. } => "midi",
-                Commands::Format { .. } => "format",
             }
         )
     }

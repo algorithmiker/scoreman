@@ -76,15 +76,12 @@ fn main() -> anyhow::Result<()> {
 
     let command = &cli.command;
     let backend = command.to_backend_selector();
-    let mut result = backend.process(lines.iter().map(|x| x.as_str()), &mut output_fd);
+    let mut result = backend.process(&lines, &mut output_fd);
     match &mut result.err {
         Some(x) => handle_error(x, &mut result.diagnostics, &lines)?,
         None => {
             if !result.diagnostics.is_empty() && !cli.quiet {
-                println!(
-                    "Produced {} diagnostics and no errors",
-                    result.diagnostics.len().bold()
-                );
+                println!("Produced {} diagnostics and no errors", result.diagnostics.len().bold());
                 print_diagnostics(result.diagnostics.iter_mut(), &lines);
             }
         }
@@ -107,15 +104,9 @@ fn main() -> anyhow::Result<()> {
 }
 
 pub fn handle_error(
-    err: &mut BackendError,
-    diagnostics: &mut [Diagnostic],
-    lines: &[String],
+    err: &mut BackendError, diagnostics: &mut [Diagnostic], lines: &[String],
 ) -> anyhow::Result<()> {
-    let BackendError {
-        ref mut main_location,
-        relevant_lines,
-        kind,
-    } = err;
+    let BackendError { ref mut main_location, relevant_lines, kind } = err;
     let diag_count = diagnostics.len();
 
     println!(
@@ -165,19 +156,10 @@ pub fn handle_error(
 }
 
 pub fn print_diagnostics<'a, A: std::iter::Iterator<Item = &'a mut Diagnostic>>(
-    diags: A,
-    lines: &[String],
+    diags: A, lines: &[String],
 ) {
     println!("{}:", "Diagnostics".bold());
-    for (
-        idx,
-        Diagnostic {
-            severity,
-            kind,
-            location,
-        },
-    ) in diags.enumerate()
-    {
+    for (idx, Diagnostic { severity, kind, location }) in diags.enumerate() {
         let idx_display = (idx + 1).to_string();
         let mut location_explainer = String::from("\n");
         location_explainer += &" ".repeat(idx_display.len() + 3);

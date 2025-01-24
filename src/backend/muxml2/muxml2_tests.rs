@@ -20,7 +20,11 @@ E|--------------|
         simplify_time_signature: true,
         bend_mode: crate::backend::muxml2::settings::Muxml2BendMode::EmulateBends,
     };
-    Muxml2Backend::process(i1.lines(), &mut out, settings);
+    Muxml2Backend::process(
+        &i1.lines().map(|x| x.to_string()).collect::<Vec<_>>(),
+        &mut out,
+        settings,
+    );
     insta::assert_snapshot!(String::from_utf8_lossy(&out));
     Ok(())
 }
@@ -41,7 +45,11 @@ E|----|
         simplify_time_signature: true,
         bend_mode: crate::backend::muxml2::settings::Muxml2BendMode::EmulateBends,
     };
-    Muxml2Backend::process(i1.lines(), &mut out, settings);
+    Muxml2Backend::process(
+        &i1.lines().map(|x| x.to_string()).collect::<Vec<_>>(),
+        &mut out,
+        settings,
+    );
     insta::assert_snapshot!(String::from_utf8_lossy(&out));
     Ok(())
 }

@@ -1,12 +1,10 @@
-use itoa::Buffer;
-
 use super::settings::Muxml2BendMode;
+use crate::backend::muxml2::{NoteProperties, Slur2};
+use itoa::Buffer;
 
 #[inline]
 pub fn write_muxml2_rest(
-    buf: &mut impl std::fmt::Write,
-    r#type: &str,
-    duration: u8,
+    buf: &mut impl std::fmt::Write, r#type: &str, duration: u8,
 ) -> Result<(), std::fmt::Error> {
     buf.write_str(
         r#"<note>
@@ -31,13 +29,8 @@ pub enum Slur {
 }
 #[inline]
 pub fn write_muxml2_note(
-    buf: &mut impl std::fmt::Write,
-    step: char,
-    octave: u8,
-    sharp: bool,
-    chord: bool,
-    dead: bool,
-    slur: Slur,
+    buf: &mut impl std::fmt::Write, step: char, octave: u8, sharp: bool, chord: bool, dead: bool,
+    properties: Option<&NoteProperties>,
 ) -> Result<(), std::fmt::Error> {
     buf.write_str("<note>\n")?;
     if chord {
@@ -64,39 +57,33 @@ pub fn write_muxml2_note(
     if dead {
         buf.write_str("<notehead>x</notehead>\n")?;
     }
-    match slur {
-        Slur::None => (),
-        Slur::Start(mode, idx, u) => match mode {
-            Muxml2BendMode::StandardsCompliant => {
-                buf.write_str(r#"<notations><technical><bend shape="curved"><bend-alter>"#)?;
-                buf.write_str(octave_buf.format(u))?;
-                buf.write_str(r#"</bend-alter></bend></technical></notations>"#)?;
+    match properties {
+        None => (),
+        Some(NoteProperties { slurs, slide }) => {
+            buf.write_str(r#"<notations>\n"#)?;
+            for slur in slurs {
+                buf.write_str(r#"<slur type="#)?;
+                buf.write_str(if slur.start { "start" } else { "stop" })?;
+                buf.write_str(r#"" number="#)?;
+                buf.write_str(octave_buf.format(slur.number))?;
+                buf.write_str(r#"" />\n"#)?;
             }
-            Muxml2BendMode::EmulateBends => {
-                buf.write_str(r#"<notations><slur type="start" number=""#)?;
-                buf.write_str(octave_buf.format(idx))?;
-                buf.write_str(r#""/></notations>"#)?;
+            if let Some(slide) = slide {
+                buf.write_str(r#"<slide type=""#)?;
+                buf.write_str(if slide.start { "start" } else { "stop" })?;
+                buf.write_str(r#"" number=""#)?;
+                buf.write_str(octave_buf.format(slide.number))?;
+                buf.write_str(r#"" />\n"#)?;
             }
-        },
-        Slur::End(mode, idx) => match mode {
-            Muxml2BendMode::StandardsCompliant => (), // handled in Start
-            Muxml2BendMode::EmulateBends => {
-                buf.write_str(r#"<notations><slur type="stop" number=""#)?;
-                buf.write_str(octave_buf.format(idx))?;
-                buf.write_str(r#"" />"#)?;
-                buf.write_str(r#"</notations>"#)?;
-            }
-        },
+            buf.write_str(r#"</notations>\n"#)?;
+        }
     }
     buf.write_str("</note>\n")?;
     Ok(())
 }
 #[inline]
 pub fn write_muxml2_measure_prelude(
-    buf: &mut impl std::fmt::Write,
-    number: usize,
-    note_count: usize,
-    note_type: usize,
+    buf: &mut impl std::fmt::Write, number: usize, note_count: usize, note_type: usize,
 ) -> Result<(), std::fmt::Error> {
     let first_measure = number == 0;
     buf.write_str(r#"<measure number=""#)?;

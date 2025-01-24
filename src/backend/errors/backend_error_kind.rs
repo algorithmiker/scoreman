@@ -1,5 +1,3 @@
-use crate::parser::TabElement;
-
 #[derive(Debug)]
 pub enum BackendErrorKind<'a> {
     IOError(std::io::Error),
@@ -8,15 +6,10 @@ pub enum BackendErrorKind<'a> {
     /// string name and fret
     NoSuchFret(char, u8),
     TickMismatch(char, char, usize, usize),
-    /// string name where tick is multichar, string name here, tick idx, and the found invalid fret
-    BadMulticharTick {
-        /// string and fret
-        multichar: (char, TabElement),
-        /// something else
-        invalid: (char, TabElement),
-        tick_idx: u32,
-    },
     InvalidPartlineSyntax(&'a str),
+    // TODO: maybe this shouldn't be an error?
+    NoClosingBarline,
+    Parse3InvalidCharacter(char),
     // TODO: a parser error for invalid string names
 }
 
@@ -42,14 +35,11 @@ The measure has {ticks_before} ticks on string {string_before} and {ticks_after}
 
 Tip: If you get a lot of errors like this, consider using the muxml1 backend.")
             ),
-            BackendErrorKind::BadMulticharTick { multichar : (multichar_string,multichar_elem), invalid: (invalid_string,invalid_elem), tick_idx } =>
-            (
-                "Invalid multichar tick".into(),
-                format!(
-"Tick {} has a multi-char element ({multichar_elem:?}) on string {multichar_string}, but on the same tick there is an invalid element {invalid_elem:?} on string {invalid_string}", tick_idx+1)
-            ),
             BackendErrorKind::InvalidPartlineSyntax(rem) => ("Invalid partline syntax".into(), format!("Got remaining content: `{rem}`")),
-
+            BackendErrorKind::NoClosingBarline => {("No closing barline".into(), "Lines in a part must end with a barline, but this one doesn't".into())}
+            BackendErrorKind::Parse3InvalidCharacter(c) => {
+                ("Invalid character".into(), format!("The character {c} is not valid here"))
+            }
         }
     }
 }

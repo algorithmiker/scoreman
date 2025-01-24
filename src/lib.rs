@@ -4,8 +4,6 @@ use std::{
 };
 
 pub mod backend;
-#[cfg(test)]
-mod fs_test;
 pub mod parser;
 pub mod raw_tracks;
 #[macro_export]
@@ -45,7 +43,7 @@ macro_rules! debugln {
     };
 }
 
-pub fn rlen<T: std::ops::Sub<Output = T> + Copy + std::ops::Add<usize, Output = T>>(
+pub fn rlen<T: std::ops::Sub<Output = T> + Copy + std::ops::Add<u32, Output = T>>(
     r: &RangeInclusive<T>,
 ) -> T {
     *r.end() - *r.start() + 1
@@ -54,8 +52,7 @@ pub fn rlen<T: std::ops::Sub<Output = T> + Copy + std::ops::Add<usize, Output = 
 pub fn rcontains<
     T: std::ops::Sub<Output = T> + Copy + std::ops::Add<usize, Output = T> + PartialOrd<T>,
 >(
-    r: &Range<T>,
-    elem: T,
+    r: &Range<T>, elem: T,
 ) -> bool {
     elem >= r.start && elem < r.end
 }
@@ -63,8 +60,7 @@ pub fn rcontains<
 pub fn ricontains<
     T: std::ops::Sub<Output = T> + Copy + std::ops::Add<usize, Output = T> + PartialOrd<T>,
 >(
-    r: &RangeInclusive<T>,
-    elem: T,
+    r: &RangeInclusive<T>, elem: T,
 ) -> bool {
     elem >= *r.start() && elem <= *r.end()
 }

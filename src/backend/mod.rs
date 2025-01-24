@@ -1,6 +1,5 @@
 use errors::{backend_error::BackendError, diagnostic::Diagnostic};
 
-use crate::parser::parser2::ParserInput;
 use std::{fmt::Display, time::Duration};
 pub mod errors;
 pub mod format;
@@ -15,26 +14,17 @@ pub struct BackendResult<'a> {
 }
 impl<'a> BackendResult<'a> {
     pub fn new(
-        diagnostics: Vec<Diagnostic>,
-        err: Option<BackendError<'a>>,
-        timing_parse: Option<Duration>,
-        timing_gen: Option<Duration>,
+        diagnostics: Vec<Diagnostic>, err: Option<BackendError<'a>>,
+        timing_parse: Option<Duration>, timing_gen: Option<Duration>,
     ) -> Self {
-        Self {
-            diagnostics,
-            err,
-            timing_parse,
-            timing_gen,
-        }
+        Self { diagnostics, err, timing_parse, timing_gen }
     }
 }
 pub trait Backend {
     type BackendSettings;
 
     fn process<'a, Out: std::io::Write>(
-        input: impl ParserInput<'a>,
-        ou: &mut Out,
-        settings: Self::BackendSettings,
+        input: &'a [String], out: &mut Out, settings: Self::BackendSettings,
     ) -> BackendResult<'a>;
 }
 
@@ -42,26 +32,24 @@ pub trait Backend {
 #[derive(Clone)]
 pub enum BackendSelector {
     Midi(()),
-    Muxml(()),
+    // Muxml(()),
     Muxml2(muxml2::settings::Settings),
-    Format(format::FormatBackendSettings),
+    //    Format(format::FormatBackendSettings),
 }
 
 impl BackendSelector {
+    // TODO: remove the lifetime here
     pub fn process<'a, Out: std::io::Write>(
-        self,
-        input: impl ParserInput<'a>,
-        out: &'a mut Out,
-    ) -> BackendResult {
+        self, input: &'a [String], out: &mut Out,
+    ) -> BackendResult<'a> {
         match self {
             BackendSelector::Midi(settings) => midi::MidiBackend::process(input, out, settings),
-            BackendSelector::Muxml(settings) => muxml::MuxmlBackend::process(input, out, settings),
+            // BackendSelector::Muxml(settings) => muxml::MuxmlBackend::process(input, out, settings),
             BackendSelector::Muxml2(settings) => {
                 muxml2::Muxml2Backend::process(input, out, settings)
-            }
-            BackendSelector::Format(settings) => {
-                format::FormatBackend::process(input, out, settings)
-            }
+            } //  BackendSelector::Format(settings) => {
+              //      format::FormatBackend::process(input, out, settings)
+              //  }
         }
     }
 }
@@ -73,9 +61,9 @@ impl Display for BackendSelector {
             "{}",
             match self {
                 BackendSelector::Midi(_) => "midi",
-                BackendSelector::Muxml(_) => "muxml",
+                // BackendSelector::Muxml(_) => "muxml",
                 BackendSelector::Muxml2(_) => "muxml",
-                BackendSelector::Format(_) => "format",
+                // BackendSelector::Format(_) => "format",
             }
         )
     }

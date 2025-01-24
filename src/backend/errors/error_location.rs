@@ -6,6 +6,7 @@ pub enum ErrorLocation {
     LineOnly(usize),
     LineAndMeasure(usize, usize),
     SourceOffset(SourceOffset),
+    LineAndChar(u32, u32),
 }
 #[derive(Clone, Debug)]
 pub struct SourceOffset {
@@ -24,10 +25,7 @@ impl SourceOffset {
         //println!("resolved  {self:?}");
     }
     pub fn new(offset: usize) -> Self {
-        Self {
-            offset,
-            resolved: None,
-        }
+        Self { offset, resolved: None }
     }
     pub fn get_line_char(&mut self, lines: &[String]) -> (usize, usize) {
         if let Some(x) = self.resolved {
@@ -46,6 +44,7 @@ impl ErrorLocation {
             ErrorLocation::LineOnly(x) => Some(*x),
             ErrorLocation::LineAndMeasure(x, _) => Some(*x),
             ErrorLocation::SourceOffset(offset) => Some(offset.get_line_char(lines).0),
+            ErrorLocation::LineAndChar(l, o) => Some(*l as usize),
         }
     }
     pub fn write_location_explainer(&mut self, f: &mut impl std::fmt::Write, lines: &[String]) {
@@ -57,23 +56,15 @@ impl ErrorLocation {
             }
             ErrorLocation::LineAndMeasure(line_idx, measure_idx) => {
                 let (line_num, measure_num) = (*line_idx + 1, *measure_idx + 1);
-                writeln!(
-                    f,
-                    "{} Measure {measure_num} in line {line_num}:",
-                    "Where:".bold()
-                )
-                .unwrap();
+                writeln!(f, "{} Measure {measure_num} in line {line_num}:", "Where:".bold())
+                    .unwrap();
             }
             ErrorLocation::SourceOffset(src_offset) => {
-                let line_char = src_offset.get_line_char(lines);
-                writeln!(
-                    f,
-                    "{} line {} char {}",
-                    "Where:".bold(),
-                    line_char.0 + 1,
-                    line_char.1 + 1,
-                )
-                .unwrap()
+                let (line, char) = src_offset.get_line_char(lines);
+                writeln!(f, "{} line {} char {}", "Where:".bold(), line + 1, char + 1).unwrap()
+            }
+            ErrorLocation::LineAndChar(line, char) => {
+                writeln!(f, "{} line {} char {}", "Where:".bold(), line, char).unwrap()
             }
         }
     }
