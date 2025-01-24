@@ -143,7 +143,7 @@ impl Measure {
         dump_ticks(&string_buf[self.content.clone()], track_idx, bend_targets)
     }
 }
-fn char(c: char) -> impl Fn(&str) -> Result<(&str, char), &str> {
+pub fn char(c: char) -> impl Fn(&str) -> Result<(&str, char), &str> {
     move |s: &str| match s.chars().next() {
         Some(cc) if cc == c => Ok((&s[1..], c)),
         _ => Err(s),
@@ -205,7 +205,7 @@ pub fn dump_tracks(tracks: &[Vec<RawTick>; 6], bend_targets: &BendTargets) -> St
     bufs.concat()
 }
 
-fn string_name() -> impl Fn(&str) -> Result<(&str, char), &str> {
+pub fn string_name() -> impl Fn(&str) -> Result<(&str, char), &str> {
     move |s: &str| match s.chars().next() {
         Some(c) if c.is_alphabetic() => Ok((&s[1..], c)),
         _ => Err(s),

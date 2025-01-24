@@ -1,4 +1,3 @@
-use core::fmt;
 use std::{
     fmt::Write,
     fs::{File, OpenOptions},

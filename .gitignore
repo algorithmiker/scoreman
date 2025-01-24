@@ -8,3 +8,4 @@ profile.sh
 benchmark_each_revision.py
 .benchmark
 callgrind.*
+.rust-toolchain
