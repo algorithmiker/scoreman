@@ -136,20 +136,20 @@ pub fn handle_error(
             Painted::new(&line_num)
         };
         writeln!(&mut location_explainer, "{line_num}│ {}", lines[line_idx])?;
-        if let ErrorLocation::SourceOffset(src_offset) = main_location {
-            let (e_line_idx, e_char_idx) = src_offset.get_line_char(lines);
-            if e_line_idx != line_idx {
+        if let ErrorLocation::LineAndChar(e_line_idx, e_char_idx) = main_location {
+            if *e_line_idx as usize != line_idx {
                 continue;
             }
-            let padding = digit_cnt_usize(line_idx) as usize + 2 + e_char_idx;
+            let padding = digit_cnt_usize(line_idx) as usize + 2 + *e_char_idx as usize;
             location_explainer += &" ".repeat(padding);
-            writeln!(&mut location_explainer, "{}here", "^".bold()).unwrap();
+            writeln!(&mut location_explainer, "{}", "^here".red().bold())?;
         }
     }
     let (short, long) = kind.desc();
     println!(
-        "\n{first_line}\n{location_explainer}\n{long}",
-        first_line = format!("Error: {short}").bold().red()
+        "\n{first_line}\n{location_explainer}\n{}",
+        long.red(),
+        first_line = format!("Error: {short}").bold().red(),
     );
 
     Ok(())

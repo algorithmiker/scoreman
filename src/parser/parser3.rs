@@ -1,10 +1,11 @@
+use std::cmp::max;
 use std::io::Read;
 use std::ops::RangeInclusive;
 
 use super::{numeric, string_name};
 use crate::{
     backend::{errors::backend_error::BackendError, muxml2::Muxml2TabElement},
-    time, traceln,
+    debugln, time, traceln,
 };
 
 pub fn line_is_valid(line: &str) -> bool {
@@ -61,7 +62,7 @@ impl Parse3Result<'_> {
                 }
             }
         }
-
+        bufs.iter_mut().for_each(|x| x.push('\n'));
         bufs.concat()
     }
 }
@@ -69,7 +70,7 @@ impl Parse3Result<'_> {
 fn dumb_repr_len(x: &TabElement3) -> u32 {
     use TabElement3::*;
     match x {
-        Fret(x) => x.ilog10(),
+        Fret(x) => max(x, &1).ilog10() + 1,
         Bend | HammerOn | DeadNote | Pull | Slide | Rest | Release => 1,
     }
 }
@@ -85,19 +86,24 @@ pub fn parse3(lines: &[String]) -> Parse3Result {
             }
             part_first_line += 1;
         }
+        // PRERELEASE: this loop ^ fails if there is extra content after the last part. find a good way to fix that.
         traceln!("parse3: Found part {part_first_line}..={}", part_first_line + 5);
         r.offsets.push((part_first_line as u32, r.tick_stream.len() as u32));
         let mut part: Vec<&str> = lines[part_first_line..=part_first_line + 5]
             .iter()
             .map(|s| s.as_str().trim())
             .collect(); // TODO: check if this is slow
-        part_first_line += 6;
 
         // The current tick in THIS PART
         let mut tick = 0;
         // parse prelude and last char
         for (line_idx, line) in part.iter_mut().enumerate() {
-            let (rem, string_name) = string_name()(line).unwrap();
+            let Ok((rem, string_name)) = string_name()(line) else {
+                // TODO: error for invalid string name
+                let char = line.chars().next().unwrap_or('\0');
+                r.error = Some(BackendError::parse3_invalid_character(line_idx as u32, 0, char));
+                return r;
+            };
             r.base_notes.push(string_name);
             let (rem, _) = super::char('|')(rem).unwrap();
             *line = rem;
@@ -183,8 +189,15 @@ pub fn parse3(lines: &[String]) -> Parse3Result {
             traceln!(depth = 1, "source state after parsing tick:\n{}", dump_source(&part));
             tick += 1;
         }
+
+        let measure_start = r.measures.last().map(|x| x.data_range.end() + 1).unwrap_or(0);
+        r.measures.push(Measure3 {
+            data_range: measure_start..=r.tick_stream.len().wrapping_sub(1) as u32,
+        });
         // finished parsing part
         traceln!("Finished part\n{}", r.dump_tracks());
+
+        part_first_line += 6;
     }
     r
 }
@@ -197,8 +210,9 @@ pub fn source_location_while_parsing(
     let mut offset_on_line = 2; // e|
     let mut idx_in_stream = (r.offsets.last().map(|x| x.1).unwrap_or(0) + line_in_part) as usize;
     while idx_in_stream < r.tick_stream.len() {
-        traceln!(depth = 1, "adding offset of tick {:?}", r.tick_stream[idx_in_stream]);
-        offset_on_line += dumb_repr_len(&r.tick_stream[idx_in_stream]);
+        let element = &r.tick_stream[idx_in_stream];
+        traceln!(depth = 1, "adding offset ({}) of element {:?}", dumb_repr_len(element), element);
+        offset_on_line += dumb_repr_len(element);
         idx_in_stream += 6;
     }
     offset_on_line += 1; // because the location refers to the offset of the tick that was not parsed
@@ -246,6 +260,8 @@ pub enum TabElement3 {
     Release,
     Slide,
 }
+
+// PRERELEASE: parse vibrato
 fn tab_element3(s: &str) -> Result<(&str, TabElement3), &str> {
     let bytes = s.as_bytes();
     match bytes.first() {

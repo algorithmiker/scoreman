@@ -64,7 +64,7 @@ impl ErrorLocation {
                 writeln!(f, "{} line {} char {}", "Where:".bold(), line + 1, char + 1).unwrap()
             }
             ErrorLocation::LineAndChar(line, char) => {
-                writeln!(f, "{} line {} char {}", "Where:".bold(), line, char).unwrap()
+                writeln!(f, "{} line {} char {}", "Where:".bold(), *line + 1, *char + 1).unwrap()
             }
         }
     }

@@ -38,7 +38,7 @@ Tip: If you get a lot of errors like this, consider using the muxml1 backend.")
             BackendErrorKind::InvalidPartlineSyntax(rem) => ("Invalid partline syntax".into(), format!("Got remaining content: `{rem}`")),
             BackendErrorKind::NoClosingBarline => {("No closing barline".into(), "Lines in a part must end with a barline, but this one doesn't".into())}
             BackendErrorKind::Parse3InvalidCharacter(c) => {
-                ("Invalid character".into(), format!("The character {c} is not valid here"))
+                ("Invalid character".into(), format!("The character {c} is not valid here."))
             }
         }
     }
