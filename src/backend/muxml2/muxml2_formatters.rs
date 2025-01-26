@@ -1,5 +1,6 @@
 use super::settings::Muxml2BendMode;
 use crate::backend::muxml2::{NoteProperties, Slur2};
+use crate::debugln;
 use itoa::Buffer;
 
 #[inline]
@@ -49,7 +50,8 @@ pub fn write_muxml2_note(
     buf.write_str(
         r#"</pitch>
 <duration>1</duration>
-<type>eighth</type>"#,
+<type>eighth</type>
+"#,
     )?;
     if sharp {
         buf.write_str("<accidental>sharp</accidental>\n")?;
@@ -60,22 +62,23 @@ pub fn write_muxml2_note(
     match properties {
         None => (),
         Some(NoteProperties { slurs, slide }) => {
-            buf.write_str(r#"<notations>\n"#)?;
+            debugln!("slurs: {slurs:?}");
+            buf.write_str("<notations>\n")?;
             for slur in slurs {
-                buf.write_str(r#"<slur type="#)?;
+                buf.write_str(r#"<slur type=""#)?;
                 buf.write_str(if slur.start { "start" } else { "stop" })?;
-                buf.write_str(r#"" number="#)?;
+                buf.write_str(r#"" number=""#)?;
                 buf.write_str(octave_buf.format(slur.number))?;
-                buf.write_str(r#"" />\n"#)?;
+                buf.write_str("\" />\n")?;
             }
             if let Some(slide) = slide {
                 buf.write_str(r#"<slide type=""#)?;
                 buf.write_str(if slide.start { "start" } else { "stop" })?;
                 buf.write_str(r#"" number=""#)?;
                 buf.write_str(octave_buf.format(slide.number))?;
-                buf.write_str(r#"" />\n"#)?;
+                buf.write_str("\" />\n")?;
             }
-            buf.write_str(r#"</notations>\n"#)?;
+            buf.write_str("</notations>\n")?;
         }
     }
     buf.write_str("</note>\n")?;

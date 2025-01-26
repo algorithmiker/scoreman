@@ -303,5 +303,6 @@ E|-----9-|-----9-|
     let time_parser3 = Instant::now();
     let parse3_result = parse3(lines);
     println!("Parser3 took: {:?}", time_parser3.elapsed());
-    // PRERELEASE: add an insta snapshot here
+    insta::assert_snapshot!(parse3_result.dump_tracks());
+    insta::assert_debug_snapshot!(parse3_result);
 }

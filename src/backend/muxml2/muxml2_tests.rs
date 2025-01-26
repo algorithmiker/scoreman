@@ -33,7 +33,7 @@ fn test_muxml_bends() -> anyhow::Result<()> {
     let i1 = r#"
 e|----|
 B|----|
-G|2b4-|
+G|2b--|
 D|----|
 A|----|
 E|----|
