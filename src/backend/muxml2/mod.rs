@@ -86,7 +86,7 @@ impl Muxml2TabElement {
             }
             Muxml2TabElement::CopyTick(tick_idx) => {
                 let note_range = *tick_idx as usize..=(*tick_idx as usize + 5);
-                let notes_iter = parsed.tick_stream[note_range.clone()]
+                let notes_iter = parsed.tick_stream[note_range]
                     .iter()
                     .enumerate()
                     .filter(|x| !matches!(x.1, TabElement3::Rest))
@@ -98,26 +98,28 @@ impl Muxml2TabElement {
                     *tick_idx as usize..=(*tick_idx as usize + 5)
                 );
                 // TODO: use dynamic base notes - we parse it but we don't use it
+                let mut chord_first_written = false;
                 for (elem_idx, elem) in notes_iter {
-                    traceln!(depth = 1, "elem={elem:?}@{elem_idx}");
+                    let need_chord = tick_chord && chord_first_written;
+                    traceln!(depth = 1, "elem={elem:?}@{elem_idx} chord flag: {need_chord}");
 
                     match elem {
                         TabElement3::Fret(x) => {
+                            chord_first_written = true;
                             let note =
                                 get_fretboard_note2(parsed.base_notes[elem_idx % 6], *x).unwrap();
                             let (step, octave, sharp) = note.step_octave_sharp();
                             let properties = note_properties.get(&(elem_idx as u32));
-                            let need_chord = tick_chord && elem_idx > *note_range.start(); // chord needs to be added to the notes which form a chord with the first (untagged) one
                             write_muxml2_note(
                                 buf, step, octave, sharp, need_chord, false, properties,
                             )?;
                         }
                         TabElement3::DeadNote => {
+                            chord_first_written = true;
                             let note =
                                 get_fretboard_note2(parsed.base_notes[elem_idx % 6], 0).unwrap();
                             let (step, octave, sharp) = note.step_octave_sharp();
                             let properties = note_properties.get(&(elem_idx as u32));
-                            let need_chord = tick_chord && elem_idx > 0; // chord needs to be added to the notes which form a chord with the first (untagged) one
                             write_muxml2_note(
                                 buf, step, octave, sharp, need_chord, true, properties,
                             )?;
@@ -127,7 +129,8 @@ impl Muxml2TabElement {
                         | TabElement3::HammerOn
                         | TabElement3::Pull
                         | TabElement3::Release
-                        | TabElement3::Slide => {}
+                        | TabElement3::Slide
+                        | TabElement3::Vibrato => {}
                     }
                 }
 
@@ -155,9 +158,9 @@ impl Slur2 {
     }
 }
 #[derive(Default, Debug)]
-struct Slide2 {
-    number: u16,
-    start: bool,
+pub struct Slide2 {
+    pub number: u16,
+    pub start: bool,
 }
 impl Slide2 {
     pub fn new(number: u16, start: bool) -> Self {
@@ -170,6 +173,12 @@ impl Slide2 {
 pub struct NoteProperties {
     pub slurs: Vec<Slur2>,
     pub slide: Option<Slide2>,
+    pub vibrato: Option<Vibrato2>,
+}
+#[derive(Debug)]
+pub enum Vibrato2 {
+    Start,
+    Stop,
 }
 fn gen_muxml2<'a>(
     parse_time: Duration, mut parsed: Parse3Result,
@@ -220,13 +229,22 @@ fn gen_muxml2<'a>(
                 TabElement3::DeadNote => {
                     note_count += 1;
                 }
+                TabElement3::Vibrato => {
+                    let last_idx = stream_idx.saturating_sub(6);
+                    note_properties.entry(last_idx as u32).or_default().vibrato =
+                        Some(Vibrato2::Start);
+                    let next_idx = stream_idx + 6;
+                    if next_idx >= parsed.tick_stream.len() {
+                        parsed.tick_stream.extend([const { TabElement3::Rest }; 6]);
+                    }
+                    note_properties.entry(next_idx as u32).or_default().vibrato =
+                        Some(Vibrato2::Stop);
+                }
                 TabElement3::Bend
                 | TabElement3::HammerOn
                 | TabElement3::Pull
                 | TabElement3::Release => {
                     // TODO: eventually mark hammerOns and pulls
-                    // PRERELEASE: we are not searching for the previous and the next fret here which will break "chained" slurs like
-                    //             15b17r15
                     // PRERELEASE: add errors for the panics here
                     let last_idx = stream_idx.saturating_sub(6);
                     traceln!(
@@ -283,9 +301,9 @@ fn gen_muxml2<'a>(
                     traceln!("added bend with start idx {last_idx} and end idx {next_idx}")
                 }
                 TabElement3::Slide => {
-                    measure_content_len -= 1;
                     let last_idx = stream_idx.saturating_sub(6);
                     traceln!(
+                        depth = 1,
                         "muxml2: have Slide. last element on this string is: {:?}",
                         parsed.tick_stream[last_idx]
                     );
@@ -297,7 +315,10 @@ fn gen_muxml2<'a>(
                         note_properties.entry(next_idx as u32).or_default().slide =
                             Some(Slide2::new(slide_count, false));
                     }
-                    traceln!("added slide with start idx {stream_idx} and end idx {next_idx}")
+                    traceln!(
+                        depth = 1,
+                        "added slide with start idx {stream_idx} and end idx {next_idx}"
+                    )
                 }
             }
             stream_idx += 1;

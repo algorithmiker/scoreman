@@ -59,6 +59,7 @@ impl Parse3Result<'_> {
                     HammerOn => bufs[s].push_str(&format!("{1:<0$}", max_width, "h")),
                     Pull => bufs[s].push_str(&format!("{1:<0$}", max_width, "p")),
                     Release => bufs[s].push_str(&format!("{1:<0$}", max_width, "r")),
+                    Vibrato => bufs[s].push_str(&format!("{1:<0$}", max_width, "~")),
                 }
             }
         }
@@ -71,7 +72,7 @@ fn dumb_repr_len(x: &TabElement3) -> u32 {
     use TabElement3::*;
     match x {
         Fret(x) => max(x, &1).ilog10() + 1,
-        Bend | HammerOn | DeadNote | Pull | Slide | Rest | Release => 1,
+        Bend | HammerOn | DeadNote | Pull | Slide | Rest | Release | Vibrato => 1,
     }
 }
 pub fn parse3(lines: &[String]) -> Parse3Result {
@@ -259,9 +260,11 @@ pub enum TabElement3 {
     Pull,
     Release,
     Slide,
+    Vibrato,
 }
 
 // PRERELEASE: parse vibrato
+#[inline(always)]
 fn tab_element3(s: &str) -> Result<(&str, TabElement3), &str> {
     let bytes = s.as_bytes();
     match bytes.first() {
@@ -276,6 +279,7 @@ fn tab_element3(s: &str) -> Result<(&str, TabElement3), &str> {
         Some(b'p') => Ok((&s[1..], TabElement3::Pull)),
         Some(b'r') => Ok((&s[1..], TabElement3::Release)),
         Some(b'/') | Some(b'\\') => Ok((&s[1..], TabElement3::Slide)),
+        Some(b'~') => Ok((&s[1..], TabElement3::Vibrato)),
         Some(_) | None => Err(s),
     }
 }

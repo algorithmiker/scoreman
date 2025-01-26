@@ -1,7 +1,8 @@
 use super::settings::Muxml2BendMode;
-use crate::backend::muxml2::{NoteProperties, Slur2};
+use crate::backend::muxml2::{NoteProperties, Slur2, Vibrato2};
 use crate::debugln;
 use itoa::Buffer;
+use std::fmt::Write;
 
 #[inline]
 pub fn write_muxml2_rest(
@@ -61,7 +62,7 @@ pub fn write_muxml2_note(
     }
     match properties {
         None => (),
-        Some(NoteProperties { slurs, slide }) => {
+        Some(NoteProperties { slurs, slide, vibrato }) => {
             debugln!("slurs: {slurs:?}");
             buf.write_str("<notations>\n")?;
             for slur in slurs {
@@ -77,6 +78,13 @@ pub fn write_muxml2_note(
                 buf.write_str(r#"" number=""#)?;
                 buf.write_str(octave_buf.format(slide.number))?;
                 buf.write_str("\" />\n")?;
+            }
+            if let Some(vibrato) = vibrato {
+                buf.write_str("<ornaments>\n")?;
+                buf.write_str("<wavy-line type=\"")?;
+                buf.write_str(if matches!(Vibrato2::Start, vibrato) { "start" } else { "stop" })?;
+                buf.write_str("\" />\n")?;
+                buf.write_str("</ornaments>\n")?;
             }
             buf.write_str("</notations>\n")?;
         }

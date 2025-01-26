@@ -95,7 +95,8 @@ fn convert_to_midi(parsed: &Parse3Result) -> Vec<Vec<TrackEvent<'static>>> {
             | TabElement3::Pull
             | TabElement3::Release
             | TabElement3::Slide
-            | TabElement3::DeadNote => (),
+            | TabElement3::DeadNote
+            | TabElement3::Vibrato => (),
         }
     }
     tracks.iter_mut().for_each(|x| {
