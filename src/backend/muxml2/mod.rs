@@ -7,20 +7,12 @@ pub mod settings;
 use crate::parser::parser3;
 use crate::parser::parser3::{Parse3Result, TabElement3};
 use crate::{
-    backend::{
-        errors::{
-            backend_error::BackendError, backend_error_kind::BackendErrorKind,
-            error_location::ErrorLocation,
-        },
-        Backend, BackendResult,
-    },
+    backend::{Backend, BackendResult},
     debugln, rlen, time, traceln,
 };
-use bilge::prelude::{u1, u2};
 use fretboard::get_fretboard_note2;
-use itertools::Itertools;
 use muxml2_formatters::{
-    write_muxml2_measure_prelude, write_muxml2_note, write_muxml2_rest, Slur, MUXML2_DOCUMENT_END,
+    write_muxml2_measure_prelude, write_muxml2_note, write_muxml2_rest, MUXML2_DOCUMENT_END,
     MUXML_INCOMPLETE_DOC_PRELUDE,
 };
 use settings::Muxml2BendMode;
@@ -31,9 +23,9 @@ pub struct Muxml2Backend();
 impl Backend for Muxml2Backend {
     type BackendSettings = settings::Settings;
 
-    fn process<'a, Out: std::io::Write>(
-        input: &'a [String], out: &mut Out, settings: Self::BackendSettings,
-    ) -> BackendResult<'a> {
+    fn process<Out: std::io::Write>(
+        input: &[String], out: &mut Out, settings: Self::BackendSettings,
+    ) -> BackendResult {
         let (parse_time, parse_result) = time(|| parser3::parse3(input));
         match parse_result.error {
             None => {}
@@ -180,10 +172,10 @@ pub enum Vibrato2 {
     Start,
     Stop,
 }
-fn gen_muxml2<'a>(
+fn gen_muxml2(
     parse_time: Duration, mut parsed: Parse3Result,
     settings: <Muxml2Backend as Backend>::BackendSettings,
-) -> (Option<String>, BackendResult<'a>) {
+) -> (Option<String>, BackendResult) {
     // status of the project:
     // parser3 is mostly done and works well and fast,
     // but the codegen backends need to be adapted
@@ -440,40 +432,5 @@ fn trim_measure(measure: &mut [Muxml2TabElement], content_len: &mut u32, directi
                 }
             }
         }
-    }
-}
-
-const NOTE2_STEPS: [(char, bool); 12] = [
-    ('C', false),
-    ('C', true),
-    ('D', false),
-    ('D', true),
-    ('E', false),
-    ('F', false),
-    ('F', true),
-    ('G', false),
-    ('G', true),
-    ('A', false),
-    ('A', true),
-    ('B', false),
-];
-#[derive(Debug)]
-pub struct MuxmlNote2 {
-    /// Numeric representation of the frequency.
-    ///
-    /// step=0 is an octave 0 C,
-    /// step=1 is an octave 0 C#,
-    /// step=2 is an octave 0 D,
-    /// and so on.
-    ///
-    /// Can represent 20 full octaves which should be plenty.
-    pub step: u8,
-    pub dead: bool,
-}
-impl MuxmlNote2 {
-    pub fn step_octave_sharp(&self) -> (char, u8, bool) {
-        let stepidx = (self.step % 12) as usize;
-        let octave = self.step / 12;
-        (NOTE2_STEPS[stepidx].0, octave, NOTE2_STEPS[stepidx].1)
     }
 }
