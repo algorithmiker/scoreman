@@ -8,20 +8,21 @@ use midly::{
 use super::{Backend, BackendResult};
 use crate::parser::parser3::TabElement3::Fret;
 use crate::parser::parser3::{parse3, Parse3Result, TabElement3};
-use crate::time;
+use crate::{debugln, time};
 
 const BPM: u32 = 80;
-const MINUTE_IN_MICROSECONDS: u32 = 60 * 1000;
-const LENGTH_OF_QUARTER: u32 = MINUTE_IN_MICROSECONDS / BPM;
-const LENGTH_OF_EIGHT: u32 = LENGTH_OF_QUARTER / 2;
+const MINUTE_IN_MS: u32 = 60 * 1000;
+const MINUTE_IN_US: u32 = MINUTE_IN_MS * 1000;
+const LENGTH_OF_QUARTER: u32 = MINUTE_IN_US / BPM;
+const LENGTH_OF_EIGHTH: u32 = 1;
 
 pub struct MidiBackend();
 impl Backend for MidiBackend {
     type BackendSettings = ();
 
-    fn process<'a, Out: std::io::Write>(
-        input: &'a [String], out: &mut Out, _settings: Self::BackendSettings,
-    ) -> BackendResult<'a> {
+    fn process<Out: std::io::Write>(
+        input: &[String], out: &mut Out, _settings: Self::BackendSettings,
+    ) -> BackendResult {
         let mut diagnostics = vec![];
         let (parse_time, parse_result) = time(|| parse3(input));
         match parse_result.error {
@@ -35,10 +36,11 @@ impl Backend for MidiBackend {
         let gen_start = Instant::now();
         let mut midi_tracks = convert_to_midi(&parse_result);
         //diagnostics.extend(parse_result.diagnostics);
+        debugln!("Length of quarter: {LENGTH_OF_QUARTER}");
         let mut tracks = vec![vec![
             TrackEvent {
                 delta: 0.into(),
-                kind: TrackEventKind::Meta(MetaMessage::TimeSignature(4, 4, 1, 8)),
+                kind: TrackEventKind::Meta(MetaMessage::TimeSignature(4, 4, 24, 8)),
             },
             TrackEvent {
                 delta: 0.into(),
@@ -89,7 +91,7 @@ fn convert_to_midi(parsed: &Parse3Result) -> Vec<Vec<TrackEvent<'static>>> {
                 tracks[track].push(note_on);
                 tracks[track].push(note_off);
             }
-            TabElement3::Rest => delta_carry_on[track] += LENGTH_OF_EIGHT.into(),
+            TabElement3::Rest => delta_carry_on[track] += LENGTH_OF_EIGHTH.into(),
             TabElement3::Bend
             | TabElement3::HammerOn
             | TabElement3::Pull
@@ -115,7 +117,7 @@ fn gen_note_events<'a>(key: u7, initial_delta: u28) -> (TrackEvent<'a>, TrackEve
     };
 
     let note_off = TrackEvent {
-        delta: LENGTH_OF_EIGHT.into(),
+        delta: LENGTH_OF_EIGHTH.into(),
         kind: TrackEventKind::Midi {
             channel: 0.into(),
             message: MidiMessage::NoteOff { key, vel: 100.into() },
