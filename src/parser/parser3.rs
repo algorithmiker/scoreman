@@ -1,5 +1,4 @@
 use std::cmp::max;
-use std::io::Read;
 use std::ops::RangeInclusive;
 
 use super::{numeric, string_name};
@@ -11,8 +10,9 @@ use crate::{
 pub fn line_is_valid(line: &str) -> bool {
     let line = line.trim();
     let first_is_alphanumeric = line.chars().next().map(|x| x.is_alphanumeric()).unwrap_or(false);
+    let second_is_measure_sep = line.as_bytes().get(1).map(|x| *x == b'|').unwrap_or(false);
     let last_is_measure_end = line.as_bytes().last().map(|x| *x == b'|').unwrap_or(false);
-    let ret = first_is_alphanumeric && last_is_measure_end;
+    let ret = first_is_alphanumeric && second_is_measure_sep && last_is_measure_end;
     traceln!("line_is_valid({line}) -> {ret}");
     ret
 }
@@ -22,9 +22,9 @@ pub struct Measure3 {
 }
 
 #[derive(Debug, Default)]
-pub struct Parse3Result<'a> {
+pub struct Parse3Result {
     /// This is not a [std::Result] because the tick stream and offsets are needed for printing the error
-    pub error: Option<BackendError<'a>>,
+    pub error: Option<BackendError>,
     pub tick_stream: Vec<TabElement3>,
     pub measures: Vec<Measure3>,
     pub base_notes: Vec<char>,
@@ -33,7 +33,7 @@ pub struct Parse3Result<'a> {
     pub offsets: Vec<(u32, u32)>,
 }
 
-impl Parse3Result<'_> {
+impl Parse3Result {
     pub fn new() -> Self {
         Self::default()
     }
@@ -100,13 +100,16 @@ pub fn parse3(lines: &[String]) -> Parse3Result {
         // parse prelude and last char
         for (line_idx, line) in part.iter_mut().enumerate() {
             let Ok((rem, string_name)) = string_name()(line) else {
-                // TODO: error for invalid string name
-                let char = line.chars().next().unwrap_or('\0');
-                r.error = Some(BackendError::parse3_invalid_character(line_idx as u32, 0, char));
+                r.error =
+                    Some(BackendError::parse3_invalid_string_name(part_first_line + line_idx));
                 return r;
             };
             r.base_notes.push(string_name);
-            let (rem, _) = super::char('|')(rem).unwrap();
+            let Ok((rem, _)) = super::char('|')(rem) else {
+                r.error =
+                    Some(BackendError::parse3_invalid_string_name(part_first_line + line_idx));
+                return r;
+            };
             *line = rem;
             if !line.as_bytes().last().unwrap() == b'|' {
                 r.error = Some(BackendError::no_closing_barline(part_first_line + line_idx));
@@ -208,16 +211,33 @@ pub fn source_location_while_parsing(
 ) -> (u32, u32) {
     let actual_line = part_first_line + line_in_part;
     traceln!("expecting the error to be on line {actual_line}");
-    let mut offset_on_line = 2; // e|
-    let mut idx_in_stream = (r.offsets.last().map(|x| x.1).unwrap_or(0) + line_in_part) as usize;
-    while idx_in_stream < r.tick_stream.len() {
-        let element = &r.tick_stream[idx_in_stream];
-        traceln!(depth = 1, "adding offset ({}) of element {:?}", dumb_repr_len(element), element);
-        offset_on_line += dumb_repr_len(element);
-        idx_in_stream += 6;
+
+    let error_tick = r.tick_stream.len() / 6;
+    // we aren't accounting for measures here, so sum of all the measure lines too
+    let part_start = r.offsets.last().map(|x| x.1).unwrap_or(0);
+    let mut measure_lines = 0;
+    for measure in r.measures.iter().rev() {
+        if measure.data_range.start() < &part_start {
+            break;
+        }
+        measure_lines += 1;
+    }
+    traceln!("need to account for {measure_lines} measure lines");
+    let mut offset_on_line = 1 + measure_lines; // e|
+    let start = (part_start / 6) as usize;
+    for tick in start..error_tick {
+        // take the maximum extent of this tick. we cannot just add up the local tick lengths because multichars on *other strings* would throw off the parser
+        // -1-2-3-
+        // -11b12- <- this would think that if there is an error on the first string, the extents before are just rest-1-2-3-rest, and report an incorrect location
+        let remainder = &r.tick_stream[tick * 6..];
+        //traceln!(depth = 1, "remainder: {remainder:?}");
+        let tick_width = remainder.iter().take(6).map(|x| dumb_repr_len(x)).max();
+        let tick_width = tick_width.unwrap_or(0);
+        traceln!(depth = 1, "adding offset ({tick_width}) for tick {tick}");
+        offset_on_line += tick_width;
     }
     offset_on_line += 1; // because the location refers to the offset of the tick that was not parsed
-    traceln!("expecting the error to be at character {offset_on_line}");
+    traceln!("expecting the error to be at character idx {offset_on_line}");
     (actual_line, offset_on_line)
 }
 pub fn source_location_from_stream(
