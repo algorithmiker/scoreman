@@ -12,13 +12,13 @@ use std::ops::RangeInclusive;
 /// [long]
 ///
 #[derive(Debug)]
-pub struct BackendError<'a> {
+pub struct BackendError {
     pub main_location: ErrorLocation,
     pub relevant_lines: RangeInclusive<usize>,
-    pub kind: BackendErrorKind<'a>,
+    pub kind: BackendErrorKind,
 }
 
-impl<'a> BackendError<'a> {
+impl BackendError {
     pub fn empty_score_err() -> Self {
         BackendError {
             main_location: ErrorLocation::NoLocation,
@@ -49,7 +49,7 @@ impl<'a> BackendError<'a> {
     }
 }
 
-impl<'a> From<std::io::Error> for BackendError<'a> {
+impl From<std::io::Error> for BackendError {
     fn from(value: std::io::Error) -> Self {
         BackendError {
             main_location: ErrorLocation::NoLocation,
@@ -58,7 +58,7 @@ impl<'a> From<std::io::Error> for BackendError<'a> {
         }
     }
 }
-impl<'a> From<std::fmt::Error> for BackendError<'a> {
+impl From<std::fmt::Error> for BackendError {
     fn from(value: std::fmt::Error) -> Self {
         BackendError {
             main_location: ErrorLocation::NoLocation,
