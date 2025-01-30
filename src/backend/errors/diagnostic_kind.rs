@@ -6,6 +6,8 @@ pub enum DiagnosticKind {
     Muxml1SeperateTracks,
     EmptyLineInPart,
     CommentInPart,
+    FormatAddedBarline,
+    FormatReplacedInvalid,
 }
 
 impl Display for DiagnosticKind {
@@ -20,6 +22,8 @@ impl Display for DiagnosticKind {
             ),
             DiagnosticKind::EmptyLineInPart => write!(f, "Empty line inside Part, are you sure this is intended?"),
             DiagnosticKind::CommentInPart => write!(f, "Comment inside Part, are you sure this is intended?"),
+            DiagnosticKind::FormatAddedBarline => write!(f, "There was no barline at the end of this line, so I added one."),
+            DiagnosticKind::FormatReplacedInvalid => write!(f, "This character is invalid, so I replaced it with a rest (`-`).")
         }
     }
 }

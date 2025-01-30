@@ -33,6 +33,13 @@ impl BackendError {
             relevant_lines: line_idx..=line_idx,
         }
     }
+    pub fn fixup_failed(location: ErrorLocation, relevant_lines: RangeInclusive<usize>) -> Self {
+        BackendError {
+            main_location: location,
+            relevant_lines,
+            kind: BackendErrorKind::FixupFailed,
+        }
+    }
     pub fn parse3_invalid_character(line: u32, char: u32, c: char) -> Self {
         BackendError {
             main_location: ErrorLocation::LineAndChar(line, char),

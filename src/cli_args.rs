@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use clap::{Parser, Subcommand};
+use guitar_tab::backend::fixup::{FixupBackendSettings, FixupDumpOptions};
 use guitar_tab::backend::{
     //format::{FormatBackendSettings, FormatDumpOptions},
     muxml2::{self, settings::Muxml2BendMode},
@@ -57,16 +58,15 @@ pub enum Commands {
     /// If you need a lot of speed, consider using the library directly (not via cli) because
     /// argument parsing adds ~100us
     Midi { input_path: String, output_path: String },
-    // PRERELEASE: decide about format backend
-    // /// Formats the score into a new .tab annotated with measure indices. Also good for debugging
-    // /// scores. Does minimal parsing, so a score that can be formatted isn't neccessarily valid.
-    //  Format {
-    //      input_path: String,
-    //      output_path: String,
-    //      /// Dump the parse tree
-    //      #[arg(value_enum, short = 'd', long)]
-    //      dump: Option<FormatDumpOptions>,
-    //  },
+
+    /// Tries to fix errors in the score, until it can be parsed.
+    Fixup {
+        input_path: String,
+        output_path: String,
+        /// Dump the parse tree
+        #[arg(value_enum, short = 'd', long)]
+        dump: Option<FixupDumpOptions>,
+    },
 }
 
 impl Commands {
@@ -75,7 +75,7 @@ impl Commands {
             Commands::Muxml2 { input_path, .. }
             //| Commands::Muxml { input_path, .. }
             | Commands::Midi { input_path, .. } => input_path,
-            //| Commands::Format { input_path, .. } => input_path,
+            | Commands::Fixup { input_path, .. } => input_path,
         }
     }
 
@@ -84,7 +84,7 @@ impl Commands {
             Commands::Muxml2 { output_path, .. }
             //| Commands::Muxml { output_path, .. }
             | Commands::Midi { output_path, .. } => output_path,
-            //  | Commands::Format { output_path, .. } => output_path,
+              | Commands::Fixup { output_path, .. } => output_path,
         }
     }
 
@@ -104,9 +104,9 @@ impl Commands {
             }),
             // Commands::Muxml { .. } => BackendSelector::Muxml(()),
             Commands::Midi { .. } => BackendSelector::Midi(()),
-            // Commands::Format { dump, .. } => {
-            //     BackendSelector::Format(FormatBackendSettings { dump: dump.clone() })
-            // }
+            Commands::Fixup { dump, .. } => {
+                BackendSelector::Fixup(FixupBackendSettings { dump: dump.clone() })
+            }
         }
     }
 }
@@ -119,7 +119,7 @@ impl Display for Commands {
             match self {
                 Commands::Muxml2 { .. } => "muxml2",
                 //Commands::Muxml { .. } => "muxml",
-                //Commands::Format { .. } => "format",
+                Commands::Fixup { .. } => "fixup",
                 Commands::Midi { .. } => "midi",
             }
         )

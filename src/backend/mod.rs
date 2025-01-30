@@ -2,7 +2,7 @@ use errors::{backend_error::BackendError, diagnostic::Diagnostic};
 
 use std::{fmt::Display, time::Duration};
 pub mod errors;
-pub mod format;
+pub mod fixup;
 pub mod midi;
 pub mod muxml;
 pub mod muxml2;
@@ -34,7 +34,7 @@ pub enum BackendSelector {
     Midi(()),
     // Muxml(()),
     Muxml2(muxml2::settings::Settings),
-    //    Format(format::FormatBackendSettings),
+    Fixup(fixup::FixupBackendSettings),
 }
 
 impl BackendSelector {
@@ -47,9 +47,8 @@ impl BackendSelector {
             // BackendSelector::Muxml(settings) => muxml::MuxmlBackend::process(input, out, settings),
             BackendSelector::Muxml2(settings) => {
                 muxml2::Muxml2Backend::process(input, out, settings)
-            } //  BackendSelector::Format(settings) => {
-              //      format::FormatBackend::process(input, out, settings)
-              //  }
+            }
+            BackendSelector::Fixup(settings) => fixup::FixupBackend::process(input, out, settings),
         }
     }
 }
@@ -63,7 +62,7 @@ impl Display for BackendSelector {
                 BackendSelector::Midi(_) => "midi",
                 // BackendSelector::Muxml(_) => "muxml",
                 BackendSelector::Muxml2(_) => "muxml",
-                // BackendSelector::Format(_) => "format",
+                BackendSelector::Fixup(_) => "fixup",
             }
         )
     }
