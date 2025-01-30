@@ -4,7 +4,6 @@ use std::{fmt::Display, time::Duration};
 pub mod errors;
 pub mod fixup;
 pub mod midi;
-pub mod muxml;
 pub mod muxml2;
 pub struct BackendResult {
     pub diagnostics: Vec<Diagnostic>,

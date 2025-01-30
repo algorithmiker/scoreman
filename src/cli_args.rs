@@ -47,11 +47,6 @@ pub enum Commands {
         input_path: String,
         output_path: String,
     },
-    // PRERELEASE: decide about muxml backend
-    // /// The older muxml backend. Needs a less perfect tab than Muxml2, but produces a multi-track
-    // /// document which is uglier and harder to work with
-    // #[command(visible_alias = "musicxml")]
-    // Muxml { input_path: String, output_path: String },
     /// The simplest backend, creates a SMF file. Very fast, good for even realtime applications
     /// (usually runs in nanoseconds even for complex tabs), but importing into a score application
     /// will result in an even uglier score than muxml1.

@@ -3,7 +3,7 @@ pub mod muxml2_formatters;
 #[cfg(test)]
 mod muxml2_tests;
 pub mod settings;
-
+// PRERELEASE: add muxml1 stub
 use crate::parser::parser3;
 use crate::parser::parser3::{Parse3Result, TabElement3};
 use crate::{

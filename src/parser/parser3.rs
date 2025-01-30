@@ -283,7 +283,6 @@ pub enum TabElement3 {
     Vibrato,
 }
 
-// PRERELEASE: parse vibrato
 #[inline(always)]
 fn tab_element3(s: &str) -> Result<(&str, TabElement3), &str> {
     let bytes = s.as_bytes();
