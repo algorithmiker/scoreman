@@ -6,16 +6,16 @@ pub mod fixup;
 pub mod midi;
 pub mod muxml;
 pub mod muxml2;
-pub struct BackendResult<'a> {
+pub struct BackendResult {
     pub diagnostics: Vec<Diagnostic>,
-    pub err: Option<BackendError<'a>>,
+    pub err: Option<BackendError>,
     pub timing_parse: Option<Duration>,
     pub timing_gen: Option<Duration>,
 }
-impl<'a> BackendResult<'a> {
+impl BackendResult {
     pub fn new(
-        diagnostics: Vec<Diagnostic>, err: Option<BackendError<'a>>,
-        timing_parse: Option<Duration>, timing_gen: Option<Duration>,
+        diagnostics: Vec<Diagnostic>, err: Option<BackendError>, timing_parse: Option<Duration>,
+        timing_gen: Option<Duration>,
     ) -> Self {
         Self { diagnostics, err, timing_parse, timing_gen }
     }
@@ -23,9 +23,9 @@ impl<'a> BackendResult<'a> {
 pub trait Backend {
     type BackendSettings;
 
-    fn process<'a, Out: std::io::Write>(
-        input: &'a [String], out: &mut Out, settings: Self::BackendSettings,
-    ) -> BackendResult<'a>;
+    fn process<Out: std::io::Write>(
+        input: &[String], out: &mut Out, settings: Self::BackendSettings,
+    ) -> BackendResult;
 }
 
 /// Handles backend dispatch. Can be easily created from a string identifier
@@ -39,9 +39,7 @@ pub enum BackendSelector {
 
 impl BackendSelector {
     // TODO: remove the lifetime here
-    pub fn process<'a, Out: std::io::Write>(
-        self, input: &'a [String], out: &mut Out,
-    ) -> BackendResult<'a> {
+    pub fn process<Out: std::io::Write>(self, input: &[String], out: &mut Out) -> BackendResult {
         match self {
             BackendSelector::Midi(settings) => midi::MidiBackend::process(input, out, settings),
             // BackendSelector::Muxml(settings) => muxml::MuxmlBackend::process(input, out, settings),

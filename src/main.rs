@@ -11,7 +11,7 @@ use guitar_tab::{
         backend_error::BackendError, diagnostic::Diagnostic, error_location::ErrorLocation,
         extend_error_range,
     },
-    digit_cnt_usize,
+    debugln, digit_cnt_usize,
 };
 use yansi::{Paint, Painted};
 
@@ -119,16 +119,15 @@ pub fn handle_error(
     }
 
     let mut location_explainer = String::new();
-    main_location.write_location_explainer(&mut location_explainer, lines);
-    let max_digit_cnt = digit_cnt_usize(*relevant_lines.end());
+    main_location.write_location_explainer(&mut location_explainer);
 
-    for line_idx in extend_error_range(relevant_lines, lines.len()) {
-        let zero_pad_cnt = max_digit_cnt - digit_cnt_usize(line_idx + 1);
+    let extended_range = extend_error_range(relevant_lines, lines.len());
+    let max_digit_cnt = digit_cnt_usize(*extended_range.end());
+    for line_idx in extended_range {
+        let zero_pad_cnt = max_digit_cnt.saturating_sub(digit_cnt_usize(line_idx + 1)) as usize;
         let mut line_num = String::new();
-        for _ in 0..zero_pad_cnt {
-            write!(&mut line_num, " ").unwrap();
-        }
-        write!(&mut line_num, "{}", line_idx + 1).unwrap();
+        line_num += &*" ".repeat(zero_pad_cnt);
+        write!(&mut line_num, "{}", line_idx + 1)?;
 
         let line_num = if relevant_lines.contains(&line_idx) {
             line_num.bold()
@@ -140,7 +139,8 @@ pub fn handle_error(
             if *e_line_idx as usize != line_idx {
                 continue;
             }
-            let padding = digit_cnt_usize(line_idx) as usize + 2 + *e_char_idx as usize;
+            let padding =
+                zero_pad_cnt + digit_cnt_usize(line_idx + 1) as usize + 2 + *e_char_idx as usize;
             location_explainer += &" ".repeat(padding);
             writeln!(&mut location_explainer, "{}", "^here".red().bold())?;
         }
@@ -155,16 +155,14 @@ pub fn handle_error(
     Ok(())
 }
 
-pub fn print_diagnostics<'a, A: std::iter::Iterator<Item = &'a mut Diagnostic>>(
-    diags: A, lines: &[String],
-) {
+pub fn print_diagnostics<'a, A: Iterator<Item = &'a mut Diagnostic>>(diags: A, lines: &[String]) {
     println!("{}:", "Diagnostics".bold());
     for (idx, Diagnostic { severity, kind, location }) in diags.enumerate() {
         let idx_display = (idx + 1).to_string();
         let mut location_explainer = String::from("\n");
         location_explainer += &" ".repeat(idx_display.len() + 3);
-        location.write_location_explainer(&mut location_explainer, lines);
-        if let Some(x) = location.get_line_idx(lines) {
+        location.write_location_explainer(&mut location_explainer);
+        if let Some(x) = location.get_line_idx() {
             location_explainer += &" ".repeat(idx_display.len() + 3);
             writeln!(&mut location_explainer, "{}│ {}", x + 1, lines[x]).unwrap();
         }
