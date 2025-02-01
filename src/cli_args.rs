@@ -27,7 +27,7 @@ pub enum Commands {
     /// The most complex backend, usually produces the best results but is slower than the others
     /// and in more cases cannot work over imperfections of a bad tab
     #[command(visible_alias = "musicxml2", long_about = "")]
-    Muxml2 {
+    Muxml {
         /// A lot of tabs will leave rest before/after the measure content for better clarity.
         /// This option will remove those.
         #[arg(short = 'm', long)]
@@ -67,7 +67,7 @@ pub enum Commands {
 impl Commands {
     pub fn input_path(&self) -> &str {
         match self {
-            Commands::Muxml2 { input_path, .. }
+            Commands::Muxml { input_path, .. }
             //| Commands::Muxml { input_path, .. }
             | Commands::Midi { input_path, .. } => input_path,
             | Commands::Fixup { input_path, .. } => input_path,
@@ -76,7 +76,7 @@ impl Commands {
 
     pub fn output_path(&self) -> &str {
         match self {
-            Commands::Muxml2 { output_path, .. }
+            Commands::Muxml { output_path, .. }
             //| Commands::Muxml { output_path, .. }
             | Commands::Midi { output_path, .. } => output_path,
               | Commands::Fixup { output_path, .. } => output_path,
@@ -85,7 +85,7 @@ impl Commands {
 
     pub fn to_backend_selector(&self) -> BackendSelector {
         match self {
-            Commands::Muxml2 {
+            Commands::Muxml {
                 trim_measure,
                 remove_rest_between_notes,
                 simplify_time_signature,
@@ -112,7 +112,7 @@ impl Display for Commands {
             f,
             "{}",
             match self {
-                Commands::Muxml2 { .. } => "muxml2",
+                Commands::Muxml { .. } => "muxml2",
                 //Commands::Muxml { .. } => "muxml",
                 Commands::Fixup { .. } => "fixup",
                 Commands::Midi { .. } => "midi",

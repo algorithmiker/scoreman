@@ -5,7 +5,6 @@ use std::{
 
 pub mod backend;
 pub mod parser;
-pub mod raw_tracks;
 #[macro_export]
 macro_rules! traceln {
     (depth=$depth:literal, $($t:expr),*) => {

@@ -3,11 +3,12 @@ pub enum BackendErrorKind {
     IOError(std::io::Error),
     FmtError(std::fmt::Error),
     EmptyScore,
-    // TODO: maybe this shouldn't be an error?
+    // maybe this shouldn't be an error?
     NoClosingBarline,
     Parse3InvalidCharacter(char),
     FixupFailed,
     InvalidStringName,
+    BendOnInvalid,
 }
 
 impl BackendErrorKind {
@@ -36,6 +37,11 @@ impl BackendErrorKind {
             BackendErrorKind::InvalidStringName => (
                 "Invalid string name".into(),
                 "Failed to parse the string name on this string".into(),
+            ),
+            BackendErrorKind::BendOnInvalid => (
+                "Invalid bend".into(),
+                "You can only bend on frets, and the element before this bend is not a fret."
+                    .into(),
             ),
         }
     }

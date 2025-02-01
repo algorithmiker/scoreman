@@ -54,6 +54,13 @@ impl BackendError {
             relevant_lines: line as usize..=line as usize,
         }
     }
+    pub fn bend_on_invalid(line: u32, char: u32) -> Self {
+        BackendError {
+            main_location: ErrorLocation::LineAndChar(line, char),
+            kind: BackendErrorKind::BendOnInvalid,
+            relevant_lines: line as usize..=line as usize,
+        }
+    }
 }
 
 impl From<std::io::Error> for BackendError {

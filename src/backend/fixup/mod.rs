@@ -88,6 +88,7 @@ impl Backend for FixupBackend {
                                 None,
                             );
                         }
+                        BackendErrorKind::BendOnInvalid => {} // todo: bendOnInvalid fixup: remove the bend
                         BackendErrorKind::InvalidStringName => {}
                         BackendErrorKind::EmptyScore => {}
                         BackendErrorKind::NoClosingBarline => {

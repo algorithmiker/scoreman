@@ -1,11 +1,11 @@
-use std::cmp::max;
-use std::ops::RangeInclusive;
-
 use super::{numeric, string_name};
 use crate::{
     backend::{errors::backend_error::BackendError, muxml2::Muxml2TabElement},
     debugln, time, traceln,
 };
+use itertools::Itertools;
+use std::cmp::max;
+use std::ops::RangeInclusive;
 
 pub fn line_is_valid(line: &str) -> bool {
     let line = line.trim();
@@ -37,7 +37,7 @@ impl Parse3Result {
     pub fn new() -> Self {
         Self::default()
     }
-    fn dump_tracks(&self) -> String {
+    pub fn dump_tracks(&self) -> String {
         let stream_len = self.tick_stream.len();
         let tick_cnt = stream_len / 6;
         if stream_len % 6 != 0 {
@@ -87,7 +87,11 @@ pub fn parse3(lines: &[String]) -> Parse3Result {
             }
             part_first_line += 1;
         }
-        // PRERELEASE: this loop ^ fails if there is extra content after the last part. find a good way to fix that.
+        // hack: the loop above will fail if there is extra content after the last part, so we just exit out here
+        if part_first_line + 5 >= lines.len() {
+            traceln!("extra content after last part, shutdown");
+            break;
+        }
         traceln!("parse3: Found part {part_first_line}..={}", part_first_line + 5);
         r.offsets.push((part_first_line as u32, r.tick_stream.len() as u32));
         let mut part: Vec<&str> = lines[part_first_line..=part_first_line + 5]
@@ -211,7 +215,6 @@ pub fn source_location_while_parsing(
 ) -> (u32, u32) {
     let actual_line = part_first_line + line_in_part;
     traceln!("expecting the error to be on line {actual_line}");
-
     let error_tick = r.tick_stream.len() / 6;
     // we aren't accounting for measures here, so sum of all the measure lines too
     let part_start = r.offsets.last().map(|x| x.1).unwrap_or(0);
@@ -240,29 +243,53 @@ pub fn source_location_while_parsing(
     traceln!("expecting the error to be at character idx {offset_on_line}");
     (actual_line, offset_on_line)
 }
-pub fn source_location_from_stream(
-    r: &Parse3Result, lines: &[&str], tick_location: u32,
-) -> (u32, u32) {
+
+pub fn source_location_from_stream(r: &Parse3Result, tick_location: u32) -> (u32, u32) {
     let section = r
         .offsets
         .binary_search_by_key(&tick_location, |x| x.1)
         .unwrap_or_else(|x| x.saturating_sub(1));
     traceln!("source_location_from_stream: expected to be in section {section}");
-    let idx_in_part = tick_location - r.offsets[section].1;
+    let part_start = r.offsets[section].1;
+    let idx_in_part = tick_location - part_start;
     traceln!("this is the {idx_in_part}th element in the part");
     let line_in_part = idx_in_part % 6;
     let actual_line = r.offsets[section].0 + line_in_part;
     traceln!("expecting the error to be on line {actual_line}");
-    let mut offset_on_line = 2; // e|
-    let mut idx_in_stream = (r.offsets[section].1 + line_in_part) as usize;
-    let tick_location = tick_location as usize;
-    while idx_in_stream < tick_location {
-        traceln!(depth = 1, "adding offset of tick {:?}", r.tick_stream[idx_in_stream]);
-        offset_on_line += dumb_repr_len(&r.tick_stream[idx_in_stream]);
-        idx_in_stream += 6;
+
+    let error_tick = (tick_location / 6) as usize;
+    // we aren't accounting for measures here, so sum of all the measure lines to
+    // search for all the measures in this part, and before the needle
+    let last_measure = r
+        .measures
+        .binary_search_by_key(&tick_location, |x| x.data_range.end() + 1)
+        .unwrap_or_else(|x| x);
+    debugln!("last measure we need to check: {last_measure} for needle {tick_location}");
+    let mut measure_lines = 0;
+    traceln!("{:?}", r.measures);
+    traceln!("part start: {part_start}");
+    for (m_idx, measure) in r.measures[0..=last_measure].iter().enumerate().rev() {
+        if measure.data_range.start() < &part_start {
+            traceln!("breaking at measure {m_idx}");
+            break;
+        }
+        measure_lines += 1;
     }
-    offset_on_line += 1; // because the location refers to the offset of the tick that was not parsed
-    traceln!("expecting the error to be at character {offset_on_line}");
+    traceln!("need to account for {measure_lines} measure lines");
+    let mut offset_on_line = 1 + measure_lines; // e|
+    let start = (part_start / 6) as usize;
+    for tick in start..error_tick {
+        // take the maximum extent of this tick. we cannot just add up the local tick lengths because multichars on *other strings* would throw off the parser
+        // -1-2-3-
+        // -11b12- <- this would think that if there is an error on the first string, the extents before are just rest-1-2-3-rest, and report an incorrect location
+        let remainder = &r.tick_stream[tick * 6..];
+        //traceln!(depth = 1, "remainder: {remainder:?}");
+        let tick_width = remainder.iter().take(6).map(|x| dumb_repr_len(x)).max();
+        let tick_width = tick_width.unwrap_or(0);
+        traceln!(depth = 1, "adding offset ({tick_width}) for tick {tick}");
+        offset_on_line += tick_width;
+    }
+    traceln!("expecting the error to be at character idx {offset_on_line}");
     (actual_line, offset_on_line)
 }
 pub fn dump_source(input: &Vec<&str>) -> String {
@@ -302,6 +329,7 @@ fn tab_element3(s: &str) -> Result<(&str, TabElement3), &str> {
         Some(_) | None => Err(s),
     }
 }
+
 #[test]
 pub fn test_parse3() {
     use std::time::Instant;

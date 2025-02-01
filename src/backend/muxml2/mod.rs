@@ -3,9 +3,9 @@ pub mod muxml2_formatters;
 #[cfg(test)]
 mod muxml2_tests;
 pub mod settings;
-// PRERELEASE: add muxml1 stub
+use crate::backend::errors::backend_error::BackendError;
 use crate::parser::parser3;
-use crate::parser::parser3::{Parse3Result, TabElement3};
+use crate::parser::parser3::{source_location_from_stream, Parse3Result, TabElement3};
 use crate::{
     backend::{Backend, BackendResult},
     debugln, rlen, time, traceln,
@@ -148,6 +148,12 @@ impl Slur2 {
     pub fn new(number: u16, start: bool) -> Self {
         Slur2 { number, start }
     }
+    pub fn start(number: u16) -> Self {
+        Slur2 { number, start: true }
+    }
+    pub fn stop(number: u16) -> Self {
+        Slur2 { number, start: false }
+    }
 }
 #[derive(Default, Debug)]
 pub struct Slide2 {
@@ -182,8 +188,7 @@ fn gen_muxml2(
     // muxml2 especially, as it can be made much faster
     // since, especially with std::simd, comparing the next 6 ticks against a TabElem3::Rest should be trivial
     //     (with a splat-compare)
-
-    let diagnostics = vec![];
+    let mut r = BackendResult::new(vec![], None, Some(parse_time), None);
     let number_of_measures = parsed.measures.len();
     let mut document = String::from(MUXML_INCOMPLETE_DOC_PRELUDE);
     let cap = MUXML_INCOMPLETE_DOC_PRELUDE.len()
@@ -214,13 +219,10 @@ fn gen_muxml2(
             //    "current elem: {elem:?}, note_count: {note_count}, proc_cnt = {stream_proc_cnt}"
             //);
             match elem {
-                TabElement3::Fret(x) => {
+                TabElement3::Fret(..) | TabElement3::DeadNote => {
                     note_count += 1;
                 }
                 TabElement3::Rest => {}
-                TabElement3::DeadNote => {
-                    note_count += 1;
-                }
                 TabElement3::Vibrato => {
                     let last_idx = stream_idx.saturating_sub(6);
                     note_properties.entry(last_idx as u32).or_default().vibrato =
@@ -237,56 +239,58 @@ fn gen_muxml2(
                 | TabElement3::Pull
                 | TabElement3::Release => {
                     // TODO: eventually mark hammerOns and pulls
-                    // PRERELEASE: add errors for the panics here
                     let last_idx = stream_idx.saturating_sub(6);
                     traceln!(
                         "muxml2: have bend at tick {stream_idx}. last element on this string is (@{last_idx}): {:?}",
                         parsed.tick_stream[last_idx]
                     );
                     slur_cnt += 1;
-                    note_properties
-                        .entry(last_idx as u32)
-                        .or_default()
-                        .slurs
-                        .push(Slur2::new(slur_cnt, true));
+                    let idx32 = last_idx as u32;
+                    note_properties.entry(idx32).or_default().slurs.push(Slur2::start(slur_cnt));
                     let next_idx = stream_idx + 6;
 
                     match &parsed.tick_stream.get(next_idx) {
                         None => {
                             traceln!("hanging bend on {stream_idx} at stream end");
-                            if let TabElement3::Fret(x) = parsed.tick_stream[last_idx] {
-                                parsed.tick_stream.extend([const { TabElement3::Rest }; 6]);
-                                parsed.tick_stream[next_idx] = TabElement3::Fret(x + 1);
+                            let TabElement3::Fret(x) = parsed.tick_stream[last_idx] else {
+                                let (line, char) =
+                                    source_location_from_stream(&parsed, stream_idx as u32);
+                                r.err = Some(BackendError::bend_on_invalid(line, char));
+                                return (None, r);
+                            };
 
-                                note_properties
-                                    .entry(next_idx as u32)
-                                    .or_default()
-                                    .slurs
-                                    .push(Slur2::new(slur_cnt, false));
-                            } else {
-                                panic!()
-                            }
+                            parsed.tick_stream.extend([const { TabElement3::Rest }; 6]);
+                            parsed.tick_stream[next_idx] = TabElement3::Fret(x + 1);
+                            note_properties
+                                .entry(next_idx as u32)
+                                .or_default()
+                                .slurs
+                                .push(Slur2::stop(slur_cnt));
                         }
-                        // hack: since we know that with a "hanging bend" the next element in this track is going to be a rest, we can just sliently replace it and add the correct note
+                        // since we know that with a "hanging bend" the next element in this track is going to be a rest, we can just silently replace it and add the correct note
                         Some(TabElement3::Rest) => {
-                            if let TabElement3::Fret(x) = parsed.tick_stream[last_idx] {
-                                parsed.tick_stream[next_idx] = TabElement3::Fret(x + 1);
-                                traceln!("hanging bend on {stream_idx}, replacing {next_idx} with a Fret");
-                                note_properties
-                                    .entry(next_idx as u32)
-                                    .or_default()
-                                    .slurs
-                                    .push(Slur2::new(slur_cnt, false));
-                            } else {
-                                panic!();
-                            }
+                            let TabElement3::Fret(x) = parsed.tick_stream[last_idx] else {
+                                let (line, char) =
+                                    source_location_from_stream(&parsed, stream_idx as u32);
+                                r.err = Some(BackendError::bend_on_invalid(line, char));
+                                return (None, r);
+                            };
+                            parsed.tick_stream[next_idx] = TabElement3::Fret(x + 1);
+                            traceln!(
+                                "hanging bend on {stream_idx}, replacing {next_idx} with a Fret"
+                            );
+                            note_properties
+                                .entry(next_idx as u32)
+                                .or_default()
+                                .slurs
+                                .push(Slur2::stop(slur_cnt));
                         }
                         _ => {
                             note_properties
                                 .entry(next_idx as u32)
                                 .or_default()
                                 .slurs
-                                .push(Slur2::new(slur_cnt, false));
+                                .push(Slur2::stop(slur_cnt));
                         }
                     }
 
@@ -352,7 +356,8 @@ fn gen_muxml2(
         .unwrap();
         for proc_elem in measure_processed {
             if let Err(x) = proc_elem.write_muxml(&parsed, &mut document, &note_properties) {
-                return (None, BackendResult::new(diagnostics, Some(x.into()), None, None));
+                r.err = Some(x.into());
+                return (None, r);
             }
         }
         document.push_str("</measure>");
@@ -360,7 +365,7 @@ fn gen_muxml2(
 
     document += MUXML2_DOCUMENT_END;
     debugln!("muxml2: document capacity on finish: {}", document.capacity());
-    (Some(document), BackendResult::new(diagnostics, None, Some(parse_time), None))
+    (Some(document), r)
 }
 
 fn merge_rests_in_measure(measure: &mut [Muxml2TabElement]) {
