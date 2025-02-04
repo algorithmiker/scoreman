@@ -110,9 +110,7 @@ impl Backend for FixupBackend {
                                 .get_line_idx()
                                 .zip(err.main_location.get_char_idx())
                             else {
-                                // TODO: try looking up the last parsed character here
-                                // PRERELEASE: error here
-                                panic!()
+                                continue;
                             };
                             parser_input[line_idx].replace_range(char_idx..char_idx + 1, "-");
                             diagnostics.push(Diagnostic::info(

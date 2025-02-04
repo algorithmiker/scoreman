@@ -19,7 +19,7 @@ impl ErrorLocation {
             ErrorLocation::NoLocation => None,
             ErrorLocation::LineOnly(x) => Some(*x),
             ErrorLocation::LineAndMeasure(x, _) => Some(*x),
-            ErrorLocation::LineAndChar(l, o) => Some(*l as usize),
+            ErrorLocation::LineAndChar(l, _) => Some(*l as usize),
         }
     }
     pub fn get_char_idx(&self) -> Option<usize> {
@@ -27,7 +27,7 @@ impl ErrorLocation {
             ErrorLocation::NoLocation
             | ErrorLocation::LineOnly(..)
             | ErrorLocation::LineAndMeasure(..) => None,
-            ErrorLocation::LineAndChar(l, c) => Some((*c) as usize),
+            ErrorLocation::LineAndChar(_, c) => Some((*c) as usize),
         }
     }
     pub fn write_location_explainer(&self, f: &mut impl std::fmt::Write) {

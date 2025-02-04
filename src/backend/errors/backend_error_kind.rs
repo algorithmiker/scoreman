@@ -9,6 +9,8 @@ pub enum BackendErrorKind {
     FixupFailed,
     InvalidStringName,
     BendOnInvalid,
+    BothSlotsMultiChar,
+    MultiBothSlotsFilled,
 }
 
 impl BackendErrorKind {
@@ -43,6 +45,19 @@ impl BackendErrorKind {
                 "You can only bend on frets, and the element before this bend is not a fret."
                     .into(),
             ),
+            BackendErrorKind::BothSlotsMultiChar => (
+                "Both slots are multichar".into(),
+                "The tick where this element starts is multichar, but has the start of this element as its last logical tick.\nThis is not allowed.".into()
+            ),
+            BackendErrorKind::MultiBothSlotsFilled => (
+                "Both slots are filled".into(),
+                r#"This tick is multichar, but there are two single-char elements on this track.
+This is invalid.
+In this position, you may have:
+ - a rest
+ - a single char element aligned left or right
+ - another multichar element of the same cardinality"#.into()
+            )
         }
     }
 }

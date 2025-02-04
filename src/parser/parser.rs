@@ -158,15 +158,21 @@ pub fn parse(lines: &[String]) -> ParseResult {
                         traceln!(depth = 1, "multi on {s}, skipping");
                         continue;
                     };
-                    let elem = &r.tick_stream[r.tick_stream.len() - (6 - s)];
+                    let elem_idx = r.tick_stream.len() - (6 - s);
+                    let elem = &r.tick_stream[elem_idx];
                     traceln!(depth = 1, "on string {s} we have {:?}", elem);
                     if let TabElement3::Rest = elem {
                         traceln!(depth = 2, "this is a rest so we try to parse the next element");
                         let len_before = part[s].len();
                         let next = tab_element3(part[s]).unwrap();
                         if len_before - next.0.len() > 1 {
-                            // PRERELEASE: error here
-                            panic!("multichar with next slot multichar too") // TODO error here
+                            let (m_line, m_char) = source_location_from_stream(&r, elem_idx as u32);
+                            // just for a nicer error, show another multi line too
+                            let other = ((0..6).find(|x| is_multi_on[*x]).unwrap()
+                                + part_first_line) as u32;
+                            r.error =
+                                Some(BackendError::both_slots_multichar(m_line, m_char, other));
+                            return r;
                         }
                         let len = r.tick_stream.len(); // to make the borrow checker happy about borrowing &mut and &
                         r.tick_stream[len - (6 - s)] = next.1;
@@ -182,8 +188,9 @@ pub fn parse(lines: &[String]) -> ParseResult {
                             traceln!(depth = 2, "next element is Rest so we skip it");
                             part[s] = &part[s][1..];
                         } else {
-                            // PRERELEASE: error here
-                            panic!("Not multichar but both slots are filled"); // eg. 3x under a 12 is invalid
+                            let (line, char) = source_location_from_stream(&r, elem_idx as u32);
+                            r.error = Some(BackendError::multi_both_slots_filled(line, char));
+                            return r;
                         }
                     }
                 }

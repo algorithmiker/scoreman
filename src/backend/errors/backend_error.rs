@@ -1,5 +1,6 @@
 use crate::backend::errors::backend_error_kind::BackendErrorKind;
 use crate::backend::errors::error_location::ErrorLocation;
+use std::cmp::{max, min};
 use std::ops::RangeInclusive;
 
 /// Produced [diagnostics.len()] diagnostics and one error.
@@ -58,6 +59,22 @@ impl BackendError {
         BackendError {
             main_location: ErrorLocation::LineAndChar(line, char),
             kind: BackendErrorKind::BendOnInvalid,
+            relevant_lines: line as usize..=line as usize,
+        }
+    }
+    pub fn both_slots_multichar(main_line: u32, main_char: u32, other_line: u32) -> Self {
+        let min = min(main_line, other_line) as usize;
+        let max = max(main_line, other_line) as usize;
+        BackendError {
+            main_location: ErrorLocation::LineAndChar(main_line, main_char),
+            kind: BackendErrorKind::BothSlotsMultiChar,
+            relevant_lines: min..=max,
+        }
+    }
+    pub fn multi_both_slots_filled(line: u32, char: u32) -> Self {
+        Self {
+            main_location: ErrorLocation::LineAndChar(line, char),
+            kind: BackendErrorKind::MultiBothSlotsFilled,
             relevant_lines: line as usize..=line as usize,
         }
     }
