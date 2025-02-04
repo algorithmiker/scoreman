@@ -1,4 +1,4 @@
-use std::{collections::HashMap, time::Instant};
+use std::{collections::HashMap, iter, time::Instant};
 
 use midly::{
     num::{u28, u7},
@@ -6,8 +6,9 @@ use midly::{
 };
 
 use super::{Backend, BackendResult};
-use crate::parser::parser3::TabElement3::Fret;
-use crate::parser::parser3::{parse3, Parse3Result, TabElement3};
+use crate::parser::parser::{parse, ParseResult};
+use crate::parser::tab_element::TabElement3;
+use crate::parser::tab_element::TabElement3::Fret;
 use crate::{debugln, time};
 
 const BPM: u32 = 80;
@@ -23,8 +24,8 @@ impl Backend for MidiBackend {
     fn process<Out: std::io::Write>(
         input: &[String], out: &mut Out, _settings: Self::BackendSettings,
     ) -> BackendResult {
-        let mut diagnostics = vec![];
-        let (parse_time, parse_result) = time(|| parse3(input));
+        let diagnostics = vec![];
+        let (parse_time, parse_result) = time(|| parse(input));
         match parse_result.error {
             None => (),
             Some(e) => {
@@ -66,7 +67,7 @@ impl Backend for MidiBackend {
     }
 }
 
-fn convert_to_midi(parsed: &Parse3Result) -> Vec<Vec<TrackEvent<'static>>> {
+fn convert_to_midi(parsed: &ParseResult) -> Vec<Vec<TrackEvent<'static>>> {
     // TODO: maybe use the traditional note resolving logic here?
     let mut string_freq = HashMap::new();
     string_freq.insert('E', 52);
@@ -77,7 +78,9 @@ fn convert_to_midi(parsed: &Parse3Result) -> Vec<Vec<TrackEvent<'static>>> {
     string_freq.insert('d', 74);
     string_freq.insert('e', 76);
     let track_len = parsed.tick_stream.len() / 6;
-    let mut tracks: Vec<Vec<TrackEvent>> = vec![Vec::with_capacity(track_len); 6];
+    // https://rust-lang.github.io/rust-clippy/master/index.html#repeat_vec_with_capacity
+    let mut tracks: Vec<Vec<TrackEvent>> =
+        iter::repeat_with(|| Vec::with_capacity(track_len)).take(6).collect();
     let mut delta_carry_on = [u28::new(0); 6];
     for (event_idx, event) in parsed.tick_stream.iter().enumerate() {
         // TODO: eventually try to interpolate for slurred decorators

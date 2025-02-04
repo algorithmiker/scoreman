@@ -1,32 +1,32 @@
+pub mod formatters;
 pub mod fretboard;
-pub mod muxml2_formatters;
 #[cfg(test)]
 mod muxml2_tests;
 pub mod settings;
 use crate::backend::errors::backend_error::BackendError;
-use crate::parser::parser3;
-use crate::parser::parser3::{source_location_from_stream, Parse3Result, TabElement3};
+use crate::parser::parser;
+use crate::parser::parser::{source_location_from_stream, ParseResult};
+use crate::parser::tab_element::TabElement3;
 use crate::{
     backend::{Backend, BackendResult},
     debugln, rlen, time, traceln,
 };
-use fretboard::get_fretboard_note2;
-use muxml2_formatters::{
+use formatters::{
     write_muxml2_measure_prelude, write_muxml2_note, write_muxml2_rest, MUXML2_DOCUMENT_END,
     MUXML_INCOMPLETE_DOC_PRELUDE,
 };
-use settings::Muxml2BendMode;
+use fretboard::get_fretboard_note2;
 use std::collections::HashMap;
 use std::time::Duration;
 
-pub struct Muxml2Backend();
-impl Backend for Muxml2Backend {
+pub struct MuxmlBackend();
+impl Backend for MuxmlBackend {
     type BackendSettings = settings::Settings;
 
     fn process<Out: std::io::Write>(
         input: &[String], out: &mut Out, settings: Self::BackendSettings,
     ) -> BackendResult {
-        let (parse_time, parse_result) = time(|| parser3::parse3(input));
+        let (parse_time, parse_result) = time(|| parser::parse(input));
         match parse_result.error {
             None => {}
             Some(err) => return BackendResult::new(vec![], Some(err), Some(parse_time), None),
@@ -54,7 +54,7 @@ pub enum Muxml2TabElement {
 
 impl Muxml2TabElement {
     fn write_muxml<A: std::fmt::Write>(
-        &self, parsed: &Parse3Result, buf: &mut A, note_properties: &HashMap<u32, NoteProperties>,
+        &self, parsed: &ParseResult, buf: &mut A, note_properties: &HashMap<u32, NoteProperties>,
     ) -> std::fmt::Result {
         match self {
             Muxml2TabElement::Rest(mut x) => {
@@ -133,12 +133,6 @@ impl Muxml2TabElement {
     }
 }
 
-pub trait ToMuxml {
-    fn write_muxml(
-        &self, buf: &mut impl std::fmt::Write, string: char, chord: bool, slur_cnt: &mut u32,
-        bend_mode: Muxml2BendMode, bend_target: &Option<&u8>,
-    ) -> Result<(), std::fmt::Error>;
-}
 #[derive(Default, Debug)]
 pub struct Slur2 {
     pub number: u16,
@@ -179,8 +173,8 @@ pub enum Vibrato2 {
     Stop,
 }
 fn gen_muxml2(
-    parse_time: Duration, mut parsed: Parse3Result,
-    settings: <Muxml2Backend as Backend>::BackendSettings,
+    parse_time: Duration, mut parsed: ParseResult,
+    settings: <MuxmlBackend as Backend>::BackendSettings,
 ) -> (Option<String>, BackendResult) {
     // status of the project:
     // parser3 is mostly done and works well and fast,

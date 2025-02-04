@@ -1,19 +1,19 @@
-use std::borrow::Cow;
-use std::cmp::PartialEq;
-use std::io::Write;
 use std::time::{Duration, Instant};
 
 use clap::ValueEnum;
 
 use super::BackendResult;
-use crate::backend::errors::backend_error::BackendError;
-use crate::backend::errors::backend_error_kind::BackendErrorKind;
-use crate::backend::errors::diagnostic::Diagnostic;
-use crate::backend::errors::diagnostic_kind::DiagnosticKind;
-use crate::backend::errors::error_location::ErrorLocation;
-use crate::parser::char;
-use crate::parser::parser3::parse3;
-use crate::{backend::Backend, rlen, time, traceln};
+use crate::{
+    backend::{
+        errors::{
+            backend_error::BackendError, backend_error_kind::BackendErrorKind,
+            diagnostic::Diagnostic, diagnostic_kind::DiagnosticKind, error_location::ErrorLocation,
+        },
+        Backend,
+    },
+    parser::parser::parse,
+    traceln,
+};
 
 pub struct FixupBackend();
 #[derive(ValueEnum, Clone)]
@@ -59,11 +59,11 @@ impl Backend for FixupBackend {
         // TODO: figure out a way not to clone these
         let mut parser_input = parser_input.to_owned();
         let mut parse_time = Duration::from_secs(0);
-        let mut fixup_start = Instant::now();
+        let fixup_start = Instant::now();
         let mut location_tracker = LocationTracker::new();
         loop {
             let parse_start = Instant::now();
-            let parsed = parse3(&parser_input);
+            let parsed = parse(&parser_input);
             parse_time = parse_start.elapsed();
             match &parsed.error {
                 None => break,
@@ -91,6 +91,8 @@ impl Backend for FixupBackend {
                         BackendErrorKind::BendOnInvalid => {} // todo: bendOnInvalid fixup: remove the bend
                         BackendErrorKind::InvalidStringName => {}
                         BackendErrorKind::EmptyScore => {}
+                        BackendErrorKind::BothSlotsMultiChar => {} // todo: fix BothSlotsMultichar errors
+                        BackendErrorKind::MultiBothSlotsFilled => {} // todo: fix MultiBothSlotsFilled errors
                         BackendErrorKind::NoClosingBarline => {
                             let l_idx = err.main_location.get_line_idx().unwrap();
                             let line = &mut parser_input[l_idx];
@@ -109,6 +111,7 @@ impl Backend for FixupBackend {
                                 .zip(err.main_location.get_char_idx())
                             else {
                                 // TODO: try looking up the last parsed character here
+                                // PRERELEASE: error here
                                 panic!()
                             };
                             parser_input[line_idx].replace_range(char_idx..char_idx + 1, "-");

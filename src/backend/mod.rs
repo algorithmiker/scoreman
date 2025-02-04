@@ -4,7 +4,7 @@ use std::{fmt::Display, time::Duration};
 pub mod errors;
 pub mod fixup;
 pub mod midi;
-pub mod muxml2;
+pub mod muxml;
 pub struct BackendResult {
     pub diagnostics: Vec<Diagnostic>,
     pub err: Option<BackendError>,
@@ -32,7 +32,7 @@ pub trait Backend {
 pub enum BackendSelector {
     Midi(()),
     // Muxml(()),
-    Muxml2(muxml2::settings::Settings),
+    Muxml2(muxml::settings::Settings),
     Fixup(fixup::FixupBackendSettings),
 }
 
@@ -42,9 +42,7 @@ impl BackendSelector {
         match self {
             BackendSelector::Midi(settings) => midi::MidiBackend::process(input, out, settings),
             // BackendSelector::Muxml(settings) => muxml::MuxmlBackend::process(input, out, settings),
-            BackendSelector::Muxml2(settings) => {
-                muxml2::Muxml2Backend::process(input, out, settings)
-            }
+            BackendSelector::Muxml2(settings) => muxml::MuxmlBackend::process(input, out, settings),
             BackendSelector::Fixup(settings) => fixup::FixupBackend::process(input, out, settings),
         }
     }

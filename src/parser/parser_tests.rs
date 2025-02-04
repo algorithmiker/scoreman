@@ -1,4 +1,4 @@
-use crate::parser::parser3::parse3;
+use crate::parser::parser::parse;
 
 fn to_lines(i: &str) -> Vec<String> {
     i.lines().map(|x| x.to_string()).collect()
@@ -20,7 +20,7 @@ D|---|
 A|---|
 E|---|
 "#;
-    insta::assert_debug_snapshot!(parse3(&to_lines(example_score)).dump_tracks());
+    insta::assert_debug_snapshot!(parse(&to_lines(example_score)).dump_tracks());
 }
 #[test]
 fn test_part() {
@@ -32,7 +32,7 @@ D|---|---|
 A|---|---|
 E|---|---|"#;
 
-    insta::assert_debug_snapshot!(parse3(&to_lines(example_part)).dump_tracks());
+    insta::assert_debug_snapshot!(parse(&to_lines(example_part)).dump_tracks());
 }
 
 #[test]
@@ -45,7 +45,7 @@ D|------|
 A|------|
 E|------|
 "#;
-    insta::assert_debug_snapshot!(parse3(&to_lines(score)).dump_tracks());
+    insta::assert_debug_snapshot!(parse(&to_lines(score)).dump_tracks());
     let score = r#"
 e|--12b-|
 B|--3--4|
@@ -54,7 +54,7 @@ D|------|
 A|------|
 E|------|
 "#;
-    insta::assert_debug_snapshot!(parse3(&to_lines(score)).dump_tracks());
+    insta::assert_debug_snapshot!(parse(&to_lines(score)).dump_tracks());
 }
 
 #[test]
@@ -67,7 +67,7 @@ D|-----|
 A|-----|
 E|-----|
 "#;
-    insta::assert_debug_snapshot!(parse3(&to_lines(score)).dump_tracks());
+    insta::assert_debug_snapshot!(parse(&to_lines(score)).dump_tracks());
 }
 
 #[test]
@@ -80,7 +80,7 @@ D|-----|
 A|-----|
 E|-----|
 "#;
-    insta::assert_debug_snapshot!(parse3(&to_lines(score)).dump_tracks());
+    insta::assert_debug_snapshot!(parse(&to_lines(score)).dump_tracks());
     let score = r#"
 e|--12b|
 B|--12b|
@@ -89,7 +89,7 @@ D|--12b|
 A|--12b|
 E|--12b|
 "#;
-    insta::assert_debug_snapshot!(parse3(&to_lines(score)).dump_tracks());
+    insta::assert_debug_snapshot!(parse(&to_lines(score)).dump_tracks());
 }
 
 #[test]
@@ -102,7 +102,7 @@ D|------------|
 A|------------|
 E|------------|
 "#;
-    insta::assert_debug_snapshot!(parse3(&to_lines(example_part)).dump_tracks());
+    insta::assert_debug_snapshot!(parse(&to_lines(example_part)).dump_tracks());
     let score = r#"
 e|--12b-12b-|
 B|--3---12b-|
@@ -111,7 +111,7 @@ D|------12b-|
 A|------12b-|
 E|------12b-|
 "#;
-    insta::assert_debug_snapshot!(parse3(&to_lines(score)).dump_tracks());
+    insta::assert_debug_snapshot!(parse(&to_lines(score)).dump_tracks());
 }
 #[test]
 fn test_multichar_tracks() -> anyhow::Result<()> {
@@ -122,7 +122,7 @@ G|10---12|
 D|-------|
 A|-------|
 E|-------|"#;
-    insta::assert_debug_snapshot!(parse3(&to_lines(input)).dump_tracks());
+    insta::assert_debug_snapshot!(parse(&to_lines(input)).dump_tracks());
     Ok(())
 }
 
@@ -148,7 +148,7 @@ E|-----9-|-----9-|
 "#;
     let lines = &example_score.lines().map(|x| x.to_string()).collect::<Vec<String>>();
     let time_parser3 = Instant::now();
-    let parse3_result = parse3(lines);
+    let parse3_result = parse(lines);
     println!("Parser3 took: {:?}", time_parser3.elapsed());
     insta::assert_snapshot!(parse3_result.dump_tracks());
     insta::assert_debug_snapshot!(parse3_result);

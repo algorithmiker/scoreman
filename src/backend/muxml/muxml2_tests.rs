@@ -1,10 +1,10 @@
 use crate::backend::errors::backend_error_kind::BackendErrorKind;
 use crate::backend::{
-    muxml2::{settings::Settings, Muxml2Backend},
+    muxml::{settings::Settings, MuxmlBackend},
     Backend,
 };
 use crate::debugln;
-use crate::parser::parser3::{parse3, source_location_from_stream};
+use crate::parser::parser::{parse, source_location_from_stream};
 use itertools::Itertools;
 
 #[test]
@@ -22,9 +22,8 @@ E|--------------|
         remove_rest_between_notes: true,
         trim_measure: true,
         simplify_time_signature: true,
-        bend_mode: crate::backend::muxml2::settings::Muxml2BendMode::EmulateBends,
     };
-    Muxml2Backend::process(
+    MuxmlBackend::process(
         &i1.lines().map(|x| x.to_string()).collect::<Vec<_>>(),
         &mut out,
         settings,
@@ -47,9 +46,8 @@ E|----|
         remove_rest_between_notes: true,
         trim_measure: true,
         simplify_time_signature: true,
-        bend_mode: crate::backend::muxml2::settings::Muxml2BendMode::EmulateBends,
     };
-    Muxml2Backend::process(
+    MuxmlBackend::process(
         &i1.lines().map(|x| x.to_string()).collect::<Vec<_>>(),
         &mut out,
         settings,
@@ -80,9 +78,8 @@ E|-----9-|-----9-|"#;
         remove_rest_between_notes: true,
         trim_measure: true,
         simplify_time_signature: true,
-        bend_mode: crate::backend::muxml2::settings::Muxml2BendMode::EmulateBends,
     };
-    let res = Muxml2Backend::process(
+    let res = MuxmlBackend::process(
         &example_score.lines().map(|x| x.to_string()).collect_vec(),
         &mut Vec::new(),
         settings,

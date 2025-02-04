@@ -1,8 +1,6 @@
-use super::settings::Muxml2BendMode;
-use crate::backend::muxml2::{NoteProperties, Slur2, Vibrato2};
+use crate::backend::muxml::{NoteProperties, Vibrato2};
 use crate::debugln;
 use itoa::Buffer;
-use std::fmt::Write;
 
 #[inline]
 pub fn write_muxml2_rest(
@@ -24,11 +22,7 @@ pub fn write_muxml2_rest(
     buf.write_str("</type>\n</note>\n")?;
     Ok(())
 }
-pub enum Slur {
-    None,
-    Start(Muxml2BendMode, u32, i8),
-    End(Muxml2BendMode, u32),
-}
+
 #[inline]
 pub fn write_muxml2_note(
     buf: &mut impl std::fmt::Write, step: char, octave: u8, sharp: bool, chord: bool, dead: bool,
@@ -121,21 +115,6 @@ pub fn write_muxml2_measure_prelude(
     }
     buf.write_str("</attributes>\n")?;
     Ok(())
-    //    write!(
-    //        buf,
-    //        r#"
-    //<measure number="{number}">
-    //  <attributes>
-    //    <divisions>2</divisions>
-    //    {key}
-    //    <time>
-    //      <beats>{note_count}</beats>
-    //      <beat-type>{note_type}</beat-type>
-    //    </time>
-    //    {clef}
-    //  </attributes>
-    //"#,
-    //    )
 }
 pub const MUXML_INCOMPLETE_DOC_PRELUDE: &str = r#"
 <?xml version="1.0" encoding="UTF-8"?>

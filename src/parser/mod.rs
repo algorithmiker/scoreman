@@ -1,10 +1,7 @@
-pub mod parser2;
-pub mod parser3;
+pub mod parser;
 #[cfg(test)]
 mod parser_tests;
-
-use crate::{digit_cnt_u8, rlen};
-use std::ops::RangeInclusive;
+pub(crate) mod tab_element;
 
 pub fn char(c: char) -> impl Fn(&str) -> Result<(&str, char), &str> {
     move |s: &str| match s.chars().next() {

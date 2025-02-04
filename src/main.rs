@@ -11,7 +11,7 @@ use guitar_tab::{
         backend_error::BackendError, diagnostic::Diagnostic, error_location::ErrorLocation,
         extend_error_range,
     },
-    debugln, digit_cnt_usize,
+    digit_cnt_usize,
 };
 use yansi::{Paint, Painted};
 
