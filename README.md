@@ -1,4 +1,4 @@
-![illustration of an ascii tab being transformed into classical notation](.github/header.png)
+<p align="center"><img alt="illustration of an ascii tab being transformed into classical notation" src=".github/header.png" style="width: 75%"></p>
 
 # scoreman
 
