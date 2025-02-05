@@ -12,7 +12,7 @@ other, machine- or human-readable, formats.
 - can translate a tab to a midi file, suitable for playing tabs in real time (**midi** backend)
 - can translate a tab file to classical music notation in the .musicxml format (**muxml** backend)
 - can try to automatically fix parse errors in a given input file (**fixup** backend)
-
+<br>
 
 - user friendly error reports and diagnostics
 - generates simple and beautiful scores, close to what you could achieve manually
