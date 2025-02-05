@@ -1,6 +1,0 @@
----
-source: src/parser/parser3.rs
-assertion_line: 214
-expression: "parse3(&example_score.lines().map(|x| x.to_string()).collect::<Vec<String>>())"
----
-()

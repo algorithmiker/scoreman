@@ -11,7 +11,7 @@
 //! "#;
 //! let my_backend = BackendSelector::Midi;
 //! let mut out = vec![];
-//! my_backend.process(input.map(|x|x.into()).collect(), &mut out);
+//! my_backend.process(&input.lines().map(|x|x.into()).collect::<Vec<_>>(), &mut out);
 //!```
 use std::{
     ops::{Range, RangeInclusive},

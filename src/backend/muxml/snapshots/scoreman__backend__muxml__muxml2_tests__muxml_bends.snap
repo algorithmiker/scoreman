@@ -1,6 +1,5 @@
 ---
-source: src/backend/muxml2/muxml2_tests.rs
-assertion_line: 53
+source: src/backend/muxml/muxml2_tests.rs
 expression: "String::from_utf8_lossy(&out)"
 ---
 <?xml version="1.0" encoding="UTF-8"?>
@@ -8,7 +7,7 @@ expression: "String::from_utf8_lossy(&out)"
 <score-partwise version="4.0">
   <identification>
     <encoding>
-      <software>guitar_tab</software>
+      <software>scoreman</software>
       <supports element="accidental" type="yes"/>
       <supports element="beam" type="yes"/>
       <supports element="print" attribute="new-page" type="no"/>
@@ -36,7 +35,7 @@ expression: "String::from_utf8_lossy(&out)"
 <duration>1</duration>
 <type>eighth</type>
 <notations>
-<slur type="start" number=1" />
+<slur type="start" number="1" />
 </notations>
 </note>
 <note>
@@ -48,7 +47,7 @@ expression: "String::from_utf8_lossy(&out)"
 <type>eighth</type>
 <accidental>sharp</accidental>
 <notations>
-<slur type="start" number=1" />
+<slur type="stop" number="1" />
 </notations>
 </note>
 </measure>

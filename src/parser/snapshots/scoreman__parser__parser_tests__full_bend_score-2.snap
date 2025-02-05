@@ -1,0 +1,10 @@
+---
+source: src/parser/parser_tests.rs
+expression: parse(&to_lines(score)).dump_tracks()
+---
+--12b
+--12b
+2-12b
+--12b
+--12b
+--12b
