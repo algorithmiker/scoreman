@@ -92,7 +92,23 @@ impl Backend for FixupBackend {
                         BackendErrorKind::InvalidStringName => {}
                         BackendErrorKind::EmptyScore => {}
                         BackendErrorKind::BothSlotsMultiChar => {} // todo: fix BothSlotsMultichar errors
-                        BackendErrorKind::MultiBothSlotsFilled => {} // todo: fix MultiBothSlotsFilled errors
+                        BackendErrorKind::MultiBothSlotsFilled => {
+                            let Some((line_idx, char_idx)) = err
+                                .main_location
+                                .get_line_idx()
+                                .zip(err.main_location.get_char_idx())
+                            else {
+                                continue;
+                            };
+                            // we just replace both with a rest to be sure
+                            // todo: use a better strategy by checking the actual ticks
+                            parser_input[line_idx].replace_range(char_idx..char_idx + 1, "-");
+                            parser_input[line_idx].replace_range(char_idx + 1..char_idx + 2, "-");
+                            diagnostics.push(Diagnostic::info(
+                                err.main_location.clone(),
+                                DiagnosticKind::FormatReplacedInvalid,
+                            ));
+                        }
                         BackendErrorKind::NoClosingBarline => {
                             let l_idx = err.main_location.get_line_idx().unwrap();
                             let line = &mut parser_input[l_idx];
