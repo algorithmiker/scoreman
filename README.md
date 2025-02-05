@@ -22,8 +22,7 @@ other, machine- or human-readable, formats.
 
 ## Demo
 
-[![asciicast](https://asciinema.org/a/XX3E9Pdh2mLjhhYlOaD6A6QgK.svg)](https://asciinema.org/a/XX3E9Pdh2mLjhhYlOaD6A6QgK)
-
+<a href="https://asciinema.org/a/XX3E9Pdh2mLjhhYlOaD6A6QgK" target="_blank"><img src="https://asciinema.org/a/XX3E9Pdh2mLjhhYlOaD6A6QgK.svg" /></a>
 ## Installation
 
 ### Using Nix
