@@ -1,12 +1,10 @@
+use crate::backend::muxml::{NoteProperties, Vibrato2};
+use crate::debugln;
 use itoa::Buffer;
-
-use super::settings::Muxml2BendMode;
 
 #[inline]
 pub fn write_muxml2_rest(
-    buf: &mut impl std::fmt::Write,
-    r#type: &str,
-    duration: u8,
+    buf: &mut impl std::fmt::Write, r#type: &str, duration: u8,
 ) -> Result<(), std::fmt::Error> {
     buf.write_str(
         r#"<note>
@@ -24,20 +22,11 @@ pub fn write_muxml2_rest(
     buf.write_str("</type>\n</note>\n")?;
     Ok(())
 }
-pub enum Slur {
-    None,
-    Start(Muxml2BendMode, u32, i8),
-    End(Muxml2BendMode, u32),
-}
+
 #[inline]
 pub fn write_muxml2_note(
-    buf: &mut impl std::fmt::Write,
-    step: char,
-    octave: u8,
-    sharp: bool,
-    chord: bool,
-    dead: bool,
-    slur: Slur,
+    buf: &mut impl std::fmt::Write, step: char, octave: u8, sharp: bool, chord: bool, dead: bool,
+    properties: Option<&NoteProperties>,
 ) -> Result<(), std::fmt::Error> {
     buf.write_str("<note>\n")?;
     if chord {
@@ -56,7 +45,8 @@ pub fn write_muxml2_note(
     buf.write_str(
         r#"</pitch>
 <duration>1</duration>
-<type>eighth</type>"#,
+<type>eighth</type>
+"#,
     )?;
     if sharp {
         buf.write_str("<accidental>sharp</accidental>\n")?;
@@ -64,39 +54,41 @@ pub fn write_muxml2_note(
     if dead {
         buf.write_str("<notehead>x</notehead>\n")?;
     }
-    match slur {
-        Slur::None => (),
-        Slur::Start(mode, idx, u) => match mode {
-            Muxml2BendMode::StandardsCompliant => {
-                buf.write_str(r#"<notations><technical><bend shape="curved"><bend-alter>"#)?;
-                buf.write_str(octave_buf.format(u))?;
-                buf.write_str(r#"</bend-alter></bend></technical></notations>"#)?;
+    match properties {
+        None => (),
+        Some(NoteProperties { slurs, slide, vibrato }) => {
+            debugln!("slurs: {slurs:?}");
+            buf.write_str("<notations>\n")?;
+            for slur in slurs {
+                buf.write_str(r#"<slur type=""#)?;
+                buf.write_str(if slur.start { "start" } else { "stop" })?;
+                buf.write_str(r#"" number=""#)?;
+                buf.write_str(octave_buf.format(slur.number))?;
+                buf.write_str("\" />\n")?;
             }
-            Muxml2BendMode::EmulateBends => {
-                buf.write_str(r#"<notations><slur type="start" number=""#)?;
-                buf.write_str(octave_buf.format(idx))?;
-                buf.write_str(r#""/></notations>"#)?;
+            if let Some(slide) = slide {
+                buf.write_str(r#"<slide type=""#)?;
+                buf.write_str(if slide.start { "start" } else { "stop" })?;
+                buf.write_str(r#"" number=""#)?;
+                buf.write_str(octave_buf.format(slide.number))?;
+                buf.write_str("\" />\n")?;
             }
-        },
-        Slur::End(mode, idx) => match mode {
-            Muxml2BendMode::StandardsCompliant => (), // handled in Start
-            Muxml2BendMode::EmulateBends => {
-                buf.write_str(r#"<notations><slur type="stop" number=""#)?;
-                buf.write_str(octave_buf.format(idx))?;
-                buf.write_str(r#"" />"#)?;
-                buf.write_str(r#"</notations>"#)?;
+            if let Some(vibrato) = vibrato {
+                buf.write_str("<ornaments>\n")?;
+                buf.write_str("<wavy-line type=\"")?;
+                buf.write_str(if matches!(Vibrato2::Start, vibrato) { "start" } else { "stop" })?;
+                buf.write_str("\" />\n")?;
+                buf.write_str("</ornaments>\n")?;
             }
-        },
+            buf.write_str("</notations>\n")?;
+        }
     }
     buf.write_str("</note>\n")?;
     Ok(())
 }
 #[inline]
 pub fn write_muxml2_measure_prelude(
-    buf: &mut impl std::fmt::Write,
-    number: usize,
-    note_count: usize,
-    note_type: usize,
+    buf: &mut impl std::fmt::Write, number: usize, note_count: usize, note_type: usize,
 ) -> Result<(), std::fmt::Error> {
     let first_measure = number == 0;
     buf.write_str(r#"<measure number=""#)?;
@@ -123,21 +115,6 @@ pub fn write_muxml2_measure_prelude(
     }
     buf.write_str("</attributes>\n")?;
     Ok(())
-    //    write!(
-    //        buf,
-    //        r#"
-    //<measure number="{number}">
-    //  <attributes>
-    //    <divisions>2</divisions>
-    //    {key}
-    //    <time>
-    //      <beats>{note_count}</beats>
-    //      <beat-type>{note_type}</beat-type>
-    //    </time>
-    //    {clef}
-    //  </attributes>
-    //"#,
-    //    )
 }
 pub const MUXML_INCOMPLETE_DOC_PRELUDE: &str = r#"
 <?xml version="1.0" encoding="UTF-8"?>
@@ -145,7 +122,7 @@ pub const MUXML_INCOMPLETE_DOC_PRELUDE: &str = r#"
 <score-partwise version="4.0">
   <identification>
     <encoding>
-      <software>guitar_tab</software>
+      <software>scoreman</software>
       <supports element="accidental" type="yes"/>
       <supports element="beam" type="yes"/>
       <supports element="print" attribute="new-page" type="no"/>

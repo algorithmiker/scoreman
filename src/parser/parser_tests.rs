@@ -1,10 +1,10 @@
-use std::collections::HashMap;
+use crate::parser::parser::parse;
 
-use crate::parser::{parser2::Parser2, partline};
-
+fn to_lines(i: &str) -> Vec<String> {
+    i.lines().map(|x| x.to_string()).collect()
+}
 #[test]
 fn test_score() {
-    let parser = Parser2::default();
     let example_score = r#"
 e|---|
 B|-3-|
@@ -20,7 +20,7 @@ D|---|
 A|---|
 E|---|
 "#;
-    insta::assert_debug_snapshot!(parser.parse(example_score.lines()));
+    insta::assert_snapshot!(parse(&to_lines(example_score)).dump_tracks());
 }
 #[test]
 fn test_part() {
@@ -31,105 +31,8 @@ G|6-6|-6-|
 D|---|---|
 A|---|---|
 E|---|---|"#;
-    insta::assert_debug_snapshot!(Parser2::default().parse(example_part.lines()));
-}
 
-#[test]
-fn test_partline() {
-    let mut string_buf = vec![];
-    let mut string_measure_buf = vec![];
-    let mut offsets = vec![];
-    let mut bend_targets = HashMap::new();
-    partline(
-        "e|--4-|-0--5-|",
-        0,
-        0,
-        &mut string_buf,
-        &mut string_measure_buf,
-        &mut offsets,
-        &mut bend_targets,
-        0,
-        true,
-    )
-    .unwrap();
-    insta::assert_debug_snapshot!((string_buf, offsets));
-}
-
-#[test]
-fn test_bend() {
-    let mut string_buf = vec![];
-    let mut string_measure_buf = vec![];
-    let mut offsets = vec![];
-    let mut bend_targets = HashMap::new();
-    partline(
-        "e|--4b-|-0--5-|",
-        0,
-        0,
-        &mut string_buf,
-        &mut string_measure_buf,
-        &mut offsets,
-        &mut bend_targets,
-        0,
-        true,
-    )
-    .unwrap();
-    insta::assert_debug_snapshot!((string_buf, offsets));
-
-    let mut bend_targets = HashMap::new();
-    let mut string_buf = vec![];
-    let mut string_measure_buf = vec![];
-    let mut offsets = vec![];
-    partline(
-        "e|--4b|-0--5-|",
-        0,
-        0,
-        &mut string_buf,
-        &mut string_measure_buf,
-        &mut offsets,
-        &mut bend_targets,
-        0,
-        true,
-    )
-    .unwrap();
-    insta::assert_debug_snapshot!((string_buf, offsets));
-}
-#[test]
-fn test_bend_to() {
-    let mut string_buf = vec![];
-    let mut string_measure_buf = vec![];
-    let mut offsets = vec![];
-    let mut bend_targets = HashMap::new();
-    partline(
-        "e|--4b5-|-0--5-|",
-        0,
-        0,
-        &mut string_buf,
-        &mut string_measure_buf,
-        &mut offsets,
-        &mut bend_targets,
-        0,
-        true,
-    )
-    .unwrap();
-    insta::assert_debug_snapshot!((string_buf, offsets));
-
-    // invalid
-    let mut string_buf = vec![];
-    let mut string_measure_buf = vec![];
-    let mut offsets = vec![];
-    let mut bend_targets = HashMap::new();
-    let err = partline(
-        "e|--b5-|-0--5-|",
-        0,
-        0,
-        &mut string_buf,
-        &mut string_measure_buf,
-        &mut offsets,
-        &mut bend_targets,
-        0,
-        true,
-    );
-    insta::assert_debug_snapshot!(err);
+    insta::assert_snapshot!(parse(&to_lines(example_part)).dump_tracks());
 }
 
 #[test]
@@ -142,7 +45,7 @@ D|------|
 A|------|
 E|------|
 "#;
-    insta::assert_debug_snapshot!(Parser2::default().parse(score.lines()));
+    insta::assert_snapshot!(parse(&to_lines(score)).dump_tracks());
     let score = r#"
 e|--12b-|
 B|--3--4|
@@ -151,7 +54,7 @@ D|------|
 A|------|
 E|------|
 "#;
-    insta::assert_debug_snapshot!(Parser2::default().parse(score.lines()));
+    insta::assert_snapshot!(parse(&to_lines(score)).dump_tracks());
 }
 
 #[test]
@@ -164,7 +67,7 @@ D|-----|
 A|-----|
 E|-----|
 "#;
-    insta::assert_debug_snapshot!(Parser2::default().parse(score.lines()));
+    insta::assert_snapshot!(parse(&to_lines(score)).dump_tracks());
 }
 
 #[test]
@@ -177,7 +80,7 @@ D|-----|
 A|-----|
 E|-----|
 "#;
-    insta::assert_debug_snapshot!(Parser2::default().parse(score.lines()));
+    insta::assert_snapshot!(parse(&to_lines(score)).dump_tracks());
     let score = r#"
 e|--12b|
 B|--12b|
@@ -186,7 +89,7 @@ D|--12b|
 A|--12b|
 E|--12b|
 "#;
-    insta::assert_debug_snapshot!(Parser2::default().parse(score.lines()));
+    insta::assert_snapshot!(parse(&to_lines(score)).dump_tracks());
 }
 
 #[test]
@@ -199,7 +102,7 @@ D|------------|
 A|------------|
 E|------------|
 "#;
-    insta::assert_debug_snapshot!(Parser2::default().parse(example_part.lines()));
+    insta::assert_snapshot!(parse(&to_lines(example_part)).dump_tracks());
     let score = r#"
 e|--12b-12b-|
 B|--3---12b-|
@@ -208,5 +111,45 @@ D|------12b-|
 A|------12b-|
 E|------12b-|
 "#;
-    insta::assert_debug_snapshot!(Parser2::default().parse(score.lines()));
+    insta::assert_snapshot!(parse(&to_lines(score)).dump_tracks());
+}
+#[test]
+fn test_multichar_tracks() -> anyhow::Result<()> {
+    let input = r#"
+e|----5--|
+B|---3---|
+G|10---12|
+D|-------|
+A|-------|
+E|-------|"#;
+    insta::assert_snapshot!(parse(&to_lines(input)).dump_tracks());
+    Ok(())
+}
+
+#[test]
+pub fn test_parse3() {
+    use std::time::Instant;
+    let example_score = r#"
+e|--12-12|--12-12|--12-12|
+B|3------|3------|3----11|
+G|-6-3-3-|-6-3-3-|-6-3-11|
+D|-------|-------|-----11|
+A|-------|-------|-----11|
+E|-----9-|-----9-|-----11|
+
+// This is a comment!
+
+e|--12-12|--12-12|
+B|3------|3------|
+G|-6-3-3-|-6-3-3-|
+D|-------|-------|
+A|-------|-------|
+E|-----9-|-----9-|
+"#;
+    let lines = &example_score.lines().map(|x| x.to_string()).collect::<Vec<String>>();
+    let time_parser3 = Instant::now();
+    let parse3_result = parse(lines);
+    println!("Parser3 took: {:?}", time_parser3.elapsed());
+    insta::assert_snapshot!(parse3_result.dump_tracks());
+    insta::assert_debug_snapshot!(parse3_result);
 }

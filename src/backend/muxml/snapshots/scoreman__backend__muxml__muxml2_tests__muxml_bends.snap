@@ -1,5 +1,5 @@
 ---
-source: src/backend/muxml2/muxml2_tests.rs
+source: src/backend/muxml/muxml2_tests.rs
 expression: "String::from_utf8_lossy(&out)"
 ---
 <?xml version="1.0" encoding="UTF-8"?>
@@ -7,7 +7,7 @@ expression: "String::from_utf8_lossy(&out)"
 <score-partwise version="4.0">
   <identification>
     <encoding>
-      <software>guitar_tab</software>
+      <software>scoreman</software>
       <supports element="accidental" type="yes"/>
       <supports element="beam" type="yes"/>
       <supports element="print" attribute="new-page" type="no"/>
@@ -33,13 +33,23 @@ expression: "String::from_utf8_lossy(&out)"
 <octave>4</octave>
 </pitch>
 <duration>1</duration>
-<type>eighth</type><notations><slur type="start" number="0"/></notations></note>
+<type>eighth</type>
+<notations>
+<slur type="start" number="1" />
+</notations>
+</note>
 <note>
-<pitch><step>B</step>
+<pitch><step>A</step>
+<alter>1</alter>
 <octave>4</octave>
 </pitch>
 <duration>1</duration>
-<type>eighth</type><notations><slur type="stop" number="0" /></notations></note>
+<type>eighth</type>
+<accidental>sharp</accidental>
+<notations>
+<slur type="stop" number="1" />
+</notations>
+</note>
 </measure>
 </part>
 </score-partwise>

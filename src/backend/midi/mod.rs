@@ -1,61 +1,53 @@
-use std::{collections::HashMap, time::Instant};
+use std::{collections::HashMap, iter, time::Instant};
 
 use midly::{
     num::{u28, u7},
     Format, Header, MetaMessage, MidiMessage, Smf, TrackEvent, TrackEventKind,
 };
 
-use crate::{
-    parser::{
-        parser2::{Parse2Result, Parser2, ParserInput},
-        TabElement::*,
-    },
-    time,
-};
-
 use super::{Backend, BackendResult};
+use crate::parser::parser::{parse, ParseResult};
+use crate::parser::tab_element::TabElement3;
+use crate::parser::tab_element::TabElement3::Fret;
+use crate::{debugln, time};
 
 const BPM: u32 = 80;
-const MINUTE_IN_MICROSECONDS: u32 = 60 * 1000;
-const LENGTH_OF_QUARTER: u32 = MINUTE_IN_MICROSECONDS / BPM;
-const LENGTH_OF_EIGHT: u32 = LENGTH_OF_QUARTER / 2;
+const MINUTE_IN_MS: u32 = 60 * 1000;
+const MINUTE_IN_US: u32 = MINUTE_IN_MS * 1000;
+const LENGTH_OF_QUARTER: u32 = MINUTE_IN_US / BPM;
+const LENGTH_OF_EIGHTH: u32 = 1;
 
 pub struct MidiBackend();
 impl Backend for MidiBackend {
     type BackendSettings = ();
 
-    fn process<'a, Out: std::io::Write>(
-        input: impl ParserInput<'a>,
-        out: &mut Out,
-        _settings: Self::BackendSettings,
-    ) -> BackendResult<'a> {
-        let mut diagnostics = vec![];
-        let parser = Parser2 {
-            track_measures: false,
-            track_sections: false,
-        };
-        let (parse_time, parse_result) = match time(|| parser.parse(input)) {
-            (parse_time, Ok(parse_result)) => (parse_time, parse_result),
-            (_, Err(err)) => return BackendResult::new(diagnostics, Some(err), None, None),
-        };
+    fn process<Out: std::io::Write>(
+        input: &[String], out: &mut Out, _settings: Self::BackendSettings,
+    ) -> BackendResult {
+        let diagnostics = vec![];
+        let (parse_time, parse_result) = time(|| parse(input));
+        match parse_result.error {
+            None => (),
+            Some(e) => {
+                return BackendResult::new(diagnostics, Some(e), Some(parse_time), None);
+            }
+        }
         // TODO: the parser now gives us things like tick count, can probably preallocate based on
         // that
         let gen_start = Instant::now();
         let mut midi_tracks = convert_to_midi(&parse_result);
-        diagnostics.extend(parse_result.diagnostics);
+        //diagnostics.extend(parse_result.diagnostics);
+        debugln!("Length of quarter: {LENGTH_OF_QUARTER}");
         let mut tracks = vec![vec![
             TrackEvent {
                 delta: 0.into(),
-                kind: TrackEventKind::Meta(MetaMessage::TimeSignature(4, 4, 1, 8)),
+                kind: TrackEventKind::Meta(MetaMessage::TimeSignature(4, 4, 24, 8)),
             },
             TrackEvent {
                 delta: 0.into(),
                 kind: TrackEventKind::Meta(MetaMessage::Tempo(LENGTH_OF_QUARTER.into())),
             },
-            TrackEvent {
-                delta: 0.into(),
-                kind: TrackEventKind::Meta(MetaMessage::EndOfTrack),
-            },
+            TrackEvent { delta: 0.into(), kind: TrackEventKind::Meta(MetaMessage::EndOfTrack) },
         ]];
         tracks.append(&mut midi_tracks);
         let smf = Smf {
@@ -75,7 +67,8 @@ impl Backend for MidiBackend {
     }
 }
 
-fn convert_to_midi(parse_result: &Parse2Result) -> Vec<Vec<TrackEvent<'static>>> {
+fn convert_to_midi(parsed: &ParseResult) -> Vec<Vec<TrackEvent<'static>>> {
+    // TODO: maybe use the traditional note resolving logic here?
     let mut string_freq = HashMap::new();
     string_freq.insert('E', 52);
     string_freq.insert('A', 57);
@@ -84,61 +77,36 @@ fn convert_to_midi(parse_result: &Parse2Result) -> Vec<Vec<TrackEvent<'static>>>
     string_freq.insert('B', 71);
     string_freq.insert('d', 74);
     string_freq.insert('e', 76);
-    let mut tracks: Vec<Vec<TrackEvent>> = vec![Vec::new(); 6];
-
-    #[allow(clippy::needless_range_loop)]
-    for i in 0..6 {
-        let string_name = parse_result.string_names[i];
-        let raw_track = &parse_result.strings[i];
-        let mut delta_carry: u32 = 0;
-        for (tick_idx, raw_tick) in raw_track.iter().enumerate() {
-            match &raw_tick.element {
-                Fret(fret) => {
-                    let pitch = fret + string_freq[&string_name];
-                    let (note_on, note_off) = gen_note_events(pitch.into(), delta_carry.into());
-                    delta_carry = 0;
-                    tracks[i].push(note_on);
-                    tracks[i].push(note_off);
-                }
-                FretBend(fret) => {
-                    let pitch = fret + string_freq[&string_name] + 1;
-                    let (note_on, note_off) = gen_note_events(pitch.into(), delta_carry.into());
-                    delta_carry = 0;
-                    tracks[i].push(note_on);
-                    tracks[i].push(note_off);
-
-                    let pitch = pitch + 1;
-                    let (note_on, note_off) = gen_note_events(pitch.into(), delta_carry.into());
-                    delta_carry = 0;
-                    tracks[i].push(note_on);
-                    tracks[i].push(note_off);
-                }
-                FretBendTo(from) => {
-                    let pitch = from + string_freq[&string_name];
-                    let (note_on, note_off) = gen_note_events(pitch.into(), delta_carry.into());
-                    delta_carry = 0;
-                    tracks[i].push(note_on);
-                    tracks[i].push(note_off);
-
-                    let to = parse_result
-                        .bend_targets
-                        .get(&(i as u8, tick_idx as u32))
-                        .expect("Unreachable: FretBendTo without target");
-                    let pitch = to + string_freq[&string_name];
-                    let (note_on, note_off) = gen_note_events(pitch.into(), delta_carry.into());
-                    delta_carry = 0;
-                    tracks[i].push(note_on);
-                    tracks[i].push(note_off);
-                }
-                Rest => delta_carry += LENGTH_OF_EIGHT,
-                DeadNote => (),
+    let track_len = parsed.tick_stream.len() / 6;
+    // https://rust-lang.github.io/rust-clippy/master/index.html#repeat_vec_with_capacity
+    let mut tracks: Vec<Vec<TrackEvent>> =
+        iter::repeat_with(|| Vec::with_capacity(track_len)).take(6).collect();
+    let mut delta_carry_on = [u28::new(0); 6];
+    for (event_idx, event) in parsed.tick_stream.iter().enumerate() {
+        // TODO: eventually try to interpolate for slurred decorators
+        let track = event_idx % 6;
+        match &event {
+            Fret(fret) => {
+                let string_name = parsed.base_notes[track];
+                let pitch = fret + string_freq[&string_name];
+                let (note_on, note_off) = gen_note_events(pitch.into(), delta_carry_on[track]);
+                delta_carry_on[track] = 0.into();
+                tracks[track].push(note_on);
+                tracks[track].push(note_off);
             }
+            TabElement3::Rest => delta_carry_on[track] += LENGTH_OF_EIGHTH.into(),
+            TabElement3::Bend
+            | TabElement3::HammerOn
+            | TabElement3::Pull
+            | TabElement3::Release
+            | TabElement3::Slide
+            | TabElement3::DeadNote
+            | TabElement3::Vibrato => (),
         }
-        tracks[i].push(TrackEvent {
-            delta: 0.into(),
-            kind: TrackEventKind::Meta(MetaMessage::EndOfTrack),
-        });
     }
+    tracks.iter_mut().for_each(|x| {
+        x.push(TrackEvent { delta: 0.into(), kind: TrackEventKind::Meta(MetaMessage::EndOfTrack) })
+    });
     tracks
 }
 
@@ -147,21 +115,15 @@ fn gen_note_events<'a>(key: u7, initial_delta: u28) -> (TrackEvent<'a>, TrackEve
         delta: initial_delta,
         kind: TrackEventKind::Midi {
             channel: 0.into(),
-            message: MidiMessage::NoteOn {
-                key,
-                vel: 100.into(),
-            },
+            message: MidiMessage::NoteOn { key, vel: 100.into() },
         },
     };
 
     let note_off = TrackEvent {
-        delta: LENGTH_OF_EIGHT.into(),
+        delta: LENGTH_OF_EIGHTH.into(),
         kind: TrackEventKind::Midi {
             channel: 0.into(),
-            message: MidiMessage::NoteOff {
-                key,
-                vel: 100.into(),
-            },
+            message: MidiMessage::NoteOff { key, vel: 100.into() },
         },
     };
     (note_on, note_off)

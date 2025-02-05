@@ -9,10 +9,14 @@ import time
 def to_canonical_revision(s:str) -> (str,str):
     return subprocess.run(["git", "rev-parse", "--short",s],capture_output=True,check=True).stdout.strip().decode("utf-8")
 
+def get_initial_branch() -> str:
+    return subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"],capture_output=True,check=True).stdout.strip().decode("utf-8")
+
 DEVNULL=open("/dev/null")
 def run_silent(*args,**kwargs):
     subprocess.run(*args, stdout=DEVNULL, stderr=DEVNULL, **kwargs)
-def main(dir_path:str,old_revision:str,new_revision:str, *args): 
+def main(dir_path:str,old_revision:str,new_revision:str, *args):
+    initial_branch = get_initial_branch()
     try: os.mkdir(dir_path)
     except FileExistsError: pass
     (old_revision,new_revision)=(to_canonical_revision(old_revision), to_canonical_revision(new_revision))
@@ -21,9 +25,12 @@ def main(dir_path:str,old_revision:str,new_revision:str, *args):
             print(f"[I] benchmark.py: building {rev}")
             run_silent(["git", "checkout", rev])
             run_silent(["cargo", "build", "--release"], check=1)
-            shutil.copy("target/release/guitar_tab", f"{dir_path}/gt-{rev}")
-    
-    run_silent(["git", "checkout", "master"])
+            # guitar_tab was a scorename in earlier versions
+            to_copy = "target/release/scoreman"
+            if not os.path.isfile(to_copy): to_copy = "target/release/guitar_tab"
+            shutil.copy(to_copy, f"{dir_path}/gt-{rev}")
+
+    run_silent(["git", "checkout", initial_branch])
     print("[I]: benchmark.py: have everything, sleeping 0.5s to avoid interference")
     time.sleep(0.5)
     args_str=" ".join(args[0])
@@ -31,7 +38,7 @@ def main(dir_path:str,old_revision:str,new_revision:str, *args):
     print(f"[I]: benchmark.py: {old_revision=} {new_revision=}")
 
 if __name__=="__main__":
-    if len(sys.argv) < 3: 
+    if len(sys.argv) < 3:
         print("USAGE: benchmark <benchmark_dir> <old_rev?> <new_rev?> -- <guitar_tab_arguments*>")
         sys.exit(1)
     sep_before=False

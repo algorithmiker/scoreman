@@ -1,32 +1,30 @@
 use std::fmt::Display;
 
 use clap::{Parser, Subcommand};
-use guitar_tab::backend::{
-    format::{FormatBackendSettings, FormatDumpOptions},
-    muxml2::{self, settings::Muxml2BendMode},
-    BackendSelector,
+use scoreman::backend::{
+    fixup::{FixupBackendSettings, FixupDumpOptions},
+    muxml, BackendSelector,
 };
 
 #[derive(Parser)]
 #[command(
     version,
-    name = "guitar_tab",
+    name = "scoreman",
     about = "Transforms a melody in guitar tab notation into a score in standard music notation"
 )]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
-    /// Don't write out diagnostics that were produced. Makes execution slightly faster
+    /// Don't print debug timings
     #[arg(short = 'q', long)]
     pub quiet: bool,
 }
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// The most complex backend, usually produces the best results but is slower than the others
-    /// and in more cases cannot work over imperfections of a bad tab
-    #[command(visible_alias = "musicxml2", long_about = "")]
-    Muxml2 {
+    /// A complex backend which writes .musicxml files. Produces high quality, well written scores.
+    #[command(visible_alias = "musicxml", long_about = "")]
+    Muxml {
         /// A lot of tabs will leave rest before/after the measure content for better clarity.
         /// This option will remove those.
         #[arg(short = 'm', long)]
@@ -39,80 +37,56 @@ pub enum Commands {
         #[arg(short = 'n', long)]
         remove_rest_between_notes: bool,
         #[arg(short = 't', long)]
-        /// Simplify time signature, e.g. 8/8 to 4/4
+        /// Simplify time signature, e.g. 8/8 -> 4/4
         simplify_time_signature: bool,
-        #[arg(value_enum, long, default_value_t=Muxml2BendMode::EmulateBends)]
-        bend_mode: Muxml2BendMode,
         input_path: String,
         output_path: String,
     },
+    /// The simplest backend, used mainly for playback in interactive applications. Produces a .smf file.
+    Midi { input_path: String, output_path: String },
 
-    /// The older muxml backend. Needs a less perfect tab than Muxml2, but produces a multi-track
-    /// document which is uglier and harder to work with
-    #[command(visible_alias = "musicxml")]
-    Muxml {
-        input_path: String,
-        output_path: String,
-    },
-
-    /// The simplest backend, creates a SMF file. Very fast, good for even realtime applications
-    /// (usually runs in nanoseconds even for complex tabs), but importing into a score application
-    /// will result in an even uglier score than muxml1.
-    /// If you need a lot of speed, consider using the library directly (not via cli) because
-    /// argument parsing adds ~100us
-    Midi {
-        input_path: String,
-        output_path: String,
-    },
-
-    /// Formats the score into a new .tab annotated with measure indices. Also good for debugging
-    /// scores. Does minimal parsing, so a score that can be formatted isn't neccessarily valid.
-    Format {
+    /// Tries to fix errors in the score, until it can be parsed.
+    Fixup {
         input_path: String,
         output_path: String,
         /// Dump the parse tree
         #[arg(value_enum, short = 'd', long)]
-        dump: Option<FormatDumpOptions>,
+        dump: Option<FixupDumpOptions>,
     },
 }
 
 impl Commands {
     pub fn input_path(&self) -> &str {
         match self {
-            Commands::Muxml2 { input_path, .. }
-            | Commands::Muxml { input_path, .. }
-            | Commands::Midi { input_path, .. }
-            | Commands::Format { input_path, .. } => input_path,
+            Commands::Muxml { input_path, .. } | Commands::Midi { input_path, .. } => input_path,
+            Commands::Fixup { input_path, .. } => input_path,
         }
     }
 
     pub fn output_path(&self) -> &str {
         match self {
-            Commands::Muxml2 { output_path, .. }
-            | Commands::Muxml { output_path, .. }
-            | Commands::Midi { output_path, .. }
-            | Commands::Format { output_path, .. } => output_path,
+            Commands::Muxml { output_path, .. }
+            //| Commands::Muxml { output_path, .. }
+            | Commands::Midi { output_path, .. } => output_path,
+              | Commands::Fixup { output_path, .. } => output_path,
         }
     }
 
     pub fn to_backend_selector(&self) -> BackendSelector {
         match self {
-            Commands::Muxml2 {
+            Commands::Muxml {
                 trim_measure,
                 remove_rest_between_notes,
                 simplify_time_signature,
-                bend_mode,
                 ..
-            } => BackendSelector::Muxml2(muxml2::settings::Settings {
+            } => BackendSelector::Muxml(muxml::settings::Settings {
                 remove_rest_between_notes: *remove_rest_between_notes,
                 trim_measure: *trim_measure,
                 simplify_time_signature: *simplify_time_signature,
-                bend_mode: bend_mode.clone(),
             }),
-            Commands::Muxml { .. } => BackendSelector::Muxml(()),
-            Commands::Midi { .. } => BackendSelector::Midi(()),
-            Commands::Format { dump, .. } => {
-                BackendSelector::Format(FormatBackendSettings { dump: dump.clone() })
+            Commands::Midi { .. } => BackendSelector::Midi,
+            Commands::Fixup { dump, .. } => {
+                BackendSelector::Fixup(FixupBackendSettings { dump: dump.clone() })
             }
         }
     }
@@ -124,10 +98,9 @@ impl Display for Commands {
             f,
             "{}",
             match self {
-                Commands::Muxml2 { .. } => "muxml2",
-                Commands::Muxml { .. } => "muxml",
+                Commands::Muxml { .. } => "muxml2",
+                Commands::Fixup { .. } => "fixup",
                 Commands::Midi { .. } => "midi",
-                Commands::Format { .. } => "format",
             }
         )
     }

@@ -1,26 +1,19 @@
-use crate::parser::TabElement;
-
 #[derive(Debug)]
-pub enum BackendErrorKind<'a> {
+pub enum BackendErrorKind {
     IOError(std::io::Error),
     FmtError(std::fmt::Error),
     EmptyScore,
-    /// string name and fret
-    NoSuchFret(char, u8),
-    TickMismatch(char, char, usize, usize),
-    /// string name where tick is multichar, string name here, tick idx, and the found invalid fret
-    BadMulticharTick {
-        /// string and fret
-        multichar: (char, TabElement),
-        /// something else
-        invalid: (char, TabElement),
-        tick_idx: u32,
-    },
-    InvalidPartlineSyntax(&'a str),
-    // TODO: a parser error for invalid string names
+    // maybe this shouldn't be an error?
+    NoClosingBarline,
+    Parse3InvalidCharacter(char),
+    FixupFailed,
+    InvalidStringName,
+    BendOnInvalid,
+    BothSlotsMultiChar,
+    MultiBothSlotsFilled,
 }
 
-impl<'a> BackendErrorKind<'a> {
+impl BackendErrorKind {
     pub fn desc(&self) -> (String, String) {
         match self {
             BackendErrorKind::IOError(x) => {
@@ -31,25 +24,40 @@ impl<'a> BackendErrorKind<'a> {
                 ("Cannot write to internal buffer".into(), format!("Format error:\n{x}"))
             }
             BackendErrorKind::EmptyScore => ("Empty score".into(), String::new()),
-            BackendErrorKind::NoSuchFret(string_name, fret) => (
-                "No such fret".into(),
-                format!("Failed to get note for fret {fret} on string {string_name}"),
-            ),
 
-            BackendErrorKind::TickMismatch(string_before, string_after,ticks_before, ticks_after) => ("Tick mismatch".into(),
-format!("The muxml2 backend relies on the fact that there are the same number of ticks (frets/rests) on every line (string) of a measure in the tab. This is not true for this tab.
-The measure has {ticks_before} ticks on string {string_before} and {ticks_after} ticks on string {string_after}.
-
-Tip: If you get a lot of errors like this, consider using the muxml1 backend.")
+            BackendErrorKind::NoClosingBarline => (
+                "No closing barline".into(),
+                "Lines in a part must end with a barline, but this one doesn't".into(),
             ),
-            BackendErrorKind::BadMulticharTick { multichar : (multichar_string,multichar_elem), invalid: (invalid_string,invalid_elem), tick_idx } =>
-            (
-                "Invalid multichar tick".into(),
-                format!(
-"Tick {} has a multi-char element ({multichar_elem:?}) on string {multichar_string}, but on the same tick there is an invalid element {invalid_elem:?} on string {invalid_string}", tick_idx+1)
+            BackendErrorKind::Parse3InvalidCharacter(c) => {
+                ("Invalid character".into(), format!("The character {c} is not valid here."))
+            }
+            BackendErrorKind::FixupFailed => (
+                "Fixup failed".into(),
+                "Failed to fix the error at this location after 5 tries".into(),
             ),
-            BackendErrorKind::InvalidPartlineSyntax(rem) => ("Invalid partline syntax".into(), format!("Got remaining content: `{rem}`")),
-
+            BackendErrorKind::InvalidStringName => (
+                "Invalid string name".into(),
+                "Failed to parse the string name on this string".into(),
+            ),
+            BackendErrorKind::BendOnInvalid => (
+                "Invalid bend".into(),
+                "You can only bend on frets, and the element before this bend is not a fret."
+                    .into(),
+            ),
+            BackendErrorKind::BothSlotsMultiChar => (
+                "Both slots are multichar".into(),
+                "The tick where this element starts is multichar, but has the start of this element as its last logical tick.\nThis is not allowed.".into()
+            ),
+            BackendErrorKind::MultiBothSlotsFilled => (
+                "Both slots are filled".into(),
+                r#"This tick is multichar, but there are two single-char elements on this track.
+This is invalid.
+In this position, you may have:
+ - a rest
+ - a single char element aligned left or right
+ - another multichar element of the same cardinality"#.into()
+            )
         }
     }
 }

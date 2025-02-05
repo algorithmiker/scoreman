@@ -1,6 +1,7 @@
 /target
-input/
+input-old/
 output/
+test
 perf*
 profile.json
 flamegraph*
@@ -8,3 +9,4 @@ profile.sh
 benchmark_each_revision.py
 .benchmark
 callgrind.*
+.rust-toolchain

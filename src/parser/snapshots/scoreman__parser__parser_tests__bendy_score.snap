@@ -1,0 +1,10 @@
+---
+source: src/parser/parser_tests.rs
+expression: parse(&to_lines(example_part)).dump_tracks()
+---
+--12b---12b-
+--3 --0-- 3-
+2-- ----- --
+--- ----- --
+--- ----- --
+--- ----- --

@@ -1,4 +1,3 @@
-use core::fmt;
 use std::{
     fmt::Write,
     fs::{File, OpenOptions},
@@ -7,7 +6,7 @@ use std::{
 
 use anyhow::Context;
 use clap::Parser;
-use guitar_tab::{
+use scoreman::{
     backend::errors::{
         backend_error::BackendError, diagnostic::Diagnostic, error_location::ErrorLocation,
         extend_error_range,
@@ -77,27 +76,24 @@ fn main() -> anyhow::Result<()> {
 
     let command = &cli.command;
     let backend = command.to_backend_selector();
-    let mut result = backend.process(lines.iter().map(|x| x.as_str()), &mut output_fd);
+    let mut result = backend.process(&lines, &mut output_fd);
     match &mut result.err {
         Some(x) => handle_error(x, &mut result.diagnostics, &lines)?,
         None => {
-            if !result.diagnostics.is_empty() && !cli.quiet {
-                println!(
-                    "Produced {} diagnostics and no errors",
-                    result.diagnostics.len().bold()
-                );
+            if !cli.quiet {
+                eprintln!("Produced {} diagnostics and no errors", result.diagnostics.len().bold());
                 print_diagnostics(result.diagnostics.iter_mut(), &lines);
             }
         }
     }
     if !cli.quiet {
-        println!("[D]: Performance timings:");
+        eprintln!("[D]: Performance timings:");
         match (result.timing_parse, result.timing_gen) {
-            (None, None) => println!("Not available"),
+            (None, None) => eprintln!("Not available"),
             (None, Some(_gen)) => unreachable!(),
-            (Some(parse), None) => println!("Parsed file in {parse:?}"),
+            (Some(parse), None) => eprintln!("Parsed file in {parse:?}"),
             (Some(parse), Some(gen)) => {
-                println!("Parsed file in {parse:?}\nGenerated output in {gen:?}")
+                eprintln!("Parsed file in {parse:?}\nGenerated output in {gen:?}")
             }
         }
     }
@@ -108,18 +104,12 @@ fn main() -> anyhow::Result<()> {
 }
 
 pub fn handle_error(
-    err: &mut BackendError,
-    diagnostics: &mut [Diagnostic],
-    lines: &[String],
+    err: &mut BackendError, diagnostics: &mut [Diagnostic], lines: &[String],
 ) -> anyhow::Result<()> {
-    let BackendError {
-        ref mut main_location,
-        relevant_lines,
-        kind,
-    } = err;
+    let BackendError { ref mut main_location, relevant_lines, kind } = err;
     let diag_count = diagnostics.len();
 
-    println!(
+    eprintln!(
         "Produced {} and {}.",
         format!("{diag_count} diagnostics").bold(),
         "one error".red().bold(),
@@ -129,16 +119,15 @@ pub fn handle_error(
     }
 
     let mut location_explainer = String::new();
-    main_location.write_location_explainer(&mut location_explainer, lines);
-    let max_digit_cnt = digit_cnt_usize(*relevant_lines.end());
+    main_location.write_location_explainer(&mut location_explainer);
 
-    for line_idx in extend_error_range(relevant_lines, lines.len()) {
-        let zero_pad_cnt = max_digit_cnt - digit_cnt_usize(line_idx + 1);
+    let extended_range = extend_error_range(relevant_lines, lines.len());
+    let max_digit_cnt = digit_cnt_usize(*extended_range.end());
+    for line_idx in extended_range {
+        let zero_pad_cnt = max_digit_cnt.saturating_sub(digit_cnt_usize(line_idx + 1)) as usize;
         let mut line_num = String::new();
-        for _ in 0..zero_pad_cnt {
-            write!(&mut line_num, " ").unwrap();
-        }
-        write!(&mut line_num, "{}", line_idx + 1).unwrap();
+        line_num += &*" ".repeat(zero_pad_cnt);
+        write!(&mut line_num, "{}", line_idx + 1)?;
 
         let line_num = if relevant_lines.contains(&line_idx) {
             line_num.bold()
@@ -146,48 +135,38 @@ pub fn handle_error(
             Painted::new(&line_num)
         };
         writeln!(&mut location_explainer, "{line_num}│ {}", lines[line_idx])?;
-        if let ErrorLocation::SourceOffset(src_offset) = main_location {
-            let (e_line_idx, e_char_idx) = src_offset.get_line_char(lines);
-            if e_line_idx != line_idx {
+        if let ErrorLocation::LineAndChar(e_line_idx, e_char_idx) = main_location {
+            if *e_line_idx as usize != line_idx {
                 continue;
             }
-            let padding = digit_cnt_usize(line_idx) as usize + 2 + e_char_idx;
+            let padding =
+                zero_pad_cnt + digit_cnt_usize(line_idx + 1) as usize + 2 + *e_char_idx as usize;
             location_explainer += &" ".repeat(padding);
-            writeln!(&mut location_explainer, "{}here", "^".bold()).unwrap();
+            writeln!(&mut location_explainer, "{}", "^here".red().bold())?;
         }
     }
     let (short, long) = kind.desc();
-    println!(
-        "\n{first_line}\n{location_explainer}\n{long}",
-        first_line = format!("Error: {short}").bold().red()
+    eprintln!(
+        "\n{first_line}\n{location_explainer}\n{}",
+        long.red(),
+        first_line = format!("Error: {short}").bold().red(),
     );
 
     Ok(())
 }
 
-pub fn print_diagnostics<'a, A: std::iter::Iterator<Item = &'a mut Diagnostic>>(
-    diags: A,
-    lines: &[String],
-) {
-    println!("{}:", "Diagnostics".bold());
-    for (
-        idx,
-        Diagnostic {
-            severity,
-            kind,
-            location,
-        },
-    ) in diags.enumerate()
-    {
+pub fn print_diagnostics<'a, A: Iterator<Item = &'a mut Diagnostic>>(diags: A, lines: &[String]) {
+    eprintln!("{}:", "Diagnostics".bold());
+    for (idx, Diagnostic { severity, kind, location }) in diags.enumerate() {
         let idx_display = (idx + 1).to_string();
         let mut location_explainer = String::from("\n");
         location_explainer += &" ".repeat(idx_display.len() + 3);
-        location.write_location_explainer(&mut location_explainer, lines);
-        if let Some(x) = location.get_line_idx(lines) {
+        location.write_location_explainer(&mut location_explainer);
+        if let Some(x) = location.get_line_idx() {
             location_explainer += &" ".repeat(idx_display.len() + 3);
             writeln!(&mut location_explainer, "{}│ {}", x + 1, lines[x]).unwrap();
         }
-        println!(
+        eprintln!(
             "({idx_display}) {severity}: {kind}{location_explainer}",
             severity = severity.bold()
         );
