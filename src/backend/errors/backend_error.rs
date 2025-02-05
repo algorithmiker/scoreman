@@ -3,6 +3,8 @@ use crate::backend::errors::error_location::ErrorLocation;
 use std::cmp::{max, min};
 use std::ops::RangeInclusive;
 
+/// Prints as:
+/// ```md
 /// Produced [diagnostics.len()] diagnostics and one error.
 /// Diagnostics:
 ///  - [location]
@@ -11,6 +13,7 @@ use std::ops::RangeInclusive;
 /// [short]
 /// [location]
 /// [long]
+/// ```
 ///
 #[derive(Debug)]
 pub struct BackendError {

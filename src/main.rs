@@ -80,20 +80,20 @@ fn main() -> anyhow::Result<()> {
     match &mut result.err {
         Some(x) => handle_error(x, &mut result.diagnostics, &lines)?,
         None => {
-            if !result.diagnostics.is_empty() && !cli.quiet {
-                println!("Produced {} diagnostics and no errors", result.diagnostics.len().bold());
+            if !cli.quiet {
+                eprintln!("Produced {} diagnostics and no errors", result.diagnostics.len().bold());
                 print_diagnostics(result.diagnostics.iter_mut(), &lines);
             }
         }
     }
     if !cli.quiet {
-        println!("[D]: Performance timings:");
+        eprintln!("[D]: Performance timings:");
         match (result.timing_parse, result.timing_gen) {
-            (None, None) => println!("Not available"),
+            (None, None) => eprintln!("Not available"),
             (None, Some(_gen)) => unreachable!(),
-            (Some(parse), None) => println!("Parsed file in {parse:?}"),
+            (Some(parse), None) => eprintln!("Parsed file in {parse:?}"),
             (Some(parse), Some(gen)) => {
-                println!("Parsed file in {parse:?}\nGenerated output in {gen:?}")
+                eprintln!("Parsed file in {parse:?}\nGenerated output in {gen:?}")
             }
         }
     }
@@ -109,7 +109,7 @@ pub fn handle_error(
     let BackendError { ref mut main_location, relevant_lines, kind } = err;
     let diag_count = diagnostics.len();
 
-    println!(
+    eprintln!(
         "Produced {} and {}.",
         format!("{diag_count} diagnostics").bold(),
         "one error".red().bold(),
@@ -146,7 +146,7 @@ pub fn handle_error(
         }
     }
     let (short, long) = kind.desc();
-    println!(
+    eprintln!(
         "\n{first_line}\n{location_explainer}\n{}",
         long.red(),
         first_line = format!("Error: {short}").bold().red(),
@@ -156,7 +156,7 @@ pub fn handle_error(
 }
 
 pub fn print_diagnostics<'a, A: Iterator<Item = &'a mut Diagnostic>>(diags: A, lines: &[String]) {
-    println!("{}:", "Diagnostics".bold());
+    eprintln!("{}:", "Diagnostics".bold());
     for (idx, Diagnostic { severity, kind, location }) in diags.enumerate() {
         let idx_display = (idx + 1).to_string();
         let mut location_explainer = String::from("\n");
@@ -166,7 +166,7 @@ pub fn print_diagnostics<'a, A: Iterator<Item = &'a mut Diagnostic>>(diags: A, l
             location_explainer += &" ".repeat(idx_display.len() + 3);
             writeln!(&mut location_explainer, "{}│ {}", x + 1, lines[x]).unwrap();
         }
-        println!(
+        eprintln!(
             "({idx_display}) {severity}: {kind}{location_explainer}",
             severity = severity.bold()
         );

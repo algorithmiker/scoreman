@@ -17,15 +17,14 @@ use guitar_tab::backend::{
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
-    /// Don't write out diagnostics that were produced. Makes execution slightly faster
+    /// Don't print debug timings
     #[arg(short = 'q', long)]
     pub quiet: bool,
 }
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// The most complex backend, usually produces the best results but is slower than the others
-    /// and in more cases cannot work over imperfections of a bad tab
+    /// A complex backend which writes .musicxml files. Produces high quality, well written scores.
     #[command(visible_alias = "musicxml", long_about = "")]
     Muxml {
         /// A lot of tabs will leave rest before/after the measure content for better clarity.
@@ -45,7 +44,7 @@ pub enum Commands {
         input_path: String,
         output_path: String,
     },
-    /// The simplest backend, with no fancy features. Use this for playback, as importing its output into a music score application will result in an ugly score
+    /// The simplest backend, used mainly for playback in interactive applications. Produces a .smf file.
     Midi { input_path: String, output_path: String },
 
     /// Tries to fix errors in the score, until it can be parsed.

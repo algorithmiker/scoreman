@@ -108,7 +108,7 @@ pub fn parse(lines: &[String]) -> ParseResult {
                 return r;
             };
             *line = rem;
-            if !line.as_bytes().last().unwrap() == b'|' {
+            if !line.ends_with('|') {
                 r.error = Some(BackendError::no_closing_barline(part_first_line + line_idx));
                 return r;
             };
@@ -120,10 +120,9 @@ pub fn parse(lines: &[String]) -> ParseResult {
             traceln!("parsing tick {tick}");
             let mut is_multichar = false;
             let mut is_multi_on = [false; 6];
-            let mut s = 0;
-            while s < 6 {
+            for s in 0..6 {
                 traceln!(depth = 1, "remaining on string {s}: {}", part[s]);
-                if s == 0 && part[s].as_bytes()[0] == b'|' {
+                if s == 0 && part[s].starts_with("|") {
                     traceln!(depth = 1, "encountered measure separator");
                     let measure_start =
                         r.measures.last().map(|x| x.data_range.end() + 1).unwrap_or(0);
@@ -139,7 +138,7 @@ pub fn parse(lines: &[String]) -> ParseResult {
                 let Ok((res, te)) = tab_element3(part[s]) else {
                     let (line, char) =
                         source_location_while_parsing(&r, part_first_line as u32, s as u32);
-                    let invalid_src = part[s].chars().next().unwrap_or('\0');
+                    let invalid_src = part[s].chars().next().unwrap_or('\0'); // TODO: do not use null byte here
                     r.error = Some(BackendError::parse3_invalid_character(line, char, invalid_src));
                     return r;
                 };
@@ -148,7 +147,6 @@ pub fn parse(lines: &[String]) -> ParseResult {
                 is_multi_on[s] = tab_element_len > 1;
                 part[s] = res;
                 r.tick_stream.push(te);
-                s += 1;
             }
             if is_multichar {
                 traceln!("tick {tick}/{tick_cnt_est} was marked as multichar, so we run fixup.");
