@@ -23,6 +23,7 @@ other, machine- or human-readable, formats.
 ## Demo
 
 <a href="https://asciinema.org/a/XX3E9Pdh2mLjhhYlOaD6A6QgK" target="_blank"><img src="https://asciinema.org/a/XX3E9Pdh2mLjhhYlOaD6A6QgK.svg" /></a>
+
 ## Installation
 
 ### Using Nix
@@ -44,6 +45,9 @@ You can mix and match which components you want to use, if any.
 
 Here's a basic graph of the control flow:
 ![](.github/flowchart.svg)
+
+If you are running into problems, try enabling the features `gt_trace` and `gt_debug` of this crate. These provide extra
+logging.
 
 ### Understanding the parser
 

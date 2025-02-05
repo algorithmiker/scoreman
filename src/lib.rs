@@ -23,7 +23,7 @@ pub mod parser;
 #[macro_export]
 macro_rules! traceln {
     (depth=$depth:literal, $($t:expr),*) => {
-        #[cfg(feature="gt_trace")]
+        #[cfg(feature="sm_trace")]
         {
             use yansi::Paint;
             let padding=" ".repeat($depth);
@@ -31,7 +31,7 @@ macro_rules! traceln {
         }
     };
     ($($t:expr),*) => {
-        #[cfg(feature="gt_trace")]
+        #[cfg(feature="sm_trace")]
         {
             use yansi::Paint;
             println!("{} {}", "[T]:".blue().bold(), format_args!($($t),*));
@@ -41,7 +41,7 @@ macro_rules! traceln {
 #[macro_export]
 macro_rules! debugln {
     (depth=$depth:literal, $($t:expr),*) => {
-        #[cfg(feature="gt_debug")]
+        #[cfg(feature="sm_debug")]
         {
             use yansi::Paint;
             let padding=" ".repeat($depth);
@@ -49,7 +49,7 @@ macro_rules! debugln {
         }
     };
     ($($t:expr),*) => {
-        #[cfg(feature="gt_debug")]
+        #[cfg(feature="sm_debug")]
         {
             use yansi::Paint;
             println!("{} {}", "[D]:".green().bold(), format_args!($($t),*));
