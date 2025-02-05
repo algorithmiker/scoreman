@@ -27,22 +27,27 @@ pub trait Backend {
     ) -> BackendResult;
 }
 
-/// Handles backend dispatch. Can be easily created from a string identifier
+/// Handles backend dispatch. Can be easily created from a string identifier.
+///
+/// The primary usage of this struct is to idiomatically call a backend if you use scoreman as a library,
+/// such as:
+/// ```md
+/// let sel = ask_user_about_backend();
+/// sel.process(input, out);
+/// ```
+/// where [BackendSelector::process] is a method similar to [Backend::process]
 #[derive(Clone)]
 pub enum BackendSelector {
-    Midi(()),
-    // Muxml(()),
-    Muxml2(muxml::settings::Settings),
+    Midi,
+    Muxml(muxml::settings::Settings),
     Fixup(fixup::FixupBackendSettings),
 }
 
 impl BackendSelector {
-    // TODO: remove the lifetime here
     pub fn process<Out: std::io::Write>(self, input: &[String], out: &mut Out) -> BackendResult {
         match self {
-            BackendSelector::Midi(settings) => midi::MidiBackend::process(input, out, settings),
-            // BackendSelector::Muxml(settings) => muxml::MuxmlBackend::process(input, out, settings),
-            BackendSelector::Muxml2(settings) => muxml::MuxmlBackend::process(input, out, settings),
+            BackendSelector::Midi => midi::MidiBackend::process(input, out, ()),
+            BackendSelector::Muxml(settings) => muxml::MuxmlBackend::process(input, out, settings),
             BackendSelector::Fixup(settings) => fixup::FixupBackend::process(input, out, settings),
         }
     }
@@ -54,9 +59,8 @@ impl Display for BackendSelector {
             f,
             "{}",
             match self {
-                BackendSelector::Midi(_) => "midi",
-                // BackendSelector::Muxml(_) => "muxml",
-                BackendSelector::Muxml2(_) => "muxml",
+                BackendSelector::Midi => "midi",
+                BackendSelector::Muxml(_) => "muxml",
                 BackendSelector::Fixup(_) => "fixup",
             }
         )

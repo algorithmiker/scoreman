@@ -25,7 +25,10 @@ def main(dir_path:str,old_revision:str,new_revision:str, *args):
             print(f"[I] benchmark.py: building {rev}")
             run_silent(["git", "checkout", rev])
             run_silent(["cargo", "build", "--release"], check=1)
-            shutil.copy("target/release/guitar_tab", f"{dir_path}/gt-{rev}")
+            # guitar_tab was a scorename in earlier versions
+            to_copy = "target/release/scoreman"
+            if not os.path.isfile(to_copy): to_copy = "target/release/guitar_tab"
+            shutil.copy(to_copy, f"{dir_path}/gt-{rev}")
 
     run_silent(["git", "checkout", initial_branch])
     print("[I]: benchmark.py: have everything, sleeping 0.5s to avoid interference")

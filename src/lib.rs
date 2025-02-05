@@ -1,3 +1,18 @@
+//! Example usage (as a library):
+//! ```
+//! use scoreman::backend::BackendSelector;
+//! let input = r#"
+//! e|---|
+//! A|---|
+//! B|---|
+//! G|---|
+//! D|---|
+//! E|---|
+//! "#;
+//! let my_backend = BackendSelector::Midi;
+//! let mut out = vec![];
+//! my_backend.process(input.map(|x|x.into()).collect(), &mut out);
+//!```
 use std::{
     ops::{Range, RangeInclusive},
     time::{Duration, Instant},

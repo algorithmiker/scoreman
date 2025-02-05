@@ -12,13 +12,13 @@ use crate::{
         Backend,
     },
     parser::parser::parse,
-    traceln,
+    time, traceln,
 };
 
 pub struct FixupBackend();
 #[derive(ValueEnum, Clone)]
 pub enum FixupDumpOptions {
-    AST,
+    TickStream,
     PrettyTracks,
 }
 #[derive(Clone)]
@@ -55,6 +55,18 @@ impl Backend for FixupBackend {
     fn process<Out: std::io::Write>(
         parser_input: &[String], out: &mut Out, settings: Self::BackendSettings,
     ) -> BackendResult {
+        if let Some(dump) = settings.dump {
+            let (parse_time, parsed) = time(|| parse(parser_input));
+            let mut r = BackendResult::new(vec![], None, Some(parse_time), None);
+            match dump {
+                FixupDumpOptions::TickStream => writeln!(out, "{:?}", parsed.tick_stream).unwrap(),
+                FixupDumpOptions::PrettyTracks => {
+                    writeln!(out, "{}", parsed.dump_tracks()).unwrap()
+                }
+            }
+            r.err = parsed.error;
+            return r;
+        }
         let mut diagnostics = vec![];
         // TODO: figure out a way not to clone these
         let mut parser_input = parser_input.to_owned();

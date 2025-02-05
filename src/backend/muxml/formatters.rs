@@ -122,7 +122,7 @@ pub const MUXML_INCOMPLETE_DOC_PRELUDE: &str = r#"
 <score-partwise version="4.0">
   <identification>
     <encoding>
-      <software>guitar_tab</software>
+      <software>scoreman</software>
       <supports element="accidental" type="yes"/>
       <supports element="beam" type="yes"/>
       <supports element="print" attribute="new-page" type="no"/>

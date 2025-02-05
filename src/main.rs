@@ -6,7 +6,7 @@ use std::{
 
 use anyhow::Context;
 use clap::Parser;
-use guitar_tab::{
+use scoreman::{
     backend::errors::{
         backend_error::BackendError, diagnostic::Diagnostic, error_location::ErrorLocation,
         extend_error_range,

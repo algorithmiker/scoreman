@@ -1,17 +1,15 @@
 use std::fmt::Display;
 
 use clap::{Parser, Subcommand};
-use guitar_tab::backend::fixup::{FixupBackendSettings, FixupDumpOptions};
-use guitar_tab::backend::{
-    //format::{FormatBackendSettings, FormatDumpOptions},
-    muxml,
-    BackendSelector,
+use scoreman::backend::{
+    fixup::{FixupBackendSettings, FixupDumpOptions},
+    muxml, BackendSelector,
 };
 
 #[derive(Parser)]
 #[command(
     version,
-    name = "guitar_tab",
+    name = "scoreman",
     about = "Transforms a melody in guitar tab notation into a score in standard music notation"
 )]
 pub struct Cli {
@@ -60,10 +58,8 @@ pub enum Commands {
 impl Commands {
     pub fn input_path(&self) -> &str {
         match self {
-            Commands::Muxml { input_path, .. }
-            //| Commands::Muxml { input_path, .. }
-            | Commands::Midi { input_path, .. } => input_path,
-            | Commands::Fixup { input_path, .. } => input_path,
+            Commands::Muxml { input_path, .. } | Commands::Midi { input_path, .. } => input_path,
+            Commands::Fixup { input_path, .. } => input_path,
         }
     }
 
@@ -83,12 +79,12 @@ impl Commands {
                 remove_rest_between_notes,
                 simplify_time_signature,
                 ..
-            } => BackendSelector::Muxml2(muxml::settings::Settings {
+            } => BackendSelector::Muxml(muxml::settings::Settings {
                 remove_rest_between_notes: *remove_rest_between_notes,
                 trim_measure: *trim_measure,
                 simplify_time_signature: *simplify_time_signature,
             }),
-            Commands::Midi { .. } => BackendSelector::Midi(()),
+            Commands::Midi { .. } => BackendSelector::Midi,
             Commands::Fixup { dump, .. } => {
                 BackendSelector::Fixup(FixupBackendSettings { dump: dump.clone() })
             }
@@ -103,7 +99,6 @@ impl Display for Commands {
             "{}",
             match self {
                 Commands::Muxml { .. } => "muxml2",
-                //Commands::Muxml { .. } => "muxml",
                 Commands::Fixup { .. } => "fixup",
                 Commands::Midi { .. } => "midi",
             }
