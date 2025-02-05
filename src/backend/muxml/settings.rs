@@ -1,4 +1,4 @@
-/// These are documented in [cli_args]
+/// These are documented in cli_args.rs
 #[derive(Clone)]
 pub struct Settings {
     pub remove_rest_between_notes: bool,

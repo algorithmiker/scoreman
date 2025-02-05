@@ -26,7 +26,7 @@ impl Measure {
 
 #[derive(Debug, Default)]
 pub struct ParseResult {
-    /// This is not a [std::Result] because the tick stream and offsets are needed for printing the error
+    /// This is not a [Result] because we want to preserve the partial parse state, eg. for fixup or recovery
     pub error: Option<BackendError>,
     pub tick_stream: Vec<TabElement3>,
     pub measures: Vec<Measure>,

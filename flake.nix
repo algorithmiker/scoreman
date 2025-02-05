@@ -27,6 +27,13 @@
       ];
     in
     {
+      packages.${system}.default = pkgs.rustPlatform.buildRustPackage {
+        pname = "scoreman";
+        version = "1.0.0";
+        cargoHash = "sha256-Aa92RjvcqoCCIOXoQ1TsIou/0FbLtNyb2OaaJRa90gM=";
+        src = ./.;
+        doCheck=false;
+      };
       devShells.${system}.default = pkgs.mkShell {
         shellHook = ''
           # https://github.com/NixOS/nix/issues/8034#issuecomment-2046069655

@@ -1,0 +1,20 @@
+direction: right
+CLI -> BackendSelector
+GUI -> BackendSelector
+Your library -> BackendSelector
+BackendSelector: backend::BackendSelector
+selector_parse: BackendSelector.process()
+BackendSelector: {
+  Midi
+  Muxml(Settings)
+  Fixup(Settings)
+}
+
+BackendSelector -> selector_parse
+
+tasbackend: <T as Backend>::process()
+selector_parse -> tasbackend
+Parse: parser::parse
+tasbackend -> Parse
+Parse -> tasbackend: if fixup
+tasbackend -> BackendResult

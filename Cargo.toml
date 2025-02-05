@@ -23,7 +23,13 @@ insta = { version = "1.38.0", features = ["yaml"] }
 insta.opt-level = 3
 
 [profile.release]
+opt-level = 3
 lto = "thin"
+
+[profile.releaseFat]
+inherits = "release"
+lto = "fat"
+
 
 [profile.profiling]
 inherits = "release"
