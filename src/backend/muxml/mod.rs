@@ -16,6 +16,7 @@ use formatters::{
     MUXML_INCOMPLETE_DOC_PRELUDE,
 };
 use fretboard::get_fretboard_note2;
+use rustc_hash::FxBuildHasher;
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -54,7 +55,8 @@ pub enum Muxml2TabElement {
 
 impl Muxml2TabElement {
     fn write_muxml<A: std::fmt::Write>(
-        &self, parsed: &ParseResult, buf: &mut A, note_properties: &HashMap<u32, NoteProperties>,
+        &self, parsed: &ParseResult, buf: &mut A,
+        note_properties: &HashMap<u32, NoteProperties, impl std::hash::BuildHasher>,
     ) -> std::fmt::Result {
         match self {
             Muxml2TabElement::Rest(mut x) => {
@@ -192,7 +194,7 @@ fn gen_muxml2(
     debugln!("muxml2: reserved {}", cap);
     let mut slur_cnt = 0;
     let mut slide_count = 0;
-    let mut note_properties: HashMap<u32, NoteProperties> = HashMap::new();
+    let mut note_properties: HashMap<u32, NoteProperties, FxBuildHasher> = HashMap::default();
     for measure_idx in 0..number_of_measures {
         traceln!("Muxml2: processing measure {}", measure_idx);
         let ticks_in_measure = rlen(&parsed.measures[measure_idx].data_range) / 6; // see assumption 2
