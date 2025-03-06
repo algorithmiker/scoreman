@@ -356,7 +356,7 @@ fn gen_muxml2(
                 return (None, r);
             }
         }
-        document.push_str("</measure>");
+        document.push_str("</measure>\n");
     }
 
     document += MUXML2_DOCUMENT_END;
