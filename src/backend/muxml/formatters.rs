@@ -1,7 +1,9 @@
-use crate::backend::muxml::{NoteProperties, Vibrato2};
+use crate::backend::muxml::{NoteProperties, Vibrato};
 use crate::debugln;
 use itoa::Buffer;
-
+// This file uses explicit .write_str() -s, instead of writing a format!()ted string, because I
+// benchmarked it and it was faster.
+// Maybe there is a nice solution to this - but I've yet to find anything as performant as this one.
 #[inline]
 pub fn write_muxml2_rest(
     buf: &mut impl std::fmt::Write, r#type: &str, duration: u8,
@@ -76,7 +78,7 @@ pub fn write_muxml2_note(
             if let Some(vibrato) = vibrato {
                 buf.write_str("<ornaments>\n")?;
                 buf.write_str("<wavy-line type=\"")?;
-                buf.write_str(if matches!(Vibrato2::Start, vibrato) { "start" } else { "stop" })?;
+                buf.write_str(if matches!(vibrato, Vibrato::Start) { "start" } else { "stop" })?;
                 buf.write_str("\" />\n")?;
                 buf.write_str("</ornaments>\n")?;
             }

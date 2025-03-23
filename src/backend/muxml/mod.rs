@@ -136,41 +136,41 @@ impl Muxml2TabElement {
 }
 
 #[derive(Default, Debug)]
-pub struct Slur2 {
+pub struct Slur {
     pub number: u16,
     pub start: bool,
 }
-impl Slur2 {
+impl Slur {
     pub fn new(number: u16, start: bool) -> Self {
-        Slur2 { number, start }
+        Slur { number, start }
     }
     pub fn start(number: u16) -> Self {
-        Slur2 { number, start: true }
+        Slur { number, start: true }
     }
     pub fn stop(number: u16) -> Self {
-        Slur2 { number, start: false }
+        Slur { number, start: false }
     }
 }
 #[derive(Default, Debug)]
-pub struct Slide2 {
+pub struct Slide {
     pub number: u16,
     pub start: bool,
 }
-impl Slide2 {
+impl Slide {
     pub fn new(number: u16, start: bool) -> Self {
-        Slide2 { number, start }
+        Slide { number, start }
     }
 }
 /// TODO: make this a bitstruct and see if that is faster
 /// TODO: try making this a SoA
 #[derive(Default, Debug)]
 pub struct NoteProperties {
-    pub slurs: Vec<Slur2>,
-    pub slide: Option<Slide2>,
-    pub vibrato: Option<Vibrato2>,
+    pub slurs: Vec<Slur>,
+    pub slide: Option<Slide>,
+    pub vibrato: Option<Vibrato>,
 }
 #[derive(Debug)]
-pub enum Vibrato2 {
+pub enum Vibrato {
     Start,
     Stop,
 }
@@ -222,13 +222,13 @@ fn gen_muxml2(
                 TabElement3::Vibrato => {
                     let last_idx = stream_idx.saturating_sub(6);
                     note_properties.entry(last_idx as u32).or_default().vibrato =
-                        Some(Vibrato2::Start);
+                        Some(Vibrato::Start);
                     let next_idx = stream_idx + 6;
                     if next_idx >= parsed.tick_stream.len() {
                         parsed.tick_stream.extend([const { TabElement3::Rest }; 6]);
                     }
                     note_properties.entry(next_idx as u32).or_default().vibrato =
-                        Some(Vibrato2::Stop);
+                        Some(Vibrato::Stop);
                 }
                 TabElement3::Bend
                 | TabElement3::HammerOn
@@ -242,7 +242,7 @@ fn gen_muxml2(
                     );
                     slur_cnt += 1;
                     let idx32 = last_idx as u32;
-                    note_properties.entry(idx32).or_default().slurs.push(Slur2::start(slur_cnt));
+                    note_properties.entry(idx32).or_default().slurs.push(Slur::start(slur_cnt));
                     let next_idx = stream_idx + 6;
 
                     match &parsed.tick_stream.get(next_idx) {
@@ -257,11 +257,8 @@ fn gen_muxml2(
 
                             parsed.tick_stream.extend([const { TabElement3::Rest }; 6]);
                             parsed.tick_stream[next_idx] = TabElement3::Fret(x + 1);
-                            note_properties
-                                .entry(next_idx as u32)
-                                .or_default()
-                                .slurs
-                                .push(Slur2::stop(slur_cnt));
+                            let entry = note_properties.entry(next_idx as u32).or_default();
+                            entry.slurs.push(Slur::stop(slur_cnt));
                         }
                         // since we know that with a "hanging bend" the next element in this track is going to be a rest, we can just silently replace it and add the correct note
                         Some(TabElement3::Rest) => {
@@ -275,18 +272,12 @@ fn gen_muxml2(
                             traceln!(
                                 "hanging bend on {stream_idx}, replacing {next_idx} with a Fret"
                             );
-                            note_properties
-                                .entry(next_idx as u32)
-                                .or_default()
-                                .slurs
-                                .push(Slur2::stop(slur_cnt));
+                            let entry = note_properties.entry(next_idx as u32).or_default();
+                            entry.slurs.push(Slur::stop(slur_cnt));
                         }
                         _ => {
-                            note_properties
-                                .entry(next_idx as u32)
-                                .or_default()
-                                .slurs
-                                .push(Slur2::stop(slur_cnt));
+                            let entry = note_properties.entry(next_idx as u32).or_default();
+                            entry.slurs.push(Slur::stop(slur_cnt));
                         }
                     }
 
@@ -301,11 +292,11 @@ fn gen_muxml2(
                     );
                     slide_count += 1;
                     note_properties.entry(last_idx as u32).or_default().slide =
-                        Some(Slide2::new(slide_count, true));
+                        Some(Slide::new(slide_count, true));
                     let next_idx = stream_idx + 6;
                     if next_idx < parsed.tick_stream.len() {
                         note_properties.entry(next_idx as u32).or_default().slide =
-                            Some(Slide2::new(slide_count, false));
+                            Some(Slide::new(slide_count, false));
                     }
                     traceln!(
                         depth = 1,

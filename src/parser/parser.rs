@@ -9,11 +9,12 @@ pub fn line_is_valid(line: &str) -> bool {
     let line = line.trim();
     let first_is_alphanumeric = line.chars().next().map(|x| x.is_alphanumeric()).unwrap_or(false);
     let second_is_measure_sep = line.as_bytes().get(1).map(|x| *x == b'|').unwrap_or(false);
-    let last_is_measure_end = line.as_bytes().last().map(|x| *x == b'|').unwrap_or(false);
+    let last_is_measure_end = line.ends_with('|');
     let ret = first_is_alphanumeric && second_is_measure_sep && last_is_measure_end;
     traceln!("line_is_valid({line}) -> {ret}");
     ret
 }
+
 #[derive(Debug)]
 pub struct Measure {
     pub data_range: RangeInclusive<u32>,
@@ -48,18 +49,19 @@ impl ParseResult {
         for tick in 0..tick_cnt {
             let max_width =
                 (0..6).map(|x| self.tick_stream[tick * 6 + x].repr_len()).max().unwrap() as usize;
-            for s in 0..6 {
+            for (s, buf) in bufs.iter_mut().enumerate() {
                 use tab_element::TabElement3::*;
+                let to_padded = |c: char| format!("{1:<0$}", max_width, c);
                 match self.tick_stream[tick * 6 + s] {
-                    Fret(x) => bufs[s].push_str(&format!("{x:<0$}", max_width)),
-                    Rest => bufs[s].push_str(&format!("{1:<0$}", max_width, "-")),
-                    DeadNote => bufs[s].push_str(&format!("{1:<0$}", max_width, "x")),
-                    Slide => bufs[s].push_str(&format!("{1:<0$}", max_width, "/")),
-                    Bend => bufs[s].push_str(&format!("{1:<0$}", max_width, "b")),
-                    HammerOn => bufs[s].push_str(&format!("{1:<0$}", max_width, "h")),
-                    Pull => bufs[s].push_str(&format!("{1:<0$}", max_width, "p")),
-                    Release => bufs[s].push_str(&format!("{1:<0$}", max_width, "r")),
-                    Vibrato => bufs[s].push_str(&format!("{1:<0$}", max_width, "~")),
+                    Fret(x) => buf.push_str(&format!("{x:<0$}", max_width)),
+                    Rest => buf.push_str(&to_padded('-')),
+                    DeadNote => buf.push_str(&to_padded('x')),
+                    Slide => buf.push_str(&to_padded('/')),
+                    Bend => buf.push_str(&to_padded('b')),
+                    HammerOn => buf.push_str(&to_padded('h')),
+                    Pull => buf.push_str(&to_padded('p')),
+                    Release => buf.push_str(&to_padded('r')),
+                    Vibrato => buf.push_str(&to_padded('~')),
                 }
             }
         }
@@ -118,8 +120,7 @@ pub fn parse(lines: &[String]) -> ParseResult {
         let mut tick_cnt_est = part[0].len();
         while tick < tick_cnt_est {
             traceln!("parsing tick {tick}");
-            let mut is_multichar = false;
-            let mut is_multi_on = [false; 6];
+            let (mut is_multichar, mut is_multi_on) = (false, [false; 6]);
             for s in 0..6 {
                 traceln!(depth = 1, "remaining on string {s}: {}", part[s]);
                 if s == 0 && part[s].starts_with("|") {
@@ -293,6 +294,7 @@ pub fn source_location_from_stream(r: &ParseResult, tick_location: u32) -> (u32,
     traceln!("expecting the error to be at character idx {offset_on_line}");
     (actual_line, offset_on_line)
 }
+
 pub fn dump_source(input: &Vec<&str>) -> String {
     use itertools::Itertools;
     input.iter().join("\n")
