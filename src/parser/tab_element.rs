@@ -1,8 +1,8 @@
-use crate::{backend::errors::backend_error::BackendError, parser::numeric, traceln};
+use crate::parser::numeric;
 use std::cmp::max;
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum TabElement3 {
+pub enum TabElement {
     Fret(u8),
     Rest,
     DeadNote,
@@ -19,27 +19,27 @@ pub enum TabElementError {
     FretTooLarge,
 }
 #[inline(always)]
-pub fn tab_element3(s: &str) -> Result<(&str, TabElement3), (&str, Option<TabElementError>)> {
+pub fn tab_element3(s: &str) -> Result<(&str, TabElement), (&str, Option<TabElementError>)> {
     let bytes = s.as_bytes();
     match bytes.first() {
-        Some(b'-') => Ok((&s[1..], TabElement3::Rest)),
-        Some(b'x') => Ok((&s[1..], TabElement3::DeadNote)),
+        Some(b'-') => Ok((&s[1..], TabElement::Rest)),
+        Some(b'x') => Ok((&s[1..], TabElement::DeadNote)),
         Some(48..=58) => {
             let (res, num) = numeric(s).map_err(|s| (s, Some(TabElementError::FretTooLarge)))?;
-            Ok((res, TabElement3::Fret(num)))
+            Ok((res, TabElement::Fret(num)))
         }
-        Some(b'b') => Ok((&s[1..], TabElement3::Bend)),
-        Some(b'h') => Ok((&s[1..], TabElement3::HammerOn)),
-        Some(b'p') => Ok((&s[1..], TabElement3::Pull)),
-        Some(b'r') => Ok((&s[1..], TabElement3::Release)),
-        Some(b'/') | Some(b'\\') => Ok((&s[1..], TabElement3::Slide)),
-        Some(b'~') => Ok((&s[1..], TabElement3::Vibrato)),
+        Some(b'b') => Ok((&s[1..], TabElement::Bend)),
+        Some(b'h') => Ok((&s[1..], TabElement::HammerOn)),
+        Some(b'p') => Ok((&s[1..], TabElement::Pull)),
+        Some(b'r') => Ok((&s[1..], TabElement::Release)),
+        Some(b'/') | Some(b'\\') => Ok((&s[1..], TabElement::Slide)),
+        Some(b'~') => Ok((&s[1..], TabElement::Vibrato)),
         Some(_) | None => Err((s, None)),
     }
 }
-impl TabElement3 {
+impl TabElement {
     pub fn repr_len(&self) -> u32 {
-        use TabElement3::*;
+        use TabElement::*;
         match self {
             Fret(x) => max(x, &1).ilog10() + 1,
             Bend | HammerOn | DeadNote | Pull | Slide | Rest | Release | Vibrato => 1,

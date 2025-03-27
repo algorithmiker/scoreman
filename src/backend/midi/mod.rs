@@ -7,8 +7,8 @@ use midly::{
 
 use super::{Backend, BackendResult};
 use crate::parser::parser::{parse, ParseResult};
-use crate::parser::tab_element::TabElement3;
-use crate::parser::tab_element::TabElement3::Fret;
+use crate::parser::tab_element::TabElement;
+use crate::parser::tab_element::TabElement::Fret;
 use crate::{debugln, time};
 
 const BPM: u32 = 80;
@@ -94,14 +94,14 @@ fn convert_to_midi(parsed: &ParseResult) -> Vec<Vec<TrackEvent<'static>>> {
                 tracks[track].push(note_on);
                 tracks[track].push(note_off);
             }
-            TabElement3::Rest => delta_carry_on[track] += LENGTH_OF_EIGHTH.into(),
-            TabElement3::Bend
-            | TabElement3::HammerOn
-            | TabElement3::Pull
-            | TabElement3::Release
-            | TabElement3::Slide
-            | TabElement3::DeadNote
-            | TabElement3::Vibrato => (),
+            TabElement::Rest => delta_carry_on[track] += LENGTH_OF_EIGHTH.into(),
+            TabElement::Bend
+            | TabElement::HammerOn
+            | TabElement::Pull
+            | TabElement::Release
+            | TabElement::Slide
+            | TabElement::DeadNote
+            | TabElement::Vibrato => (),
         }
     }
     tracks.iter_mut().for_each(|x| {

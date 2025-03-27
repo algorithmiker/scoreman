@@ -1,6 +1,6 @@
 use super::{
     string_name,
-    tab_element::{self, tab_element3, TabElement3},
+    tab_element::{self, tab_element3, TabElement},
 };
 use crate::{
     backend::errors::backend_error::BackendError, debugln, parser::tab_element::TabElementError,
@@ -32,7 +32,7 @@ impl Measure {
 pub struct ParseResult {
     /// This is not a [Result] because we want to preserve the partial parse state, eg. for fixup or recovery
     pub error: Option<BackendError>,
-    pub tick_stream: Vec<TabElement3>,
+    pub tick_stream: Vec<TabElement>,
     pub measures: Vec<Measure>,
     pub base_notes: Vec<char>,
     /// The line on which the n-th section begins and the index of the first tick in that section.
@@ -53,7 +53,7 @@ impl ParseResult {
             let max_width =
                 (0..6).map(|x| self.tick_stream[tick * 6 + x].repr_len()).max().unwrap() as usize;
             for (s, buf) in bufs.iter_mut().enumerate() {
-                use tab_element::TabElement3::*;
+                use tab_element::TabElement::*;
                 let to_padded = |c: char| format!("{1:<0$}", max_width, c);
                 match self.tick_stream[tick * 6 + s] {
                     Fret(x) => buf.push_str(&format!("{x:<0$}", max_width)),
@@ -173,7 +173,7 @@ pub fn parse(lines: &[String]) -> ParseResult {
                     let elem_idx = r.tick_stream.len() - (6 - s);
                     let elem = &r.tick_stream[elem_idx];
                     traceln!(depth = 1, "on string {s} we have {:?}", elem);
-                    if let TabElement3::Rest = elem {
+                    if let TabElement::Rest = elem {
                         traceln!(depth = 2, "this is a rest so we try to parse the next element");
                         let len_before = part[s].len();
                         let next = tab_element3(part[s]).unwrap();
