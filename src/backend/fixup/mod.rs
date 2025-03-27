@@ -104,6 +104,8 @@ impl Backend for FixupBackend {
                         BackendErrorKind::InvalidStringName => {}
                         BackendErrorKind::EmptyScore => {}
                         BackendErrorKind::BothSlotsMultiChar => {} // todo: fix BothSlotsMultichar errors
+                        BackendErrorKind::FretTooLarge => {} // todo: fix FretTooLarge errors (add
+                        // space between)
                         BackendErrorKind::MultiBothSlotsFilled => {
                             let Some((line_idx, char_idx)) = err
                                 .main_location

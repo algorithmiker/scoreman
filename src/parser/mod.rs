@@ -21,9 +21,9 @@ pub fn string_name() -> impl Fn(&str) -> Result<(&str, char), &str> {
 fn numeric(s: &str) -> Result<(&str, u8), &str> {
     let bytes = s.as_bytes();
     let mut i = 0;
-    let mut sum = 0;
+    let mut sum: u8 = 0;
     while i < bytes.len() && bytes[i].is_ascii_digit() {
-        sum *= 10;
+        sum = sum.checked_mul(10).ok_or(s)?;
         sum += bytes[i] - b'0';
         i += 1;
     }

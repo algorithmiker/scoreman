@@ -2,7 +2,10 @@ use super::{
     string_name,
     tab_element::{self, tab_element3, TabElement3},
 };
-use crate::{backend::errors::backend_error::BackendError, debugln, traceln};
+use crate::{
+    backend::errors::backend_error::BackendError, debugln, parser::tab_element::TabElementError,
+    traceln,
+};
 use std::ops::RangeInclusive;
 
 pub fn line_is_valid(line: &str) -> bool {
@@ -136,13 +139,23 @@ pub fn parse(lines: &[String]) -> ParseResult {
                 }
 
                 let len_before = part[s].len();
-                let Ok((res, te)) = tab_element3(part[s]) else {
-                    let (line, char) =
-                        source_location_while_parsing(&r, part_first_line as u32, s as u32);
-                    let invalid_src = part[s].chars().next().unwrap_or('\0'); // TODO: do not use null byte here
-                    r.error = Some(BackendError::parse3_invalid_character(line, char, invalid_src));
-                    return r;
+                let (res, te) = match tab_element3(part[s]) {
+                    Ok(x) => x,
+                    Err((_, err)) => {
+                        let (line, char) =
+                            source_location_while_parsing(&r, part_first_line as u32, s as u32);
+                        if let Some(TabElementError::FretTooLarge) = err {
+                            r.error = Some(BackendError::large_fret(line, char));
+                        } else {
+                            let invalid_src = part[s].chars().next().unwrap_or('\0'); // TODO: do not use null byte here
+                            let err =
+                                BackendError::parse3_invalid_character(line, char, invalid_src);
+                            r.error = Some(err);
+                        }
+                        return r;
+                    }
                 };
+
                 let tab_element_len = len_before - res.len();
                 is_multichar |= tab_element_len > 1;
                 is_multi_on[s] = tab_element_len > 1;

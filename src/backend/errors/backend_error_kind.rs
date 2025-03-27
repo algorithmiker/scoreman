@@ -11,6 +11,7 @@ pub enum BackendErrorKind {
     BendOnInvalid,
     BothSlotsMultiChar,
     MultiBothSlotsFilled,
+    FretTooLarge,
 }
 
 impl BackendErrorKind {
@@ -57,7 +58,8 @@ In this position, you may have:
  - a rest
  - a single char element aligned left or right
  - another multichar element of the same cardinality"#.into()
-            )
+            ), 
+            BackendErrorKind::FretTooLarge => ("Too large fret".to_string(), "The maximum allowed fret is 99.".to_string()),
         }
     }
 }

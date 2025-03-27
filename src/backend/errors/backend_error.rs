@@ -81,6 +81,13 @@ impl BackendError {
             relevant_lines: line as usize..=line as usize,
         }
     }
+    pub fn large_fret(line: u32, char: u32) -> Self {
+        Self {
+            main_location: ErrorLocation::LineAndChar(line, char),
+            relevant_lines: line as usize..=line as usize,
+            kind: BackendErrorKind::FretTooLarge,
+        }
+    }
 }
 
 impl From<std::io::Error> for BackendError {
