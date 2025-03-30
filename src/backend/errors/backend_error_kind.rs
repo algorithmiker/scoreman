@@ -3,9 +3,8 @@ pub enum BackendErrorKind {
     IOError(std::io::Error),
     FmtError(std::fmt::Error),
     EmptyScore,
-    // maybe this shouldn't be an error?
     NoClosingBarline,
-    Parse3InvalidCharacter(char),
+    Parse3InvalidCharacter(Option<char>),
     FixupFailed,
     InvalidStringName,
     BendOnInvalid,
@@ -28,10 +27,13 @@ impl BackendErrorKind {
 
             BackendErrorKind::NoClosingBarline => (
                 "No closing barline".into(),
-                "Lines in a part must end with a barline, but this one doesn't".into(),
+                "Lines in a part must end with a barline, but this one doesn't.".into(),
             ),
             BackendErrorKind::Parse3InvalidCharacter(c) => {
-                ("Invalid character".into(), format!("The character {c} is not valid here."))
+                ("Invalid character".into(), match c {
+                    Some(c) => format!("The character {c} is not valid here."),
+                    None => format!("This character is not valid here."),
+                })
             }
             BackendErrorKind::FixupFailed => (
                 "Fixup failed".into(),

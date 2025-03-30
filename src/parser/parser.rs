@@ -10,8 +10,9 @@ use std::ops::RangeInclusive;
 
 pub fn line_is_valid(line: &str) -> bool {
     let line = line.trim();
-    let first_is_alphanumeric = line.chars().next().map(|x| x.is_alphanumeric()).unwrap_or(false);
-    let second_is_measure_sep = line.as_bytes().get(1).map(|x| *x == b'|').unwrap_or(false);
+    let mut chars = line.chars();
+    let first_is_alphanumeric = chars.next().map(|x| x.is_alphanumeric()).unwrap_or(false);
+    let second_is_measure_sep = chars.next().map(|x| x == '|').unwrap_or(false);
     let last_is_measure_end = line.ends_with('|');
     let ret = first_is_alphanumeric && second_is_measure_sep && last_is_measure_end;
     traceln!("line_is_valid({line}) -> {ret}");
@@ -76,19 +77,17 @@ impl ParseResult {
 pub fn parse(lines: &[String]) -> ParseResult {
     let mut r = ParseResult::new();
     let mut part_first_line = 0;
-    while part_first_line + 5 < lines.len() {
+    'outer: loop {
         // find a part
-        while part_first_line + 5 < lines.len() {
+        loop {
+            if part_first_line + 5 >= lines.len() {
+                break 'outer;
+            }
             if line_is_valid(&lines[part_first_line]) && line_is_valid(&lines[part_first_line + 5])
             {
                 break;
             }
-            part_first_line += 1;
-        }
-        // hack: the loop above will fail if there is extra content after the last part, so we just exit out here
-        if part_first_line + 5 >= lines.len() {
-            traceln!("extra content after last part, shutdown");
-            break;
+            part_first_line += 1
         }
         traceln!("parse3: Found part {part_first_line}..={}", part_first_line + 5);
         r.offsets.push((part_first_line as u32, r.tick_stream.len() as u32));
@@ -102,14 +101,12 @@ pub fn parse(lines: &[String]) -> ParseResult {
         // parse prelude and last char
         for (line_idx, line) in part.iter_mut().enumerate() {
             let Ok((rem, string_name)) = string_name()(line) else {
-                r.error =
-                    Some(BackendError::parse3_invalid_string_name(part_first_line + line_idx));
+                r.error = Some(BackendError::invalid_string_name(part_first_line + line_idx));
                 return r;
             };
             r.base_notes.push(string_name);
             let Ok((rem, _)) = super::char('|')(rem) else {
-                r.error =
-                    Some(BackendError::parse3_invalid_string_name(part_first_line + line_idx));
+                r.error = Some(BackendError::invalid_string_name(part_first_line + line_idx));
                 return r;
             };
             *line = rem;
@@ -147,9 +144,8 @@ pub fn parse(lines: &[String]) -> ParseResult {
                         if let Some(TabElementError::FretTooLarge) = err {
                             r.error = Some(BackendError::large_fret(line, char));
                         } else {
-                            let invalid_src = part[s].chars().next().unwrap_or('\0'); // TODO: do not use null byte here
-                            let err =
-                                BackendError::parse3_invalid_character(line, char, invalid_src);
+                            let invalid_src = part[s].chars().next();
+                            let err = BackendError::invalid_character(line, char, invalid_src);
                             r.error = Some(err);
                         }
                         return r;
@@ -176,7 +172,8 @@ pub fn parse(lines: &[String]) -> ParseResult {
                     if let TabElement::Rest = elem {
                         traceln!(depth = 2, "this is a rest so we try to parse the next element");
                         let len_before = part[s].len();
-                        let next = tab_element3(part[s]).unwrap();
+                        let next = tab_element3(part[s]).unwrap(); // TODO: the unwrap here is ICE,
+                                                                   // should error instead
                         if len_before - next.0.len() > 1 {
                             let (m_line, m_char) = source_location_from_stream(&r, elem_idx as u32);
                             // just for a nicer error, show another multi line too
@@ -186,14 +183,10 @@ pub fn parse(lines: &[String]) -> ParseResult {
                                 Some(BackendError::both_slots_multichar(m_line, m_char, other));
                             return r;
                         }
+                        traceln!(depth = 1, "replaced this Rest with {:?}", next.1);
                         let len = r.tick_stream.len(); // to make the borrow checker happy about borrowing &mut and &
                         r.tick_stream[len - (6 - s)] = next.1;
                         part[s] = next.0;
-                        traceln!(
-                            depth = 1,
-                            "replaced this Rest with {:?}",
-                            r.tick_stream[r.tick_stream.len() - (6 - s)]
-                        );
                     } else {
                         traceln!(depth = 2, "this is not a Rest, so we check the next element");
                         if part[s].starts_with("-") {
@@ -224,6 +217,7 @@ pub fn parse(lines: &[String]) -> ParseResult {
     r
 }
 
+/// A specialized, faster [source_location_from_stream]
 pub fn source_location_while_parsing(
     r: &ParseResult, part_first_line: u32, line_in_part: u32,
 ) -> (u32, u32) {

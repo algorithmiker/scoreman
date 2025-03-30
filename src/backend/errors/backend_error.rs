@@ -44,14 +44,14 @@ impl BackendError {
             kind: BackendErrorKind::FixupFailed,
         }
     }
-    pub fn parse3_invalid_string_name(line: usize) -> Self {
+    pub fn invalid_string_name(line: usize) -> Self {
         BackendError {
             main_location: ErrorLocation::LineOnly(line),
             relevant_lines: line..=line,
             kind: BackendErrorKind::InvalidStringName,
         }
     }
-    pub fn parse3_invalid_character(line: u32, char: u32, c: char) -> Self {
+    pub fn invalid_character(line: u32, char: u32, c: Option<char>) -> Self {
         BackendError {
             main_location: ErrorLocation::LineAndChar(line, char),
             kind: BackendErrorKind::Parse3InvalidCharacter(c),
