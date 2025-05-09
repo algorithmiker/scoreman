@@ -30,9 +30,8 @@
       packages.${system}.default = pkgs.rustPlatform.buildRustPackage {
         pname = "scoreman";
         version = "1.0.0";
-        cargoHash = "sha256-Aa92RjvcqoCCIOXoQ1TsIou/0FbLtNyb2OaaJRa90gM=";
+        cargoHash = "sha256-PeWB4zK2G8DiLxRZSLGJWoNh0PACandjYHhjy2zNG4E=";
         src = ./.;
-        doCheck=false;
       };
       devShells.${system}.default = pkgs.mkShell {
         shellHook = ''
