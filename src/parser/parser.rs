@@ -74,7 +74,7 @@ impl ParseResult {
     }
 }
 
-pub fn parse(lines: &[String]) -> ParseResult {
+pub fn parse<T: AsRef<str>>(lines: &[T]) -> ParseResult {
     let mut r = ParseResult::new();
     let mut part_first_line = 0;
     'outer: loop {
@@ -83,7 +83,8 @@ pub fn parse(lines: &[String]) -> ParseResult {
             if part_first_line + 5 >= lines.len() {
                 break 'outer;
             }
-            if line_is_valid(&lines[part_first_line]) && line_is_valid(&lines[part_first_line + 5])
+            if line_is_valid(&lines[part_first_line].as_ref())
+                && line_is_valid(&lines[part_first_line + 5].as_ref())
             {
                 break;
             }
@@ -93,7 +94,7 @@ pub fn parse(lines: &[String]) -> ParseResult {
         r.offsets.push((part_first_line as u32, r.tick_stream.len() as u32));
         let mut part: Vec<&str> = lines[part_first_line..=part_first_line + 5]
             .iter()
-            .map(|s| s.as_str().trim())
+            .map(|s| s.as_ref().trim())
             .collect(); // TODO: check if this is slow
 
         // The current tick in THIS PART
