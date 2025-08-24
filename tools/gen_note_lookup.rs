@@ -1,7 +1,8 @@
+use std::num::NonZeroU8;
 fn main() {
-    let mut lookup = [None; 256];
+    let mut lookup = vec![String::from("None"); 256];
     let mut set_lookup = |c: char, value: u8| {
-        lookup[c as usize] = Some(value);
+        lookup[c as usize] = format!("Some(NonZeroU8::new({value}).unwrap())");
     };
 
     set_lookup('E', 3 * 12 + 4);
@@ -11,9 +12,16 @@ fn main() {
     set_lookup('B', 4 * 12 + 1);
     set_lookup('d', 5 * 12 + 2);
     set_lookup('e', 5 * 12 + 4);
-
+    let mut b = String::from("[");
+    for x in &lookup {
+        b.push_str(&x.to_string());
+        b.push_str(", ");
+    }
+    b.pop();
+    b.pop();
+    b.push(']');
     println!(
-        "#[rustfmt::skip]\nconst STRING_BASE_NOTES: [Option<u8>;{}] ={lookup:?};",
+        "#[rustfmt::skip]\nconst STRING_BASE_NOTES: [Option<NonZeroU8>;{}] = {b};",
         lookup.len()
     );
 }

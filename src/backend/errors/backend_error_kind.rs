@@ -32,7 +32,7 @@ impl BackendErrorKind {
             BackendErrorKind::Parse3InvalidCharacter(c) => {
                 ("Invalid character".into(), match c {
                     Some(c) => format!("The character {c} is not valid here."),
-                    None => format!("This character is not valid here."),
+                    None => "This character is not valid here.".to_string(),
                 })
             }
             BackendErrorKind::FixupFailed => (

@@ -99,7 +99,10 @@ impl Muxml2TabElement {
                     }) else {
                         continue;
                     };
-                    let note = get_fretboard_note2(parsed.base_notes[elem_idx % 6], fret).unwrap();
+                    let string_name = parsed.base_notes[elem_idx % 6];
+                    let note = get_fretboard_note2(string_name, fret).unwrap_or_else(|| {
+                        panic!("Don't know base note for string name {string_name}",)
+                    });
                     let (step, octave, sharp) = note.step_octave_sharp();
                     let properties = note_properties.get(&(elem_idx as u32));
                     write_muxml2_note(buf, step, octave, sharp, need_chord, dead, properties)?;
