@@ -1,12 +1,13 @@
 use std::fmt::Write;
 use std::num::NonZeroU8;
 fn main() {
-    let mut lookup = vec![String::from("None"); 256];
+    let mut lookup = vec![String::from("None"); 128];
     let mut set_lookup = |c: char, value: u8| {
         lookup[c as usize] = format!("Some(NonZeroU8::new({value}).unwrap_unchecked())");
     };
     // octave * 12 + offset in the 12-scale
-    // (so octave 0, C = 0)
+    // (so octave 0, C = 0).
+    // Incidentally, this is also the encoding used by MIDI.
     set_lookup('E', 3 * 12 + 4);
     set_lookup('A', 3 * 12 + 9);
     set_lookup('D', 4 * 12 + 2);
