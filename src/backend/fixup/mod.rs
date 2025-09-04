@@ -1,6 +1,7 @@
 use std::time::{Duration, Instant};
 
 use clap::ValueEnum;
+use tracing::trace;
 
 use super::BackendResult;
 use crate::{
@@ -36,13 +37,13 @@ impl LocationTracker {
         Self { data: [const { ErrorLocation::NoLocation }; 5], push_cnt: 0 }
     }
     pub fn add(&mut self, l: ErrorLocation) {
-        traceln!("location_tracker:: before add: {:?}", self.data);
+        trace!(data=?self.data, "location_tracker:: before add");
         // shift left
         for i in 0..4 {
             self.data[i] = self.data[i + 1].clone();
         }
         self.data[4] = l;
-        traceln!("location_tracker:: after add: {:?}", self.data);
+        trace!(data=?self.data, "location_tracker:: after add");
         self.push_cnt += 1;
     }
     pub fn is_same(&self) -> bool {

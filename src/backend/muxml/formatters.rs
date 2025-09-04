@@ -1,6 +1,7 @@
 use crate::backend::muxml::{NoteProperties, Vibrato};
 use crate::debugln;
 use itoa::Buffer;
+use tracing::debug;
 // This file uses explicit .write_str() -s, instead of writing a format!()ted string, because I
 // benchmarked it and it was faster.
 // Maybe there is a nice solution to this - but I've yet to find anything as performant as this one.
@@ -59,7 +60,7 @@ pub fn write_muxml2_note(
     match properties {
         None => (),
         Some(NoteProperties { slurs, slide, vibrato }) => {
-            debugln!("slurs: {slurs:?}");
+            debug!(?slurs, "slurs");
             buf.write_str("<notations>\n")?;
             for slur in slurs {
                 buf.write_str(r#"<slur type=""#)?;

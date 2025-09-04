@@ -1,3 +1,5 @@
+use tracing::{debug, span, trace, Level};
+
 use super::{
     string_name,
     tab_element::{self, tab_element3, TabElement},
@@ -15,7 +17,7 @@ pub fn line_is_valid(line: &str) -> bool {
     let second_is_measure_sep = chars.next().map(|x| x == '|').unwrap_or(false);
     let last_is_measure_end = line.ends_with('|');
     let ret = first_is_alphanumeric && second_is_measure_sep && last_is_measure_end;
-    traceln!("line_is_valid({line}) -> {ret}");
+    trace!(line, verdict = ret, "line_is_valid");
     ret
 }
 
@@ -83,19 +85,17 @@ pub fn parse<T: AsRef<str>>(lines: &[T]) -> ParseResult {
             if part_first_line + 5 >= lines.len() {
                 break 'outer;
             }
-            if line_is_valid(&lines[part_first_line].as_ref())
-                && line_is_valid(&lines[part_first_line + 5].as_ref())
+            if line_is_valid(lines[part_first_line].as_ref())
+                && line_is_valid(lines[part_first_line + 5].as_ref())
             {
                 break;
             }
             part_first_line += 1
         }
-        traceln!("parse3: Found part {part_first_line}..={}", part_first_line + 5);
+        let range = part_first_line..=part_first_line + 5;
+        trace!(?range, "found part");
         r.offsets.push((part_first_line as u32, r.tick_stream.len() as u32));
-        let mut part: Vec<&str> = lines[part_first_line..=part_first_line + 5]
-            .iter()
-            .map(|s| s.as_ref().trim())
-            .collect(); // TODO: check if this is slow
+        let mut part: Vec<&str> = lines[range].iter().map(|s| s.as_ref().trim()).collect(); // TODO: check if this is slow
 
         // The current tick in THIS PART
         let mut tick = 0;
@@ -120,12 +120,13 @@ pub fn parse<T: AsRef<str>>(lines: &[T]) -> ParseResult {
 
         let mut tick_cnt_est = part[0].len();
         while tick < tick_cnt_est {
-            traceln!("parsing tick {tick}");
+            let s = span!(Level::TRACE, "parsing tick", tick);
+            let _s = s.enter();
             let (mut is_multichar, mut is_multi_on) = (false, [false; 6]);
             for s in 0..6 {
-                traceln!(depth = 1, "remaining on string {s}: {}", part[s]);
+                trace!(part = part[s], "remaining on string {s}:");
                 if s == 0 && part[s].starts_with("|") {
-                    traceln!(depth = 1, "encountered measure separator");
+                    trace!("encountered measure separator");
                     let measure_start =
                         r.measures.last().map(|x| x.data_range.end() + 1).unwrap_or(0);
                     r.measures.push(Measure::from(
@@ -133,7 +134,7 @@ pub fn parse<T: AsRef<str>>(lines: &[T]) -> ParseResult {
                     ));
                     part.iter_mut().for_each(|string| *string = &string[1..]); // TODO: maybe debugassert here that it is indeed a measure separator
                     tick_cnt_est -= 1;
-                    traceln!(depth = 1, "remaining on string {s}: after fixup:{}", part[s]);
+                    trace!(part = part[s], "remaining on string {s}: after fixup");
                 }
 
                 let len_before = part[s].len();
@@ -160,18 +161,22 @@ pub fn parse<T: AsRef<str>>(lines: &[T]) -> ParseResult {
                 r.tick_stream.push(te);
             }
             if is_multichar {
-                traceln!("tick {tick}/{tick_cnt_est} was marked as multichar, so we run fixup.");
+                trace!(tick, "marked as multichar, running fixup");
                 tick_cnt_est -= 1;
                 for s in 0..6 {
                     if is_multi_on[s] {
-                        traceln!(depth = 1, "multi on {s}, skipping");
+                        trace!("multi on {s}, skipping");
                         continue;
                     };
                     let elem_idx = r.tick_stream.len() - (6 - s);
                     let elem = &r.tick_stream[elem_idx];
-                    traceln!(depth = 1, "on string {s} we have {:?}", elem);
+                    trace!(string = s, ?elem);
                     if let TabElement::Rest = elem {
-                        traceln!(depth = 2, "this is a rest so we try to parse the next element");
+                        let _s2 = span!(
+                            Level::TRACE,
+                            "this is a rest so we try to parse the next element"
+                        );
+                        let _s2 = _s2.enter();
                         let len_before = part[s].len();
                         let next = tab_element3(part[s]).unwrap(); // TODO: the unwrap here is ICE,
                                                                    // should error instead
@@ -184,14 +189,14 @@ pub fn parse<T: AsRef<str>>(lines: &[T]) -> ParseResult {
                                 Some(BackendError::both_slots_multichar(m_line, m_char, other));
                             return r;
                         }
-                        traceln!(depth = 1, "replaced this Rest with {:?}", next.1);
+                        trace!(replacement = ?next.1, "replaced a rest");
                         let len = r.tick_stream.len(); // to make the borrow checker happy about borrowing &mut and &
                         r.tick_stream[len - (6 - s)] = next.1;
                         part[s] = next.0;
                     } else {
-                        traceln!(depth = 2, "this is not a Rest, so we check the next element");
+                        trace!("this is not a Rest, so we check the next element");
                         if part[s].starts_with("-") {
-                            traceln!(depth = 2, "next element is Rest so we skip it");
+                            trace!("next element is Rest so we skip it");
                             part[s] = &part[s][1..];
                         } else {
                             let (line, char) = source_location_from_stream(&r, elem_idx as u32);
@@ -201,8 +206,8 @@ pub fn parse<T: AsRef<str>>(lines: &[T]) -> ParseResult {
                     }
                 }
             }
-            traceln!(depth = 1, "data state after parsing tick {tick}\n{}", r.dump_tracks());
-            traceln!(depth = 1, "source state after parsing tick:\n{}", dump_source(&part));
+            trace!(tick, data = r.dump_tracks(), "data after parsing tick");
+            trace!(source = dump_source(&part), "source state after parsing tick");
             tick += 1;
         }
 
@@ -211,7 +216,7 @@ pub fn parse<T: AsRef<str>>(lines: &[T]) -> ParseResult {
             data_range: measure_start..=r.tick_stream.len().wrapping_sub(1) as u32,
         });
         // finished parsing part
-        traceln!("Finished part\n{}", r.dump_tracks());
+        trace!(part = r.dump_tracks(), "Finished part");
 
         part_first_line += 6;
     }
@@ -223,7 +228,7 @@ pub fn source_location_while_parsing(
     r: &ParseResult, part_first_line: u32, line_in_part: u32,
 ) -> (u32, u32) {
     let actual_line = part_first_line + line_in_part;
-    traceln!("expecting the error to be on line {actual_line}");
+    trace!("expecting the error to be on line {actual_line}");
     let error_tick = r.tick_stream.len() / 6;
     // we aren't accounting for measures here, so sum of all the measure lines too
     let part_start = r.offsets.last().map(|x| x.1).unwrap_or(0);
@@ -234,7 +239,7 @@ pub fn source_location_while_parsing(
         }
         measure_lines += 1;
     }
-    traceln!("need to account for {measure_lines} measure lines");
+    trace!("need to account for {measure_lines} measure lines");
     let mut offset_on_line = 1 + measure_lines; // e|
     let start = (part_start / 6) as usize;
     for tick in start..error_tick {
@@ -242,14 +247,14 @@ pub fn source_location_while_parsing(
         // -1-2-3-
         // -11b12- <- this would think that if there is an error on the first string, the extents before are just rest-1-2-3-rest, and report an incorrect location
         let remainder = &r.tick_stream[tick * 6..];
-        //traceln!(depth = 1, "remainder: {remainder:?}");
+        //trace!(?remainder);
         let tick_width = remainder.iter().take(6).map(|x| x.repr_len()).max();
         let tick_width = tick_width.unwrap_or(0);
-        traceln!(depth = 1, "adding offset ({tick_width}) for tick {tick}");
+        trace!(offset = tick_width, tick, "adding offset for tick");
         offset_on_line += tick_width;
     }
     offset_on_line += 1; // because the location refers to the offset of the tick that was not parsed
-    traceln!("expecting the error to be at character idx {offset_on_line}");
+    trace!("expecting the error to be at character idx {offset_on_line}");
     (actual_line, offset_on_line)
 }
 
@@ -258,13 +263,13 @@ pub fn source_location_from_stream(r: &ParseResult, tick_location: u32) -> (u32,
         .offsets
         .binary_search_by_key(&tick_location, |x| x.1)
         .unwrap_or_else(|x| x.saturating_sub(1));
-    traceln!("source_location_from_stream: expected to be in section {section}");
+    trace!("source_location_from_stream: expected to be in section {section}");
     let part_start = r.offsets[section].1;
     let idx_in_part = tick_location - part_start;
-    traceln!("this is the {idx_in_part}th element in the part");
+    trace!("this is the {idx_in_part}th element in the part");
     let line_in_part = idx_in_part % 6;
     let actual_line = r.offsets[section].0 + line_in_part;
-    traceln!("expecting the error to be on line {actual_line}");
+    trace!("expecting the error to be on line {actual_line}");
 
     let error_tick = (tick_location / 6) as usize;
     // we aren't accounting for measures here, so sum of all the measure lines to
@@ -273,19 +278,19 @@ pub fn source_location_from_stream(r: &ParseResult, tick_location: u32) -> (u32,
         .measures
         .binary_search_by_key(&tick_location, |x| x.data_range.end() + 1)
         .unwrap_or_else(|x| x);
-    debugln!("last measure we need to check: {last_measure} for needle {tick_location}");
+    debug!("last measure we need to check: {last_measure} for needle {tick_location}");
     let mut measure_lines = 0;
-    traceln!("{:?}", r.measures);
-    traceln!("part start: {part_start}");
+    trace!("{:?}", r.measures);
+    trace!("part start: {part_start}");
     for (m_idx, measure) in r.measures[0..last_measure].iter().enumerate().rev() {
         if measure.data_range.start() < &part_start {
-            traceln!("breaking at measure {m_idx}");
+            trace!("breaking at measure {m_idx}");
             break;
         }
         measure_lines += 1;
     }
     measure_lines += 1; // for last measure; which we cannot index with 0..=last_measure if we have only 1.
-    traceln!("need to account for {measure_lines} measure lines");
+    trace!("need to account for {measure_lines} measure lines");
     let mut offset_on_line = 1 + measure_lines; // e|
     let start = (part_start / 6) as usize;
     for tick in start..error_tick {
@@ -296,10 +301,10 @@ pub fn source_location_from_stream(r: &ParseResult, tick_location: u32) -> (u32,
         //traceln!(depth = 1, "remainder: {remainder:?}");
         let tick_width = remainder.iter().take(6).map(|x| x.repr_len()).max();
         let tick_width = tick_width.unwrap_or(0);
-        traceln!(depth = 1, "adding offset ({tick_width}) for tick {tick}");
+        trace!(offset = tick_width, tick, "adding offset for tick");
         offset_on_line += tick_width;
     }
-    traceln!("expecting the error to be at character idx {offset_on_line}");
+    trace!("expecting the error to be at character idx {offset_on_line}");
     (actual_line, offset_on_line)
 }
 

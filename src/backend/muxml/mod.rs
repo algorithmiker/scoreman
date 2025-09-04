@@ -19,6 +19,7 @@ use fretboard::get_fretboard_note2;
 use rustc_hash::FxBuildHasher;
 use std::collections::HashMap;
 use std::time::Duration;
+use tracing::{debug, span, trace, Level};
 
 pub struct MuxmlBackend();
 impl Backend for MuxmlBackend {
@@ -134,7 +135,7 @@ impl MuxmlGenerator {
         let cap = Self::estimate_capacity(&parsed);
         let mut document = String::from(MUXML_INCOMPLETE_DOC_PRELUDE);
         document.reserve(cap);
-        debugln!("muxml2: reserved {}", cap);
+        debug!("muxml2: reserved {}", cap);
 
         Self {
             parsed,
@@ -158,7 +159,7 @@ impl MuxmlGenerator {
         }
 
         self.document += MUXML2_DOCUMENT_END;
-        debugln!("muxml2: document capacity on finish: {}", document.capacity());
+        debug!(cap = self.document.capacity(), "document capacity on finish",);
         (Some(self.document), self.r)
     }
 
@@ -191,13 +192,13 @@ impl MuxmlGenerator {
     pub fn process_bend_like(&mut self, stream_idx: usize) -> Result<(), BackendError> {
         // TODO: eventually mark hammerOns and pulls
         let last_idx = stream_idx.saturating_sub(6);
-        traceln!("muxml2: have bend at tick {stream_idx}. last element on this string is (@{last_idx}): {:?}", parsed.tick_stream[last_idx]);
+        trace!(stream_idx, "muxml2: have bend at tick {stream_idx}. last element on this string is (@{last_idx}): {:?}", self.parsed.tick_stream[last_idx]);
         self.start_slur(last_idx as u32);
         let next_idx = stream_idx + 6;
 
         match &self.parsed.tick_stream.get(next_idx) {
             None => {
-                traceln!("hanging bend on {stream_idx} at stream end");
+                trace!(stream_idx, "hanging bend on at stream end");
                 let TabElement::Fret(x) = self.parsed.tick_stream[last_idx] else {
                     let (line, char) = source_location_from_stream(&self.parsed, stream_idx as u32);
                     return Err(BackendError::bend_on_invalid(line, char));
@@ -215,31 +216,31 @@ impl MuxmlGenerator {
                     return Err(BackendError::bend_on_invalid(line, char));
                 };
                 self.parsed.tick_stream[next_idx] = TabElement::Fret(x + 1);
-                traceln!("hanging bend on {stream_idx}, replacing {next_idx} with a Fret");
+                trace!("hanging bend on {stream_idx}, replacing {next_idx} with a Fret");
                 self.stop_slur(next_idx as u32);
             }
             _ => self.stop_slur(next_idx as u32),
         }
 
-        traceln!("added bend with start idx {last_idx} and end idx {next_idx}");
+        trace!(start_idx = last_idx, end_idx = next_idx, "added bend");
         Ok(())
     }
     pub fn process_measure(&mut self, measure_idx: usize) -> Result<(), BackendError> {
-        traceln!("Muxml2: processing measure {}", measure_idx);
+        let meas = span!(Level::TRACE, "Muxml2: processing measure {}", measure_idx);
+        let _meas = meas.enter();
         let ticks_in_measure = rlen(&self.parsed.measures[measure_idx].data_range) / 6;
         debug_assert!(rlen(&self.parsed.measures[measure_idx].data_range) % 6 == 0);
         // Length of actual content in measure. `remove_space_between_notes` will reduce this for
         // example
         let mut measure_content_len = ticks_in_measure;
         self.measure_buf.clear();
-        debugln!("initial measure_content_len = {measure_content_len}");
+        debug!("initial measure_content_len = {measure_content_len}");
         let mut stream_idx: usize = *self.parsed.measures[measure_idx].data_range.start() as usize;
         let mut note_count = 0;
         let mut stream_proc_cnt = 0;
         while stream_idx <= *self.parsed.measures[measure_idx].data_range.end() as usize {
             let elem = &self.parsed.tick_stream[stream_idx];
-            //traceln!(
-            //    depth = 2,
+            //trace!(
             //    "current elem: {elem:?}, note_count: {note_count}, proc_cnt = {stream_proc_cnt}"
             //);
             match elem {
@@ -259,20 +260,16 @@ impl MuxmlGenerator {
                 | TabElement::Release => self.process_bend_like(stream_idx)?,
                 TabElement::Slide => {
                     let last_idx = stream_idx.saturating_sub(6);
-                    traceln!(
-                        depth = 1,
-                        "muxml2: have Slide. last element on this string is: {:?}",
-                        parsed.tick_stream[last_idx]
+                    trace!(
+                        "have Slide. last element on this string is: {:?}",
+                        self.parsed.tick_stream[last_idx]
                     );
                     self.start_slide(last_idx as u32);
                     let next_idx = stream_idx + 6;
                     if next_idx < self.parsed.tick_stream.len() {
                         self.stop_slide(next_idx as u32);
                     }
-                    traceln!(
-                        depth = 1,
-                        "added slide with start idx {stream_idx} and end idx {next_idx}"
-                    )
+                    trace!(start_idx = stream_idx, end_idx = next_idx, "added slide")
                 }
             }
             stream_idx += 1;
@@ -283,7 +280,7 @@ impl MuxmlGenerator {
                 } else {
                     self.measure_buf.push(Muxml2TabElement::Rest(1));
                 }
-                traceln!(depth = 1, "Parsed a tick, a {:?} ", self.measure_buf.last().unwrap());
+                trace!(kind = ?self.measure_buf.last().unwrap(), "Parsed a tick");
                 note_count = 0;
                 stream_proc_cnt = 0;
             } else {
@@ -326,14 +323,14 @@ impl MuxmlGenerator {
             Muxml2TabElement::CopyTick(tick_idx) => {
                 let idu = *tick_idx as usize;
                 let note_range = idu..=(idu + 5);
-                let notes_iter = self.parsed.tick_stream[note_range]
+                let notes_iter = self.parsed.tick_stream[note_range.clone()]
                     .iter()
                     .enumerate()
                     .filter(|x| !matches!(x.1, TabElement::Rest))
                     .map(|(x, y)| (x + idu, y));
                 // at least two notes here
                 let tick_chord = notes_iter.clone().take(2).count() == 2;
-                traceln!("for CopyTick({tick_idx}): range {note_range:?}, chord={tick_chord}");
+                trace!(?note_range, chord = tick_chord, "for CopyTick({tick_idx})");
                 // TODO: use dynamic base notes - we parse it but we don't use it
                 for (elem_idx, elem) in notes_iter {
                     let Some((dead, fret)) = (match elem {

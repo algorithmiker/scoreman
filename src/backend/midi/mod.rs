@@ -4,6 +4,7 @@ use midly::{
     num::{u28, u7},
     Format, Header, MetaMessage, MidiMessage, Smf, TrackEvent, TrackEventKind,
 };
+use tracing::trace;
 
 use super::{Backend, BackendResult};
 use crate::parser::parser::{parse, ParseResult};
@@ -37,7 +38,7 @@ impl Backend for MidiBackend {
         let gen_start = Instant::now();
         let mut midi_tracks = convert_to_midi(&parse_result);
         //diagnostics.extend(parse_result.diagnostics);
-        debugln!("Length of quarter: {LENGTH_OF_QUARTER}");
+        trace!(LENGTH_OF_QUARTER, "Length of quarter");
         let mut tracks = vec![vec![
             TrackEvent {
                 delta: 0.into(),
