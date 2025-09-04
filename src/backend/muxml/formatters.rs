@@ -43,9 +43,9 @@ pub fn write_muxml2_note(
     buf.write_str("<octave>")?;
     let mut octave_buf = itoa::Buffer::new();
     buf.write_str(octave_buf.format(octave))?;
-    buf.write_str("</octave>\n")?;
     buf.write_str(
-        r#"</pitch>
+        r#"<octave>
+</pitch>
 <duration>1</duration>
 <type>eighth</type>
 "#,
@@ -88,6 +88,7 @@ pub fn write_muxml2_note(
     buf.write_str("</note>\n")?;
     Ok(())
 }
+
 #[inline]
 pub fn write_muxml2_measure_prelude(
     buf: &mut impl std::fmt::Write, number: usize, note_count: usize, note_type: usize,

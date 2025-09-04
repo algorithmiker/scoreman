@@ -134,7 +134,7 @@ impl Backend for FixupBackend {
                             ))
                         }
                         BackendErrorKind::FixupFailed => unreachable!(),
-                        BackendErrorKind::Parse3InvalidCharacter(x) => {
+                        BackendErrorKind::Parse3InvalidCharacter(_) => {
                             let Some((line_idx, char_idx)) = err
                                 .main_location
                                 .get_line_idx()
