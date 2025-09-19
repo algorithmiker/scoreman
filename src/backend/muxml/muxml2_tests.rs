@@ -3,7 +3,6 @@ use crate::backend::{
     muxml::{settings::Settings, MuxmlBackend},
     Backend,
 };
-use crate::parser::parser::{parse, source_location_from_stream};
 use itertools::Itertools;
 
 #[test]

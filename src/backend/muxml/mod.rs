@@ -4,9 +4,9 @@ pub mod fretboard;
 mod muxml2_tests;
 pub mod settings;
 use crate::backend::errors::backend_error::BackendError;
-use crate::parser::parser;
-use crate::parser::parser::{source_location_from_stream, ParseResult};
+use crate::parser;
 use crate::parser::tab_element::TabElement;
+use crate::parser::{source_location_from_stream, ParseResult};
 use crate::{
     backend::{Backend, BackendResult},
     rlen, time,

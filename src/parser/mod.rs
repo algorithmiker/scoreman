@@ -1,4 +1,5 @@
-pub mod parser;
+mod parser;
+pub use parser::*;
 #[cfg(test)]
 mod parser_tests;
 pub(crate) mod tab_element;

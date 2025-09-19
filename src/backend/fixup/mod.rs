@@ -1,4 +1,4 @@
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use clap::ValueEnum;
 use tracing::trace;
@@ -12,7 +12,7 @@ use crate::{
         },
         Backend,
     },
-    parser::parser::parse,
+    parser::parse,
     time,
 };
 
@@ -71,7 +71,7 @@ impl Backend for FixupBackend {
         let mut diagnostics = vec![];
         // TODO: figure out a way not to clone these
         let mut parser_input = parser_input.to_owned();
-        let mut parse_time = Duration::from_secs(0);
+        let mut parse_time;
         let fixup_start = Instant::now();
         let mut location_tracker = LocationTracker::new();
         loop {

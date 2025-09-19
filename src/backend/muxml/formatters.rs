@@ -44,7 +44,7 @@ pub fn write_muxml2_note(
     let mut octave_buf = itoa::Buffer::new();
     buf.write_str(octave_buf.format(octave))?;
     buf.write_str(
-        r#"<octave>
+        r#"</octave>
 </pitch>
 <duration>1</duration>
 <type>eighth</type>

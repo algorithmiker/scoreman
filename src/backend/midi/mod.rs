@@ -7,9 +7,11 @@ use midly::{
 use tracing::trace;
 
 use super::{Backend, BackendResult};
-use crate::parser::parser::{parse, ParseResult};
-use crate::parser::tab_element::TabElement;
-use crate::parser::tab_element::TabElement::Fret;
+use crate::parser::{
+    parse,
+    tab_element::TabElement::{self, Fret},
+    ParseResult,
+};
 use crate::time;
 
 const BPM: u32 = 80;
