@@ -2,10 +2,12 @@ use std::{
     fmt::Write,
     fs::{File, OpenOptions},
     io::{BufRead, BufReader, BufWriter, Read, StdoutLock},
+    sync::Arc,
 };
 
 use anyhow::{Context, Ok};
 use clap::Parser;
+use entrace_core::remote::IETStorage;
 use scoreman::{
     backend::errors::{
         backend_error::BackendError, diagnostic::Diagnostic, error_location::ErrorLocation,
@@ -63,7 +65,28 @@ impl std::io::Write for OutputType {
     }
 }
 
+/// tracing via entrace. don't forget to disable the tracing feature flags too!
+#[allow(unreachable_code)]
+fn setup_tracing() -> Option<Arc<IETStorage<BufWriter<File>>>> {
+    return None;
+
+    use entrace_core::{remote::IETStorage, remote::IETStorageConfig, TreeLayer};
+    use std::{fs::OpenOptions, sync::Arc};
+    use tracing::level_filters::LevelFilter;
+    use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
+
+    let file =
+        OpenOptions::new().write(true).create(true).truncate(true).open("scoreman.iet").unwrap();
+    let storage =
+        Arc::new(IETStorage::init(IETStorageConfig::non_length_prefixed(BufWriter::new(file))));
+    let tree_layer = TreeLayer::from_storage(storage.clone());
+
+    Registry::default().with(LevelFilter::TRACE).with(tree_layer).init();
+    Some(storage)
+}
+
 fn main() -> anyhow::Result<()> {
+    let trace_storage = setup_tracing();
     let cli = Cli::parse();
     let input_path = cli.command.input_path();
     let lines: Vec<String> = get_lines(input_path)?;
@@ -103,6 +126,9 @@ fn main() -> anyhow::Result<()> {
             }
         }
     }
+    if let Some(s) = trace_storage {
+        s.finish().unwrap();
+    }
     if result.err.is_some() {
         std::process::exit(1)
     }
@@ -131,8 +157,7 @@ pub fn handle_error(
     let max_digit_cnt = digit_cnt_usize(*extended_range.end());
     for line_idx in extended_range {
         let zero_pad_cnt = max_digit_cnt.saturating_sub(digit_cnt_usize(line_idx + 1)) as usize;
-        let mut line_num = String::new();
-        line_num += &*" ".repeat(zero_pad_cnt);
+        let mut line_num = " ".repeat(zero_pad_cnt);
         write!(&mut line_num, "{}", line_idx + 1)?;
 
         let line_num = if relevant_lines.contains(&line_idx) {

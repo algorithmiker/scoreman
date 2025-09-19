@@ -20,42 +20,6 @@ use std::{
 
 pub mod backend;
 pub mod parser;
-#[macro_export]
-macro_rules! traceln {
-    (depth=$depth:literal, $($t:expr),*) => {
-        #[cfg(feature="sm_trace")]
-        {
-            use yansi::Paint;
-            let padding=" ".repeat($depth);
-            println!("{padding}{} {}", "[T]:".blue().bold(), format_args!($($t),*));
-        }
-    };
-    ($($t:expr),*) => {
-        #[cfg(feature="sm_trace")]
-        {
-            use yansi::Paint;
-            println!("{} {}", "[T]:".blue().bold(), format_args!($($t),*));
-        }
-    };
-}
-#[macro_export]
-macro_rules! debugln {
-    (depth=$depth:literal, $($t:expr),*) => {
-        #[cfg(feature="sm_debug")]
-        {
-            use yansi::Paint;
-            let padding=" ".repeat($depth);
-            println!("{padding}{} {}", "[D]:".green().bold(), format_args!($($t),*));
-        }
-    };
-    ($($t:expr),*) => {
-        #[cfg(feature="sm_debug")]
-        {
-            use yansi::Paint;
-            println!("{} {}", "[D]:".green().bold(), format_args!($($t),*));
-        }
-    };
-}
 
 pub fn rlen<T: std::ops::Sub<Output = T> + Copy + std::ops::Add<u32, Output = T>>(
     r: &RangeInclusive<T>,

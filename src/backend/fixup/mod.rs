@@ -13,7 +13,7 @@ use crate::{
         Backend,
     },
     parser::parser::parse,
-    time, traceln,
+    time,
 };
 
 pub struct FixupBackend();

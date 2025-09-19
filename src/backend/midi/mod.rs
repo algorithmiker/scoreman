@@ -10,7 +10,7 @@ use super::{Backend, BackendResult};
 use crate::parser::parser::{parse, ParseResult};
 use crate::parser::tab_element::TabElement;
 use crate::parser::tab_element::TabElement::Fret;
-use crate::{debugln, time};
+use crate::time;
 
 const BPM: u32 = 80;
 const MINUTE_IN_MS: u32 = 60 * 1000;

@@ -9,7 +9,7 @@ use crate::parser::parser::{source_location_from_stream, ParseResult};
 use crate::parser::tab_element::TabElement;
 use crate::{
     backend::{Backend, BackendResult},
-    debugln, rlen, time, traceln,
+    rlen, time,
 };
 use formatters::{
     write_muxml2_measure_prelude, write_muxml2_note, write_muxml2_rest, MUXML2_DOCUMENT_END,
@@ -135,7 +135,7 @@ impl MuxmlGenerator {
         let cap = Self::estimate_capacity(&parsed);
         let mut document = String::from(MUXML_INCOMPLETE_DOC_PRELUDE);
         document.reserve(cap);
-        debug!("muxml2: reserved {}", cap);
+        debug!(capacity = cap, "reserved capacity");
 
         Self {
             parsed,
@@ -226,7 +226,7 @@ impl MuxmlGenerator {
         Ok(())
     }
     pub fn process_measure(&mut self, measure_idx: usize) -> Result<(), BackendError> {
-        let meas = span!(Level::TRACE, "Muxml2: processing measure {}", measure_idx);
+        let meas = span!(Level::TRACE, "Muxml2: processing measure", measure_idx);
         let _meas = meas.enter();
         let ticks_in_measure = rlen(&self.parsed.measures[measure_idx].data_range) / 6;
         debug_assert!(rlen(&self.parsed.measures[measure_idx].data_range) % 6 == 0);

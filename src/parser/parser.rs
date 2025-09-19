@@ -4,10 +4,7 @@ use super::{
     string_name,
     tab_element::{self, tab_element3, TabElement},
 };
-use crate::{
-    backend::errors::backend_error::BackendError, debugln, parser::tab_element::TabElementError,
-    traceln,
-};
+use crate::{backend::errors::backend_error::BackendError, parser::tab_element::TabElementError};
 use std::ops::RangeInclusive;
 
 pub fn line_is_valid(line: &str) -> bool {
@@ -93,7 +90,8 @@ pub fn parse<T: AsRef<str>>(lines: &[T]) -> ParseResult {
             part_first_line += 1
         }
         let range = part_first_line..=part_first_line + 5;
-        trace!(?range, "found part");
+        let _part = span!(Level::DEBUG, "parsing part", ?range);
+        let _part = _part.enter();
         r.offsets.push((part_first_line as u32, r.tick_stream.len() as u32));
         let mut part: Vec<&str> = lines[range].iter().map(|s| s.as_ref().trim()).collect(); // TODO: check if this is slow
 
@@ -161,7 +159,8 @@ pub fn parse<T: AsRef<str>>(lines: &[T]) -> ParseResult {
                 r.tick_stream.push(te);
             }
             if is_multichar {
-                trace!(tick, "marked as multichar, running fixup");
+                let _ms = span!(Level::DEBUG, "marked as multichar, running fixup", tick);
+                let _ms = _ms.enter();
                 tick_cnt_est -= 1;
                 for s in 0..6 {
                     if is_multi_on[s] {
@@ -170,7 +169,8 @@ pub fn parse<T: AsRef<str>>(lines: &[T]) -> ParseResult {
                     };
                     let elem_idx = r.tick_stream.len() - (6 - s);
                     let elem = &r.tick_stream[elem_idx];
-                    trace!(string = s, ?elem);
+                    let _s = span!(Level::DEBUG, "fixing up string", string = s, ?elem);
+                    let _s = _s.enter();
                     if let TabElement::Rest = elem {
                         let _s2 = span!(
                             Level::TRACE,
@@ -194,7 +194,9 @@ pub fn parse<T: AsRef<str>>(lines: &[T]) -> ParseResult {
                         r.tick_stream[len - (6 - s)] = next.1;
                         part[s] = next.0;
                     } else {
-                        trace!("this is not a Rest, so we check the next element");
+                        let _q =
+                            span!(Level::TRACE, "this is not a Rest, so we check the next element");
+                        let _q = _q.enter();
                         if part[s].starts_with("-") {
                             trace!("next element is Rest so we skip it");
                             part[s] = &part[s][1..];
@@ -310,7 +312,7 @@ pub fn source_location_from_stream(r: &ParseResult, tick_location: u32) -> (u32,
 
 pub fn dump_source(input: &Vec<&str>) -> String {
     use itertools::Itertools;
-    input.iter().join("\n")
+    std::iter::once(&"").chain(input.iter()).join("\n")
 }
 
 #[test]
