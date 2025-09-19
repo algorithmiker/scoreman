@@ -1,10 +1,10 @@
 use std::{
     fmt::Write,
     fs::{File, OpenOptions},
-    io::{BufRead, BufReader, StdoutLock},
+    io::{BufRead, BufReader, BufWriter, Read, StdoutLock},
 };
 
-use anyhow::Context;
+use anyhow::{Context, Ok};
 use clap::Parser;
 use scoreman::{
     backend::errors::{
@@ -23,17 +23,23 @@ use crate::cli_args::Cli;
 // this
 //
 // Not very high priority, because it is not that slow.
-fn get_lines(input_path: &str) -> anyhow::Result<Vec<String>> {
-    if input_path == "-" {
+fn get_lines(path: &str) -> anyhow::Result<Vec<String>> {
+    if path == "-" {
         let mut f = std::io::stdin();
-        let lines: Vec<String> = BufReader::new(&mut f).lines().map(|x| x.unwrap()).collect();
+        let lines = BufReader::new(&mut f).lines().map(|x| x.unwrap()).collect();
+        return Ok(lines);
+    }
+
+    let mut file = File::open(path).with_context(|| format!("Failed to open file {path}"))?;
+    let size = file.metadata().map(|m| m.len()).unwrap_or(0);
+    if size > 1024 * 1024 * 500 {
+        let lines = BufReader::new(&mut file).lines().map(|x| x.unwrap()).collect();
         Ok(lines)
     } else {
-        let f =
-            File::open(input_path).with_context(|| format!("Failed to open file {input_path}"))?;
-
-        let lines: Vec<String> = BufReader::new(&f).lines().map(|x| x.unwrap()).collect();
-        Ok(lines)
+        let mut string = String::new();
+        string.reserve_exact(size as usize);
+        file.read_to_string(&mut string)?;
+        Ok(string.lines().map(|x| x.to_string()).collect())
     }
 }
 
