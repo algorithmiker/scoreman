@@ -7,12 +7,15 @@ use midly::{
 use tracing::trace;
 
 use super::{Backend, BackendResult};
-use crate::parser::{
-    parse,
-    tab_element::TabElement::{self, Fret},
-    ParseResult,
-};
 use crate::time;
+use crate::{
+    parser::{
+        parse,
+        tab_element::TabElement::{self, Fret},
+        ParseResult,
+    },
+    BufLines,
+};
 
 const BPM: u32 = 80;
 const MINUTE_IN_MS: u32 = 60 * 1000;
@@ -25,7 +28,7 @@ impl Backend for MidiBackend {
     type BackendSettings = ();
 
     fn process<Out: std::io::Write>(
-        input: &[String], out: &mut Out, _settings: Self::BackendSettings,
+        input: &BufLines, out: &mut Out, _settings: Self::BackendSettings,
     ) -> BackendResult {
         let diagnostics = vec![];
         let (parse_time, parse_result) = time(|| parse(input));
@@ -58,15 +61,11 @@ impl Backend for MidiBackend {
             tracks,
         };
         let gen_time = gen_start.elapsed();
+        let mut last_err = None;
         if let Err(x) = smf.write_std(out) {
-            return BackendResult::new(
-                diagnostics,
-                Some(x.into()),
-                Some(parse_time),
-                Some(gen_time),
-            );
-        }
-        BackendResult::new(diagnostics, None, Some(parse_time), Some(gen_time))
+            last_err = Some(x.into());
+        };
+        BackendResult::new(diagnostics, last_err, Some(parse_time), Some(gen_time))
     }
 }
 

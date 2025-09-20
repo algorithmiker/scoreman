@@ -4,7 +4,9 @@ use super::{
     string_name,
     tab_element::{self, tab_element3, TabElement},
 };
-use crate::{backend::errors::backend_error::BackendError, parser::tab_element::TabElementError};
+use crate::{
+    backend::errors::backend_error::BackendError, parser::tab_element::TabElementError, ParseLines,
+};
 use std::ops::RangeInclusive;
 
 pub fn line_is_valid(line: &str) -> bool {
@@ -72,18 +74,17 @@ impl ParseResult {
         bufs.concat()
     }
 }
-
-pub fn parse<T: AsRef<str>>(lines: &[T]) -> ParseResult {
+pub fn parse<L: ParseLines>(lines: &L) -> ParseResult {
     let mut r = ParseResult::new();
     let mut part_first_line = 0;
     'outer: loop {
         // find a part
         loop {
-            if part_first_line + 5 >= lines.len() {
+            if part_first_line + 5 >= lines.line_count() {
                 break 'outer;
             }
-            if line_is_valid(lines[part_first_line].as_ref())
-                && line_is_valid(lines[part_first_line + 5].as_ref())
+            if line_is_valid(lines.get_line(part_first_line))
+                && line_is_valid(lines.get_line(part_first_line + 5))
             {
                 break;
             }
@@ -93,7 +94,7 @@ pub fn parse<T: AsRef<str>>(lines: &[T]) -> ParseResult {
         let _part = span!(Level::DEBUG, "parsing part", ?range);
         let _part = _part.enter();
         r.offsets.push((part_first_line as u32, r.tick_stream.len() as u32));
-        let mut part: Vec<&str> = lines[range].iter().map(|s| s.as_ref().trim()).collect(); // TODO: check if this is slow
+        let mut part: Vec<&str> = range.map(|s| lines.get_line(s).trim()).collect(); // TODO: check if this is slow
 
         // The current tick in THIS PART
         let mut tick = 0;
@@ -335,9 +336,8 @@ D|-------|-------|
 A|-------|-------|
 E|-----9-|-----9-|
 "#;
-    let lines = &example_score.lines().map(|x| x.to_string()).collect::<Vec<String>>();
     let time_parser3 = Instant::now();
-    let parse3_result = parse(lines);
+    let parse3_result = parse(&crate::BufLines::from_string(example_score.into()));
     println!("Parser3 took: {:?}", time_parser3.elapsed());
     insta::assert_snapshot!(parse3_result.dump_tracks());
     insta::assert_debug_snapshot!(parse3_result);

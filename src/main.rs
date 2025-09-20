@@ -1,7 +1,7 @@
 use std::{
     fmt::Write,
     fs::{File, OpenOptions},
-    io::{BufRead, BufReader, BufWriter, Read, StdoutLock},
+    io::{BufWriter, Read, StdoutLock},
     sync::Arc,
 };
 
@@ -13,36 +13,24 @@ use scoreman::{
         backend_error::BackendError, diagnostic::Diagnostic, error_location::ErrorLocation,
         extend_error_range,
     },
-    digit_cnt_usize,
+    digit_cnt_usize, BufLines, ParseLines,
 };
 use yansi::{Paint, Painted};
-
 mod cli_args;
 use crate::cli_args::Cli;
 
-// TODO: error reporting without slurping up the whole file
-// The parser already works on a streaming basis, it's only the printing of errors which requires
-// this
-//
-// Not very high priority, because it is not that slow.
-fn get_lines(path: &str) -> anyhow::Result<Vec<String>> {
+fn get_file(path: &str) -> anyhow::Result<BufLines> {
+    let mut buf = String::new();
     if path == "-" {
         let mut f = std::io::stdin();
-        let lines = BufReader::new(&mut f).lines().map(|x| x.unwrap()).collect();
-        return Ok(lines);
-    }
-
-    let mut file = File::open(path).with_context(|| format!("Failed to open file {path}"))?;
-    let size = file.metadata().map(|m| m.len()).unwrap_or(0);
-    if size > 1024 * 1024 * 500 {
-        let lines = BufReader::new(&mut file).lines().map(|x| x.unwrap()).collect();
-        Ok(lines)
+        f.read_to_string(&mut buf)?;
     } else {
-        let mut string = String::new();
-        string.reserve_exact(size as usize);
-        file.read_to_string(&mut string)?;
-        Ok(string.lines().map(|x| x.to_string()).collect())
+        let mut file = File::open(path).with_context(|| format!("Failed to open file {path}"))?;
+        let size = file.metadata().map(|m| m.len()).unwrap_or(0);
+        buf.reserve_exact(size as usize);
+        file.read_to_string(&mut buf)?;
     }
+    Ok(BufLines::from_string(buf))
 }
 
 enum OutputType {
@@ -89,7 +77,7 @@ fn main() -> anyhow::Result<()> {
     let trace_storage = setup_tracing();
     let cli = Cli::parse();
     let input_path = cli.command.input_path();
-    let lines: Vec<String> = get_lines(input_path)?;
+    let file_buf = get_file(input_path)?;
 
     let mut output_fd = if cli.command.output_path() == "-" {
         OutputType::Stdout(std::io::stdout().lock())
@@ -105,13 +93,14 @@ fn main() -> anyhow::Result<()> {
 
     let command = &cli.command;
     let backend = command.to_backend_selector();
-    let mut result = backend.process(&lines, &mut output_fd);
+    let mut result = backend.process(&file_buf, &mut output_fd);
+
     match &mut result.err {
-        Some(x) => handle_error(x, &mut result.diagnostics, &lines)?,
+        Some(x) => handle_error(x, &mut result.diagnostics, &file_buf)?,
         None => {
             if !cli.quiet {
                 eprintln!("Produced {} diagnostics and no errors", result.diagnostics.len().bold());
-                print_diagnostics(result.diagnostics.iter_mut(), &lines);
+                print_diagnostics(result.diagnostics.iter_mut(), &file_buf);
             }
         }
     }
@@ -136,7 +125,7 @@ fn main() -> anyhow::Result<()> {
 }
 
 pub fn handle_error(
-    err: &mut BackendError, diagnostics: &mut [Diagnostic], lines: &[String],
+    err: &mut BackendError, diagnostics: &mut [Diagnostic], lines: &impl ParseLines,
 ) -> anyhow::Result<()> {
     let BackendError { ref mut main_location, relevant_lines, kind } = err;
     let diag_count = diagnostics.len();
@@ -153,7 +142,7 @@ pub fn handle_error(
     let mut location_explainer = String::new();
     main_location.write_location_explainer(&mut location_explainer);
 
-    let extended_range = extend_error_range(relevant_lines, lines.len());
+    let extended_range = extend_error_range(relevant_lines, lines.line_count());
     let max_digit_cnt = digit_cnt_usize(*extended_range.end());
     for line_idx in extended_range {
         let zero_pad_cnt = max_digit_cnt.saturating_sub(digit_cnt_usize(line_idx + 1)) as usize;
@@ -165,7 +154,7 @@ pub fn handle_error(
         } else {
             Painted::new(&line_num)
         };
-        writeln!(&mut location_explainer, "{line_num}│ {}", lines[line_idx])?;
+        writeln!(&mut location_explainer, "{line_num}│ {}", lines.get_line(line_idx))?;
         if let ErrorLocation::LineAndChar(e_line_idx, e_char_idx) = main_location {
             if *e_line_idx as usize != line_idx {
                 continue;
@@ -186,7 +175,9 @@ pub fn handle_error(
     Ok(())
 }
 
-pub fn print_diagnostics<'a, A: Iterator<Item = &'a mut Diagnostic>>(diags: A, lines: &[String]) {
+pub fn print_diagnostics<'a, A: Iterator<Item = &'a mut Diagnostic>>(
+    diags: A, lines: &impl ParseLines,
+) {
     eprintln!("{}:", "Diagnostics".bold());
     for (idx, Diagnostic { severity, kind, location }) in diags.enumerate() {
         let idx_display = (idx + 1).to_string();
@@ -195,7 +186,7 @@ pub fn print_diagnostics<'a, A: Iterator<Item = &'a mut Diagnostic>>(diags: A, l
         location.write_location_explainer(&mut location_explainer);
         if let Some(x) = location.get_line_idx() {
             location_explainer += &" ".repeat(idx_display.len() + 3);
-            writeln!(&mut location_explainer, "{}│ {}", x + 1, lines[x]).unwrap();
+            writeln!(&mut location_explainer, "{}│ {}", x + 1, lines.get_line(x)).unwrap();
         }
         eprintln!(
             "({idx_display}) {severity}: {kind}{location_explainer}",

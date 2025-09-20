@@ -1,6 +1,8 @@
 use errors::{backend_error::BackendError, diagnostic::Diagnostic};
 
 use std::{fmt::Display, time::Duration};
+
+use crate::BufLines;
 pub mod errors;
 pub mod fixup;
 pub mod midi;
@@ -23,7 +25,7 @@ pub trait Backend {
     type BackendSettings;
 
     fn process<Out: std::io::Write>(
-        input: &[String], out: &mut Out, settings: Self::BackendSettings,
+        input: &BufLines, out: &mut Out, settings: Self::BackendSettings,
     ) -> BackendResult;
 }
 
@@ -44,7 +46,7 @@ pub enum BackendSelector {
 }
 
 impl BackendSelector {
-    pub fn process<Out: std::io::Write>(self, input: &[String], out: &mut Out) -> BackendResult {
+    pub fn process<Out: std::io::Write>(self, input: &BufLines, out: &mut Out) -> BackendResult {
         match self {
             BackendSelector::Midi => midi::MidiBackend::process(input, out, ()),
             BackendSelector::Muxml(settings) => muxml::MuxmlBackend::process(input, out, settings),

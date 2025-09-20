@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{borrow::Cow, time::Instant};
 
 use clap::ValueEnum;
 use tracing::trace;
@@ -13,7 +13,7 @@ use crate::{
         Backend,
     },
     parser::parse,
-    time,
+    time, BufLines,
 };
 
 pub struct FixupBackend();
@@ -54,7 +54,7 @@ impl Backend for FixupBackend {
     type BackendSettings = FixupBackendSettings;
 
     fn process<Out: std::io::Write>(
-        parser_input: &[String], out: &mut Out, settings: Self::BackendSettings,
+        parser_input: &BufLines, out: &mut Out, settings: Self::BackendSettings,
     ) -> BackendResult {
         if let Some(dump) = settings.dump {
             let (parse_time, parsed) = time(|| parse(parser_input));
@@ -68,9 +68,9 @@ impl Backend for FixupBackend {
             r.err = parsed.error;
             return r;
         }
+
         let mut diagnostics = vec![];
-        // TODO: figure out a way not to clone these
-        let mut parser_input = parser_input.to_owned();
+        let mut parser_input: Vec<Cow<str>> = parser_input.buf.lines().map(Cow::Borrowed).collect();
         let mut parse_time;
         let fixup_start = Instant::now();
         let mut location_tracker = LocationTracker::new();
@@ -117,8 +117,9 @@ impl Backend for FixupBackend {
                             };
                             // we just replace both with a rest to be sure
                             // todo: use a better strategy by checking the actual ticks
-                            parser_input[line_idx].replace_range(char_idx..char_idx + 1, "-");
-                            parser_input[line_idx].replace_range(char_idx + 1..char_idx + 2, "-");
+                            let line_mut = parser_input[line_idx].to_mut();
+                            line_mut.replace_range(char_idx..char_idx + 1, "-");
+                            line_mut.replace_range(char_idx + 1..char_idx + 2, "-");
                             diagnostics.push(Diagnostic::info(
                                 err.main_location.clone(),
                                 DiagnosticKind::FormatReplacedInvalid,
@@ -126,9 +127,7 @@ impl Backend for FixupBackend {
                         }
                         BackendErrorKind::NoClosingBarline => {
                             let l_idx = err.main_location.get_line_idx().unwrap();
-                            let line = &mut parser_input[l_idx];
-                            line.truncate(line.trim_end().len());
-                            line.push('|');
+                            parser_input[l_idx].to_mut().push('|');
                             diagnostics.push(Diagnostic::info(
                                 err.main_location.clone(),
                                 DiagnosticKind::FormatAddedBarline,
@@ -143,7 +142,9 @@ impl Backend for FixupBackend {
                             else {
                                 continue;
                             };
-                            parser_input[line_idx].replace_range(char_idx..char_idx + 1, "-");
+                            parser_input[line_idx]
+                                .to_mut()
+                                .replace_range(char_idx + 1..char_idx + 2, "-");
                             diagnostics.push(Diagnostic::info(
                                 err.main_location.clone(),
                                 DiagnosticKind::FormatReplacedInvalid,
@@ -154,8 +155,8 @@ impl Backend for FixupBackend {
             }
         }
         let gen_time = fixup_start.elapsed();
-        let maybe_io_err =
-            out.write_all(parser_input.join("\n").as_ref()).map_err(BackendError::from).err();
+        let joined = parser_input.join("\n");
+        let maybe_io_err = out.write_all(joined.as_bytes()).map_err(BackendError::from).err();
         BackendResult::new(diagnostics, maybe_io_err, Some(parse_time), Some(gen_time))
     }
 }

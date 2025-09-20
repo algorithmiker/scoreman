@@ -3,7 +3,6 @@ use crate::backend::{
     muxml::{settings::Settings, MuxmlBackend},
     Backend,
 };
-use itertools::Itertools;
 
 #[test]
 fn test_muxml2() -> anyhow::Result<()> {
@@ -21,11 +20,7 @@ E|--------------|
         trim_measure: true,
         simplify_time_signature: true,
     };
-    MuxmlBackend::process(
-        &i1.lines().map(|x| x.to_string()).collect::<Vec<_>>(),
-        &mut out,
-        settings,
-    );
+    MuxmlBackend::process(&i1.into(), &mut out, settings);
     insta::assert_snapshot!(String::from_utf8_lossy(&out));
     Ok(())
 }
@@ -45,11 +40,7 @@ E|----|
         trim_measure: true,
         simplify_time_signature: true,
     };
-    MuxmlBackend::process(
-        &i1.lines().map(|x| x.to_string()).collect::<Vec<_>>(),
-        &mut out,
-        settings,
-    );
+    MuxmlBackend::process(&i1.into(), &mut out, settings);
     insta::assert_snapshot!(String::from_utf8_lossy(&out));
     Ok(())
 }
@@ -77,11 +68,7 @@ E|-----9-|-----9-|"#;
         trim_measure: true,
         simplify_time_signature: true,
     };
-    let res = MuxmlBackend::process(
-        &example_score.lines().map(|x| x.to_string()).collect_vec(),
-        &mut Vec::new(),
-        settings,
-    );
+    let res = MuxmlBackend::process(&example_score.into(), &mut Vec::new(), settings);
     let e = res.err.unwrap();
     use crate::backend::errors::error_location::ErrorLocation;
     assert_eq!(e.main_location, ErrorLocation::LineAndChar(3, 25));

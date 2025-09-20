@@ -34,7 +34,8 @@ def main(dir_path:str,old_revision:str,new_revision:str, *args):
     print("[I]: benchmark.py: have everything, sleeping 0.5s to avoid interference")
     time.sleep(0.5)
     args_str=" ".join(args[0])
-    subprocess.run(["hyperfine", f"{dir_path}/gt-{old_revision} {args_str}", f"{dir_path}/gt-{new_revision} {args_str}", "--warmup", "30", "-N"])
+    # subprocess.run(["hyperfine", f"{dir_path}/gt-{old_revision} {args_str}", f"{dir_path}/gt-{new_revision} {args_str}", "--warmup", "30", "-N"])
+    subprocess.run(["poop", f"{dir_path}/gt-{old_revision} {args_str}", f"{dir_path}/gt-{new_revision} {args_str}"])
     print(f"[I]: benchmark.py: {old_revision=} {new_revision=}")
 
 if __name__=="__main__":

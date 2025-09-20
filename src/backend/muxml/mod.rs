@@ -4,13 +4,13 @@ pub mod fretboard;
 mod muxml2_tests;
 pub mod settings;
 use crate::backend::errors::backend_error::BackendError;
-use crate::parser;
 use crate::parser::tab_element::TabElement;
 use crate::parser::{source_location_from_stream, ParseResult};
 use crate::{
     backend::{Backend, BackendResult},
     rlen, time,
 };
+use crate::{parser, BufLines};
 use formatters::{
     write_muxml2_measure_prelude, write_muxml2_note, write_muxml2_rest, MUXML2_DOCUMENT_END,
     MUXML_INCOMPLETE_DOC_PRELUDE,
@@ -26,7 +26,7 @@ impl Backend for MuxmlBackend {
     type BackendSettings = settings::Settings;
 
     fn process<Out: std::io::Write>(
-        input: &[String], out: &mut Out, settings: Self::BackendSettings,
+        input: &BufLines, out: &mut Out, settings: Self::BackendSettings,
     ) -> BackendResult {
         let (parse_time, parse_result) = time(|| parser::parse(input));
         if let Some(err) = parse_result.error {
@@ -228,17 +228,20 @@ impl MuxmlGenerator {
     pub fn process_measure(&mut self, measure_idx: usize) -> Result<(), BackendError> {
         let meas = span!(Level::TRACE, "Muxml2: processing measure", measure_idx);
         let _meas = meas.enter();
-        let ticks_in_measure = rlen(&self.parsed.measures[measure_idx].data_range) / 6;
-        debug_assert!(rlen(&self.parsed.measures[measure_idx].data_range) % 6 == 0);
-        // Length of actual content in measure. `remove_space_between_notes` will reduce this for
-        // example
+
+        let data_range = &self.parsed.measures[measure_idx].data_range;
+        let ticks_in_measure = rlen(data_range) / 6;
+        debug_assert!(rlen(data_range) % 6 == 0);
+
+        // Length of actual content in measure. `remove_space_between_notes` will reduce this for example
         let mut measure_content_len = ticks_in_measure;
         self.measure_buf.clear();
         debug!("initial measure_content_len = {measure_content_len}");
-        let mut stream_idx: usize = *self.parsed.measures[measure_idx].data_range.start() as usize;
-        let mut note_count = 0;
-        let mut stream_proc_cnt = 0;
-        while stream_idx <= *self.parsed.measures[measure_idx].data_range.end() as usize {
+
+        let mut stream_idx: usize = *data_range.start() as usize;
+        let (mut note_count, mut stream_proc_cnt) = (0, 0);
+        let end = *data_range.end() as usize;
+        while stream_idx <= end {
             let elem = &self.parsed.tick_stream[stream_idx];
             //trace!(
             //    "current elem: {elem:?}, note_count: {note_count}, proc_cnt = {stream_proc_cnt}"
@@ -281,8 +284,7 @@ impl MuxmlGenerator {
                     self.measure_buf.push(Muxml2TabElement::Rest(1));
                 }
                 trace!(kind = ?self.measure_buf.last().unwrap(), "Parsed a tick");
-                note_count = 0;
-                stream_proc_cnt = 0;
+                (note_count, stream_proc_cnt) = (0, 0)
             } else {
                 stream_proc_cnt += 1;
             }
@@ -308,7 +310,6 @@ impl MuxmlGenerator {
             measure_denominator,
         )
         .unwrap();
-        // borrowing schenanigans
         for i in 0..self.measure_buf.len() {
             self.write_tab_element(i)?;
         }
@@ -316,6 +317,7 @@ impl MuxmlGenerator {
         Ok(())
     }
     #[inline(always)]
+    // takes an index because of borrowing schenanigans
     pub fn write_tab_element(&mut self, elem_idx: usize) -> std::fmt::Result {
         let elem = &self.measure_buf[elem_idx];
         match elem {
