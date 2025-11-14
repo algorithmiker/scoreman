@@ -7,7 +7,7 @@ use super::{
 use crate::{
     backend::errors::backend_error::BackendError, parser::tab_element::TabElementError, ParseLines,
 };
-use std::ops::RangeInclusive;
+use std::{array, ops::RangeInclusive};
 
 pub fn line_is_valid(line: &str) -> bool {
     let line = line.trim();
@@ -74,6 +74,7 @@ impl ParseResult {
         bufs.concat()
     }
 }
+
 pub fn parse<L: ParseLines>(lines: &L) -> ParseResult {
     let mut r = ParseResult::new();
     let mut part_first_line = 0;
@@ -94,7 +95,8 @@ pub fn parse<L: ParseLines>(lines: &L) -> ParseResult {
         let _part = span!(Level::DEBUG, "parsing part", ?range);
         let _part = _part.enter();
         r.offsets.push((part_first_line as u32, r.tick_stream.len() as u32));
-        let mut part: Vec<&str> = range.map(|s| lines.get_line(s).trim()).collect(); // TODO: check if this is slow
+        let mut part: [&str; 6] =
+            array::from_fn(|i| part_first_line + i).map(|s| lines.get_line(s).trim()); // TODO: check if this is slow
 
         // The current tick in THIS PART
         let mut tick = 0;
@@ -311,7 +313,7 @@ pub fn source_location_from_stream(r: &ParseResult, tick_location: u32) -> (u32,
     (actual_line, offset_on_line)
 }
 
-pub fn dump_source(input: &Vec<&str>) -> String {
+pub fn dump_source(input: &[&str]) -> String {
     use itertools::Itertools;
     std::iter::once(&"").chain(input.iter()).join("\n")
 }

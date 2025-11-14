@@ -231,7 +231,7 @@ impl MuxmlGenerator {
 
         let data_range = &self.parsed.measures[measure_idx].data_range;
         let ticks_in_measure = rlen(data_range) / 6;
-        debug_assert!(rlen(data_range) % 6 == 0);
+        debug_assert!(rlen(data_range).is_multiple_of(6));
 
         // Length of actual content in measure. `remove_space_between_notes` will reduce this for example
         let mut measure_content_len = ticks_in_measure;
@@ -299,7 +299,7 @@ impl MuxmlGenerator {
         }
         // Try to simplify e.g 8/8 to 4/4
         let (mut measure_enumerator, mut measure_denominator) = (measure_content_len, 8);
-        if self.settings.simplify_time_signature && measure_content_len % 2 == 0 {
+        if self.settings.simplify_time_signature && measure_content_len.is_multiple_of(2) {
             measure_enumerator /= 2;
             measure_denominator /= 2;
         }
