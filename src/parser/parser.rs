@@ -95,8 +95,7 @@ pub fn parse<L: ParseLines>(lines: &L) -> ParseResult {
         let _part = span!(Level::DEBUG, "parsing part", ?range);
         let _part = _part.enter();
         r.offsets.push((part_first_line as u32, r.tick_stream.len() as u32));
-        let mut part: [&str; 6] =
-            array::from_fn(|i| part_first_line + i).map(|s| lines.get_line(s).trim()); // TODO: check if this is slow
+        let mut part: [&str; 6] = array::from_fn(|i| lines.get_line(part_first_line + i).trim());
 
         // The current tick in THIS PART
         let mut tick = 0;
@@ -106,17 +105,18 @@ pub fn parse<L: ParseLines>(lines: &L) -> ParseResult {
                 r.error = Some(BackendError::invalid_string_name(part_first_line + line_idx));
                 return r;
             };
+            *line = rem;
             r.base_notes.push(string_name);
-            let Ok((rem, _)) = super::char('|')(rem) else {
+            let Some(l) = line.strip_prefix('|') else {
                 r.error = Some(BackendError::invalid_string_name(part_first_line + line_idx));
                 return r;
             };
-            *line = rem;
-            if !line.ends_with('|') {
+            *line = l;
+            let Some(l) = line.strip_suffix('|') else {
                 r.error = Some(BackendError::no_closing_barline(part_first_line + line_idx));
                 return r;
             };
-            *line = &line[0..(line.len() - 1)];
+            *line = l
         }
 
         let mut tick_cnt_est = part[0].len();

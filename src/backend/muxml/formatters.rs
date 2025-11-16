@@ -30,6 +30,7 @@ pub fn write_muxml2_note(
     buf: &mut impl std::fmt::Write, step: char, octave: u8, sharp: bool, chord: bool, dead: bool,
     properties: Option<&NoteProperties>,
 ) -> Result<(), std::fmt::Error> {
+    let mut nbuf = itoa::Buffer::new();
     buf.write_str("<note>\n")?;
     if chord {
         buf.write_str("<chord/>\n")?
@@ -41,8 +42,7 @@ pub fn write_muxml2_note(
         buf.write_str("<alter>1</alter>\n")?
     }
     buf.write_str("<octave>")?;
-    let mut octave_buf = itoa::Buffer::new();
-    buf.write_str(octave_buf.format(octave))?;
+    buf.write_str(nbuf.format(octave))?;
     buf.write_str(
         r#"</octave>
 </pitch>
@@ -65,14 +65,14 @@ pub fn write_muxml2_note(
                 buf.write_str(r#"<slur type=""#)?;
                 buf.write_str(if slur.start { "start" } else { "stop" })?;
                 buf.write_str(r#"" number=""#)?;
-                buf.write_str(octave_buf.format(slur.number))?;
+                buf.write_str(nbuf.format(slur.number))?;
                 buf.write_str("\" />\n")?;
             }
             if let Some(slide) = slide {
                 buf.write_str(r#"<slide type=""#)?;
                 buf.write_str(if slide.start { "start" } else { "stop" })?;
                 buf.write_str(r#"" number=""#)?;
-                buf.write_str(octave_buf.format(slide.number))?;
+                buf.write_str(nbuf.format(slide.number))?;
                 buf.write_str("\" />\n")?;
             }
             if let Some(vibrato) = vibrato {
@@ -107,11 +107,9 @@ pub fn write_muxml2_measure_prelude(
         buf.write_str("<key><fifths>0</fifths></key>\n")?
     };
     buf.write_str("<time><beats>")?;
-    let mut note_count_buf = Buffer::new();
-    buf.write_str(note_count_buf.format(note_count))?;
+    buf.write_str(nbuf.format(note_count))?;
     buf.write_str("</beats><beat-type>")?;
-    let mut note_type_buf = Buffer::new();
-    buf.write_str(note_type_buf.format(note_type))?;
+    buf.write_str(nbuf.format(note_type))?;
     buf.write_str("</beat-type></time>\n")?;
     if first_measure {
         buf.write_str("<clef><sign>G</sign><line>2</line></clef>\n")?
