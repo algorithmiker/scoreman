@@ -1,4 +1,7 @@
-use crate::{parser::parser::parse, BufLines};
+use crate::{
+    parser::{dump_tracks, Parser},
+    BufLines,
+};
 
 #[test]
 fn test_score() {
@@ -17,7 +20,8 @@ D|---|
 A|---|
 E|---|
 "#;
-    insta::assert_snapshot!(parse(&BufLines::from_string(example_score.into())).dump_tracks());
+    let parsed = Parser::parse(&BufLines::from_string(example_score.into())).unwrap();
+    insta::assert_snapshot!(dump_tracks(&parsed.as_ref()));
 }
 #[test]
 fn test_part() {
@@ -29,7 +33,8 @@ D|---|---|
 A|---|---|
 E|---|---|"#;
 
-    insta::assert_snapshot!(parse(&BufLines::from_string(example_part.into())).dump_tracks());
+    let parsed = Parser::parse(&BufLines::from_string(example_part.into())).unwrap();
+    insta::assert_snapshot!(dump_tracks(&parsed.as_ref()));
 }
 
 #[test]
@@ -42,7 +47,8 @@ D|------|
 A|------|
 E|------|
 "#;
-    insta::assert_snapshot!(parse(&BufLines::from_string(score.into())).dump_tracks());
+    let parsed = Parser::parse(&BufLines::from_string(score.into())).unwrap();
+    insta::assert_snapshot!(dump_tracks(&parsed.as_ref()));
     let score = r#"
 e|--12b-|
 B|--3--4|
@@ -51,7 +57,8 @@ D|------|
 A|------|
 E|------|
 "#;
-    insta::assert_snapshot!(parse(&BufLines::from_string(score.into())).dump_tracks());
+    let parsed = Parser::parse(&BufLines::from_string(score.into())).unwrap();
+    insta::assert_snapshot!(dump_tracks(&parsed.as_ref()));
 }
 
 #[test]
@@ -64,7 +71,8 @@ D|-----|
 A|-----|
 E|-----|
 "#;
-    insta::assert_snapshot!(parse(&BufLines::from_string(score.into())).dump_tracks());
+    let parsed = Parser::parse(&BufLines::from_string(score.into())).unwrap();
+    insta::assert_snapshot!(dump_tracks(&parsed.as_ref()));
 }
 
 #[test]
@@ -77,7 +85,8 @@ D|-----|
 A|-----|
 E|-----|
 "#;
-    insta::assert_snapshot!(parse(&BufLines::from_string(score.into())).dump_tracks());
+    let parsed = Parser::parse(&BufLines::from_string(score.into())).unwrap();
+    insta::assert_snapshot!(dump_tracks(&parsed.as_ref()));
     let score = r#"
 e|--12b|
 B|--12b|
@@ -86,7 +95,8 @@ D|--12b|
 A|--12b|
 E|--12b|
 "#;
-    insta::assert_snapshot!(parse(&BufLines::from_string(score.into())).dump_tracks());
+    let parsed = Parser::parse(&BufLines::from_string(score.into())).unwrap();
+    insta::assert_snapshot!(dump_tracks(&parsed.as_ref()));
 }
 
 #[test]
@@ -99,7 +109,8 @@ D|------------|
 A|------------|
 E|------------|
 "#;
-    insta::assert_snapshot!(parse(&BufLines::from_string(example_part.into())).dump_tracks());
+    let parsed = Parser::parse(&BufLines::from_string(example_part.into())).unwrap();
+    insta::assert_snapshot!(dump_tracks(&parsed.as_ref()));
     let score = r#"
 e|--12b-12b-|
 B|--3---12b-|
@@ -108,7 +119,8 @@ D|------12b-|
 A|------12b-|
 E|------12b-|
 "#;
-    insta::assert_snapshot!(parse(&BufLines::from_string(score.into())).dump_tracks());
+    let parsed = Parser::parse(&BufLines::from_string(score.into())).unwrap();
+    insta::assert_snapshot!(dump_tracks(&parsed.as_ref()));
 }
 #[test]
 fn test_multichar_tracks() -> anyhow::Result<()> {
@@ -119,7 +131,9 @@ G|10---12|
 D|-------|
 A|-------|
 E|-------|"#;
-    insta::assert_snapshot!(parse(&BufLines::from_string(input.into())).dump_tracks());
+
+    let parsed = Parser::parse(&BufLines::from_string(input.into())).unwrap();
+    insta::assert_snapshot!(dump_tracks(&parsed.as_ref()));
     Ok(())
 }
 
@@ -144,8 +158,8 @@ A|-------|-------|
 E|-----9-|-----9-|
 "#;
     let time_parser3 = Instant::now();
-    let parse3_result = parse(&BufLines::from_string(example_score.into()));
+    let parsed = Parser::parse(&BufLines::from_string(example_score.into())).unwrap();
+    insta::assert_snapshot!(dump_tracks(&parsed.as_ref()));
     println!("Parser3 took: {:?}", time_parser3.elapsed());
-    insta::assert_snapshot!(parse3_result.dump_tracks());
-    insta::assert_debug_snapshot!(parse3_result);
+    insta::assert_debug_snapshot!(parsed);
 }

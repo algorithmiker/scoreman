@@ -5,12 +5,12 @@ mod muxml2_tests;
 pub mod settings;
 use crate::backend::errors::backend_error::BackendError;
 use crate::parser::tab_element::TabElement;
-use crate::parser::{source_location_from_stream, ParseResult};
+use crate::parser::{source_location_from_stream, Parser, ParserResult};
+use crate::BufLines;
 use crate::{
     backend::{Backend, BackendResult},
     rlen, time,
 };
-use crate::{parser, BufLines};
 use formatters::{
     write_muxml2_measure_prelude, write_muxml2_note, write_muxml2_rest, MUXML2_DOCUMENT_END,
     MUXML_INCOMPLETE_DOC_PRELUDE,
@@ -28,11 +28,13 @@ impl Backend for MuxmlBackend {
     fn process<Out: std::io::Write>(
         input: &BufLines, out: &mut Out, settings: Self::BackendSettings,
     ) -> BackendResult {
-        let (parse_time, parse_result) = time(|| parser::parse(input));
-        if let Some(err) = parse_result.error {
-            return BackendResult::new(vec![], Some(err), Some(parse_time), None);
-        }
-        let generator = MuxmlGenerator::init(parse_result, parse_time, settings);
+        let (parse_time, parsed0) = time(|| Parser::parse(input));
+        let parsed = match parsed0 {
+            Ok(x) => x,
+            Err(y) => return BackendResult::new(vec![], Some(y.0), Some(parse_time), None),
+        };
+
+        let generator = MuxmlGenerator::init(parsed, parse_time, settings);
         let (gen_time, (xml_out, mut gen_result)) = time(|| generator.gen());
         gen_result.timing_gen = Some(gen_time);
         if gen_result.err.is_some() {
@@ -112,7 +114,7 @@ pub enum Vibrato {
     Stop,
 }
 pub struct MuxmlGenerator {
-    parsed: ParseResult,
+    parsed: ParserResult,
     settings: settings::Settings,
 
     measure_buf: Vec<Muxml2TabElement>,
@@ -123,15 +125,18 @@ pub struct MuxmlGenerator {
     r: BackendResult,
 }
 impl MuxmlGenerator {
-    pub fn estimate_capacity(parsed: &ParseResult) -> usize {
+    pub fn estimate_capacity(parsed: &ParserResult) -> usize {
         // TODO: this is technically wrong, as .reserve reserves *additional* capacity.
         // Should fix this, but that needs readjusting the *20 multiplier.
         MUXML_INCOMPLETE_DOC_PRELUDE.len()
             + MUXML2_DOCUMENT_END.len()
             + parsed.tick_stream.len() * 20
     }
+    pub fn get_note_properties(&self, x: u32) -> Option<&NoteProperties> {
+        self.note_properties.get(&x)
+    }
     /// Allocates heavily.
-    pub fn init(parsed: ParseResult, parse_time: Duration, settings: settings::Settings) -> Self {
+    pub fn init(parsed: ParserResult, parse_time: Duration, settings: settings::Settings) -> Self {
         let cap = Self::estimate_capacity(&parsed);
         let mut document = String::from(MUXML_INCOMPLETE_DOC_PRELUDE);
         document.reserve(cap);
@@ -200,7 +205,8 @@ impl MuxmlGenerator {
             None => {
                 trace!(stream_idx, "hanging bend on at stream end");
                 let TabElement::Fret(x) = self.parsed.tick_stream[last_idx] else {
-                    let (line, char) = source_location_from_stream(&self.parsed, stream_idx as u32);
+                    let (line, char) =
+                        source_location_from_stream(&self.parsed.as_ref(), stream_idx as u32);
                     return Err(BackendError::bend_on_invalid(line, char));
                 };
 
@@ -212,7 +218,8 @@ impl MuxmlGenerator {
             // we can just silently replace it and add the correct note
             Some(TabElement::Rest) => {
                 let TabElement::Fret(x) = self.parsed.tick_stream[last_idx] else {
-                    let (line, char) = source_location_from_stream(&self.parsed, stream_idx as u32);
+                    let (line, char) =
+                        source_location_from_stream(&self.parsed.as_ref(), stream_idx as u32);
                     return Err(BackendError::bend_on_invalid(line, char));
                 };
                 self.parsed.tick_stream[next_idx] = TabElement::Fret(x + 1);

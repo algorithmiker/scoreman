@@ -51,7 +51,7 @@ impl BackendError {
             kind: BackendErrorKind::InvalidStringName,
         }
     }
-    pub fn invalid_character(line: u32, char: u32, c: Option<char>) -> Self {
+    pub fn invalid_char(line: u32, char: u32, c: Option<char>) -> Self {
         BackendError {
             main_location: ErrorLocation::LineAndChar(line, char),
             kind: BackendErrorKind::Parse3InvalidCharacter(c),

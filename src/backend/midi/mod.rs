@@ -7,12 +7,11 @@ use midly::{
 use tracing::trace;
 
 use super::{Backend, BackendResult};
-use crate::time;
+use crate::{parser::ParserResult, time};
 use crate::{
     parser::{
-        parse,
         tab_element::TabElement::{self, Fret},
-        ParseResult,
+        Parser,
     },
     BufLines,
 };
@@ -31,17 +30,15 @@ impl Backend for MidiBackend {
         input: &BufLines, out: &mut Out, _settings: Self::BackendSettings,
     ) -> BackendResult {
         let diagnostics = vec![];
-        let (parse_time, parse_result) = time(|| parse(input));
-        match parse_result.error {
-            None => (),
-            Some(e) => {
-                return BackendResult::new(diagnostics, Some(e), Some(parse_time), None);
-            }
-        }
+        let (parse_time, parsed0) = time(|| Parser::parse(input));
+        let parsed = match parsed0 {
+            Ok(x) => x,
+            Err(y) => return BackendResult::new(diagnostics, Some(y.0), Some(parse_time), None),
+        };
         // TODO: the parser now gives us things like tick count, can probably preallocate based on
         // that
         let gen_start = Instant::now();
-        let mut midi_tracks = convert_to_midi(&parse_result);
+        let mut midi_tracks = convert_to_midi(&parsed);
         //diagnostics.extend(parse_result.diagnostics);
         trace!(LENGTH_OF_QUARTER, "Length of quarter");
         let mut tracks = vec![vec![
@@ -69,7 +66,7 @@ impl Backend for MidiBackend {
     }
 }
 
-fn convert_to_midi(parsed: &ParseResult) -> Vec<Vec<TrackEvent<'static>>> {
+fn convert_to_midi(parsed: &ParserResult) -> Vec<Vec<TrackEvent<'static>>> {
     // TODO: maybe use the traditional note resolving logic here?
     let mut string_freq = HashMap::new();
     string_freq.insert('E', 52);

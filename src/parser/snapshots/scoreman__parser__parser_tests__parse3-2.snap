@@ -1,9 +1,8 @@
 ---
 source: src/parser/parser_tests.rs
-expression: parse3_result
+expression: parsed
 ---
-ParseResult {
-    error: None,
+ParserResult {
     tick_stream: [
         Rest,
         Fret(

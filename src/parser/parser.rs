@@ -1,4 +1,4 @@
-use tracing::{debug, span, trace, Level};
+use tracing::{debug, debug_span, span, trace, trace_span, Level};
 
 use super::{
     string_name,
@@ -31,9 +31,16 @@ impl Measure {
 }
 
 #[derive(Debug, Default)]
-pub struct ParseResult {
-    /// This is not a [Result] because we want to preserve the partial parse state, eg. for fixup or recovery
-    pub error: Option<BackendError>,
+pub struct Parser {
+    tick_stream: Vec<TabElement>,
+    measures: Vec<Measure>,
+    base_notes: Vec<char>,
+    /// The line on which the n-th section begins and the index of the first tick in that section.
+    /// This provides enough information to restore from where we have read an individual tick.
+    offsets: Vec<(u32, u32)>,
+}
+#[derive(Debug, Default)]
+pub struct ParserResult {
     pub tick_stream: Vec<TabElement>,
     pub measures: Vec<Measure>,
     pub base_notes: Vec<char>,
@@ -42,195 +49,232 @@ pub struct ParseResult {
     pub offsets: Vec<(u32, u32)>,
 }
 
-impl ParseResult {
+pub struct ParserRef<'a> {
+    pub tick_stream: &'a [TabElement],
+    pub measures: &'a [Measure],
+    pub base_notes: &'a [char],
+    pub offsets: &'a [(u32, u32)],
+}
+
+impl Parser {
     pub fn new() -> Self {
         Self::default()
     }
-    pub fn dump_tracks(&self) -> String {
-        let stream_len = self.tick_stream.len();
-        let tick_cnt = stream_len / 6;
-        debug_assert_eq!(stream_len % 6, 0);
-        let mut bufs = vec![String::new(); 6];
-        for tick in 0..tick_cnt {
-            let max_width =
-                (0..6).map(|x| self.tick_stream[tick * 6 + x].repr_len()).max().unwrap() as usize;
-            for (s, buf) in bufs.iter_mut().enumerate() {
-                use tab_element::TabElement::*;
-                let to_padded = |c: char| format!("{1:<0$}", max_width, c);
-                match self.tick_stream[tick * 6 + s] {
-                    Fret(x) => buf.push_str(&format!("{x:<0$}", max_width)),
-                    Rest => buf.push_str(&to_padded('-')),
-                    DeadNote => buf.push_str(&to_padded('x')),
-                    Slide => buf.push_str(&to_padded('/')),
-                    Bend => buf.push_str(&to_padded('b')),
-                    HammerOn => buf.push_str(&to_padded('h')),
-                    Pull => buf.push_str(&to_padded('p')),
-                    Release => buf.push_str(&to_padded('r')),
-                    Vibrato => buf.push_str(&to_padded('~')),
-                }
-            }
-        }
-        bufs.iter_mut().for_each(|x| x.push('\n'));
-        bufs.concat()
+    pub fn clear(&mut self) {
+        self.tick_stream.clear();
+        self.measures.clear();
+        self.base_notes.clear();
+        self.offsets.clear();
     }
-}
-
-pub fn parse<L: ParseLines>(lines: &L) -> ParseResult {
-    let mut r = ParseResult::new();
-    let mut part_first_line = 0;
-    'outer: loop {
-        // find a part
-        loop {
-            if part_first_line + 5 >= lines.line_count() {
-                break 'outer;
-            }
-            if line_is_valid(lines.get_line(part_first_line))
-                && line_is_valid(lines.get_line(part_first_line + 5))
-            {
-                break;
-            }
-            part_first_line += 1
-        }
-        let range = part_first_line..=part_first_line + 5;
-        let _part = span!(Level::DEBUG, "parsing part", ?range);
-        let _part = _part.enter();
-        r.offsets.push((part_first_line as u32, r.tick_stream.len() as u32));
-        let mut part: [&str; 6] = array::from_fn(|i| lines.get_line(part_first_line + i).trim());
-
-        // The current tick in THIS PART
-        let mut tick = 0;
-        // parse prelude and last char
-        for (line_idx, line) in part.iter_mut().enumerate() {
-            let Ok((rem, string_name)) = string_name()(line) else {
-                r.error = Some(BackendError::invalid_string_name(part_first_line + line_idx));
-                return r;
-            };
-            *line = rem;
-            r.base_notes.push(string_name);
-            let Some(l) = line.strip_prefix('|') else {
-                r.error = Some(BackendError::invalid_string_name(part_first_line + line_idx));
-                return r;
-            };
-            *line = l;
-            let Some(l) = line.strip_suffix('|') else {
-                r.error = Some(BackendError::no_closing_barline(part_first_line + line_idx));
-                return r;
-            };
-            *line = l
-        }
-
-        let mut tick_cnt_est = part[0].len();
-        while tick < tick_cnt_est {
-            let s = span!(Level::TRACE, "parsing tick", tick);
-            let _s = s.enter();
-            let (mut is_multichar, mut is_multi_on) = (false, [false; 6]);
-            for s in 0..6 {
-                trace!(part = part[s], "remaining on string {s}:");
-                if s == 0 && part[s].starts_with("|") {
-                    trace!("encountered measure separator");
-                    let measure_start =
-                        r.measures.last().map(|x| x.data_range.end() + 1).unwrap_or(0);
-                    r.measures.push(Measure::from(
-                        measure_start..=r.tick_stream.len().wrapping_sub(1) as u32,
-                    ));
-                    part.iter_mut().for_each(|string| *string = &string[1..]); // TODO: maybe debugassert here that it is indeed a measure separator
-                    tick_cnt_est -= 1;
-                    trace!(part = part[s], "remaining on string {s}: after fixup");
+    /// Finish the current measure.
+    pub fn new_measure(&mut self) {
+        let measure_start_tick = self.measures.last().map(|x| x.data_range.end() + 1).unwrap_or(0);
+        self.measures.push(Measure::from(
+            measure_start_tick..=self.tick_stream.len().wrapping_sub(1) as u32,
+        ));
+    }
+    pub fn source_location_from_stream(&self, tick_location: u32) -> (u32, u32) {
+        source_location_from_stream(&self.as_ref(), tick_location)
+    }
+    pub fn parse_inner<L: ParseLines>(&mut self, lines: &L) -> Result<(), BackendError> {
+        let mut part_first_line = 0;
+        'outer: loop {
+            // find a part
+            loop {
+                if part_first_line + 5 >= lines.line_count() {
+                    break 'outer;
                 }
-
-                let len_before = part[s].len();
-                let (res, te) = match tab_element3(part[s]) {
-                    Ok(x) => x,
-                    Err((_, err)) => {
-                        let (line, char) =
-                            source_location_while_parsing(&r, part_first_line as u32, s as u32);
-                        if let Some(TabElementError::FretTooLarge) = err {
-                            r.error = Some(BackendError::large_fret(line, char));
-                        } else {
-                            let invalid_src = part[s].chars().next();
-                            let err = BackendError::invalid_character(line, char, invalid_src);
-                            r.error = Some(err);
-                        }
-                        return r;
-                    }
-                };
-
-                let tab_element_len = len_before - res.len();
-                is_multichar |= tab_element_len > 1;
-                is_multi_on[s] = tab_element_len > 1;
-                part[s] = res;
-                r.tick_stream.push(te);
+                let (first, last) =
+                    (lines.get_line(part_first_line), lines.get_line(part_first_line + 5));
+                if line_is_valid(first) && line_is_valid(last) {
+                    break;
+                }
+                part_first_line += 1
             }
-            if is_multichar {
-                let _ms = span!(Level::DEBUG, "marked as multichar, running fixup", tick);
-                let _ms = _ms.enter();
-                tick_cnt_est -= 1;
+            let range = part_first_line..=part_first_line + 5;
+            let _part = debug_span!("parsing part", ?range);
+            let _part = _part.enter();
+            self.offsets.push((part_first_line as u32, self.tick_stream.len() as u32));
+            let mut part: [&str; 6] =
+                array::from_fn(|i| lines.get_line(part_first_line + i).trim());
+
+            // The current tick in THIS PART
+            let mut tick = 0;
+            // parse prelude and last char
+            for (line_idx, line) in part.iter_mut().enumerate() {
+                let abs_idx = part_first_line + line_idx;
+                let (rem, string_name) =
+                    string_name(line).map_err(|_| BackendError::invalid_string_name(abs_idx))?;
+                *line = rem;
+                self.base_notes.push(string_name);
+                *line = line
+                    .strip_prefix('|')
+                    .ok_or_else(|| BackendError::invalid_string_name(part_first_line + line_idx))?;
+
+                *line = line
+                    .strip_suffix('|')
+                    .ok_or_else(|| BackendError::no_closing_barline(part_first_line + line_idx))?;
+            }
+
+            let mut tick_cnt_est = part[0].len();
+
+            while tick < tick_cnt_est {
+                let s = span!(Level::TRACE, "parsing tick", tick);
+                let _s = s.enter();
+                let mut is_multi_on = [false; 6];
                 for s in 0..6 {
-                    if is_multi_on[s] {
-                        trace!("multi on {s}, skipping");
-                        continue;
-                    };
-                    let elem_idx = r.tick_stream.len() - (6 - s);
-                    let elem = &r.tick_stream[elem_idx];
-                    let _s = span!(Level::DEBUG, "fixing up string", string = s, ?elem);
-                    let _s = _s.enter();
-                    if let TabElement::Rest = elem {
-                        let _s2 = span!(
-                            Level::TRACE,
-                            "this is a rest so we try to parse the next element"
-                        );
-                        let _s2 = _s2.enter();
-                        let len_before = part[s].len();
-                        let next = tab_element3(part[s]).unwrap(); // TODO: the unwrap here is ICE,
-                                                                   // should error instead
-                        if len_before - next.0.len() > 1 {
-                            let (m_line, m_char) = source_location_from_stream(&r, elem_idx as u32);
-                            // just for a nicer error, show another multi line too
-                            let other = ((0..6).find(|x| is_multi_on[*x]).unwrap()
-                                + part_first_line) as u32;
-                            r.error =
-                                Some(BackendError::both_slots_multichar(m_line, m_char, other));
-                            return r;
-                        }
-                        trace!(replacement = ?next.1, "replaced a rest");
-                        let len = r.tick_stream.len(); // to make the borrow checker happy about borrowing &mut and &
-                        r.tick_stream[len - (6 - s)] = next.1;
-                        part[s] = next.0;
-                    } else {
-                        let _q =
-                            span!(Level::TRACE, "this is not a Rest, so we check the next element");
-                        let _q = _q.enter();
-                        if part[s].starts_with("-") {
-                            trace!("next element is Rest so we skip it");
-                            part[s] = &part[s][1..];
+                    trace!(part = part[s], "remaining on string {s}:");
+                    if s == 0 && part[s].starts_with("|") {
+                        trace!("encountered measure separator");
+                        self.new_measure();
+                        part.iter_mut().for_each(|string| *string = &string[1..]); // TODO: maybe debugassert here that it is indeed a measure separator
+                        tick_cnt_est -= 1;
+                        trace!(part = part[s], "remaining on string {s}: after fixup");
+                    }
+
+                    let len_before = part[s].len();
+                    let (res, te) = self.parse_tab_element(&part, s, part_first_line)?;
+
+                    let tab_element_len = len_before - res.len();
+                    is_multi_on[s] = tab_element_len > 1;
+                    part[s] = res;
+                    self.tick_stream.push(te);
+                }
+                if is_multi_on.iter().any(|x| *x) {
+                    let _ms = span!(Level::DEBUG, "marked as multichar, running fixup", tick);
+                    let _ms = _ms.enter();
+                    tick_cnt_est -= 1;
+                    for s in 0..6 {
+                        if is_multi_on[s] {
+                            trace!("multi on {s}, skipping");
+                            continue;
+                        };
+                        let elem_idx = self.tick_stream.len() - (6 - s);
+                        let elem = &self.tick_stream[elem_idx];
+                        let idx32 = elem_idx as u32;
+                        let _s = debug_span!("fixing up string", string = s, ?elem);
+                        let _s = _s.enter();
+                        if let TabElement::Rest = elem {
+                            let _s2 = trace_span!("this is a rest, trying to parse next element");
+                            let _s2 = _s2.enter();
+                            let len_before = part[s].len();
+                            let (rem, next_elem) =
+                                self.parse_tab_element(&part, s, part_first_line)?;
+                            if len_before - rem.len() > 1 {
+                                let (m_line, m_char) = self.source_location_from_stream(idx32);
+                                // just for a nicer error, show another multi line too
+                                let other =
+                                    is_multi_on.iter().enumerate().find(|a| *a.1).unwrap().0
+                                        + part_first_line;
+                                return Err(BackendError::both_slots_multichar(
+                                    m_line,
+                                    m_char,
+                                    other as u32,
+                                ));
+                            }
+                            trace!(replacement = ?next_elem, "replaced a rest");
+                            let len = self.tick_stream.len(); // to make the borrow checker happy about borrowing &mut and &
+                            self.tick_stream[len - (6 - s)] = next_elem;
+                            part[s] = rem;
                         } else {
-                            let (line, char) = source_location_from_stream(&r, elem_idx as u32);
-                            r.error = Some(BackendError::multi_both_slots_filled(line, char));
-                            return r;
+                            let _q = trace_span!("this is not a Rest, checking the next element");
+                            let _q = _q.enter();
+                            let Some(rem) = part[s].strip_prefix('-') else {
+                                let (line, char) = self.source_location_from_stream(idx32);
+                                return Err(BackendError::multi_both_slots_filled(line, char));
+                            };
+                            part[s] = rem;
                         }
                     }
                 }
+                trace!(tick, data = dump_tracks(&self.as_ref()), "data after parsing tick");
+                trace!(source = dump_source(&part), "source state after parsing tick");
+                tick += 1;
             }
-            trace!(tick, data = r.dump_tracks(), "data after parsing tick");
-            trace!(source = dump_source(&part), "source state after parsing tick");
-            tick += 1;
+            self.new_measure();
+
+            // finished parsing part
+            trace!(part = dump_tracks(&self.as_ref()), "Finished part");
+
+            part_first_line += 6;
         }
-
-        let measure_start = r.measures.last().map(|x| x.data_range.end() + 1).unwrap_or(0);
-        r.measures.push(Measure {
-            data_range: measure_start..=r.tick_stream.len().wrapping_sub(1) as u32,
-        });
-        // finished parsing part
-        trace!(part = r.dump_tracks(), "Finished part");
-
-        part_first_line += 6;
+        Ok(())
     }
-    r
+    pub fn parse<L: ParseLines>(lines: &L) -> Result<ParserResult, (BackendError, ParserResult)> {
+        let mut parser = Self::new();
+        match parser.parse_inner(lines) {
+            Ok(_) => Ok(parser.into_result()),
+            Err(y) => Err((y, parser.into_result())),
+        }
+    }
+    pub fn into_result(self) -> ParserResult {
+        let Parser { tick_stream, measures, base_notes, offsets } = self;
+        ParserResult { tick_stream, measures, base_notes, offsets }
+    }
+    pub fn as_ref<'a>(&'a self) -> ParserRef<'a> {
+        let Parser { tick_stream, measures, base_notes, offsets } = self;
+        ParserRef { tick_stream, measures, base_notes, offsets }
+    }
+    #[inline(always)]
+    fn parse_tab_element<'a>(
+        &self, part: &[&'a str; 6], s: usize, part_first_line: usize,
+    ) -> Result<(&'a str, TabElement), BackendError> {
+        match tab_element3(part[s]) {
+            Ok(x) => Ok(x),
+            Err((_, err)) => {
+                let (line, char) =
+                    source_location_while_parsing(self, part_first_line as u32, s as u32);
+                match err {
+                    Some(TabElementError::FretTooLarge) => {
+                        Err(BackendError::large_fret(line, char))
+                    }
+                    _ => Err(BackendError::invalid_char(line, char, part[s].chars().next())),
+                }
+            }
+        }
+    }
 }
 
+impl ParserResult {
+    pub fn into_parser(self) -> Parser {
+        let ParserResult { tick_stream, measures, base_notes, offsets } = self;
+        Parser { tick_stream, measures, base_notes, offsets }
+    }
+    pub fn as_ref<'a>(&'a self) -> ParserRef<'a> {
+        let ParserResult { tick_stream, measures, base_notes, offsets } = self;
+        ParserRef { tick_stream, measures, base_notes, offsets }
+    }
+}
+pub fn dump_tracks(parser: &ParserRef) -> String {
+    let stream_len = parser.tick_stream.len();
+    let tick_cnt = stream_len / 6;
+    debug_assert_eq!(stream_len % 6, 0);
+    let mut bufs = vec![String::new(); 6];
+    for tick in 0..tick_cnt {
+        let max_width =
+            (0..6).map(|x| parser.tick_stream[tick * 6 + x].repr_len()).max().unwrap() as usize;
+        for (s, buf) in bufs.iter_mut().enumerate() {
+            use tab_element::TabElement::*;
+            let to_padded = |c: char| format!("{1:<0$}", max_width, c);
+            match parser.tick_stream[tick * 6 + s] {
+                Fret(x) => buf.push_str(&format!("{x:<0$}", max_width)),
+                Rest => buf.push_str(&to_padded('-')),
+                DeadNote => buf.push_str(&to_padded('x')),
+                Slide => buf.push_str(&to_padded('/')),
+                Bend => buf.push_str(&to_padded('b')),
+                HammerOn => buf.push_str(&to_padded('h')),
+                Pull => buf.push_str(&to_padded('p')),
+                Release => buf.push_str(&to_padded('r')),
+                Vibrato => buf.push_str(&to_padded('~')),
+            }
+        }
+    }
+    bufs.iter_mut().for_each(|x| x.push('\n'));
+    bufs.concat()
+}
 /// A specialized, faster [source_location_from_stream]
 pub fn source_location_while_parsing(
-    r: &ParseResult, part_first_line: u32, line_in_part: u32,
+    r: &Parser, part_first_line: u32, line_in_part: u32,
 ) -> (u32, u32) {
     let actual_line = part_first_line + line_in_part;
     trace!("expecting the error to be on line {actual_line}");
@@ -263,7 +307,7 @@ pub fn source_location_while_parsing(
     (actual_line, offset_on_line)
 }
 
-pub fn source_location_from_stream(r: &ParseResult, tick_location: u32) -> (u32, u32) {
+pub fn source_location_from_stream(r: &ParserRef, tick_location: u32) -> (u32, u32) {
     let section = r
         .offsets
         .binary_search_by_key(&tick_location, |x| x.1)
@@ -339,8 +383,8 @@ A|-------|-------|
 E|-----9-|-----9-|
 "#;
     let time_parser3 = Instant::now();
-    let parse3_result = parse(&crate::BufLines::from_string(example_score.into()));
+    let parsed = Parser::parse(&crate::BufLines::from_string(example_score.into())).unwrap();
     println!("Parser3 took: {:?}", time_parser3.elapsed());
-    insta::assert_snapshot!(parse3_result.dump_tracks());
-    insta::assert_debug_snapshot!(parse3_result);
+    insta::assert_snapshot!(dump_tracks(&parsed.as_ref()));
+    insta::assert_debug_snapshot!(parsed);
 }

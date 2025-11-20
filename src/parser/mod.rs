@@ -11,8 +11,8 @@ pub fn char(c: char) -> impl Fn(&str) -> Result<(&str, char), &str> {
     }
 }
 
-pub fn string_name() -> impl Fn(&str) -> Result<(&str, char), &str> {
-    move |s: &str| match s.chars().next() {
+pub fn string_name(s: &str) -> Result<(&str, char), &str> {
+    match s.chars().next() {
         Some(c) if c.is_alphabetic() => Ok((&s[1..], c)),
         _ => Err(s),
     }

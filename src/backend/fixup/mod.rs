@@ -12,7 +12,7 @@ use crate::{
         },
         Backend,
     },
-    parser::parse,
+    parser::{dump_tracks, Parser},
     time, BufLines,
 };
 
@@ -57,15 +57,21 @@ impl Backend for FixupBackend {
         parser_input: &BufLines, out: &mut Out, settings: Self::BackendSettings,
     ) -> BackendResult {
         if let Some(dump) = settings.dump {
-            let (parse_time, parsed) = time(|| parse(parser_input));
+            let (parse_time, parsed) = time(|| Parser::parse(parser_input));
             let mut r = BackendResult::new(vec![], None, Some(parse_time), None);
+            let parsed = match parsed {
+                Ok(x) => x,
+                Err((y, x)) => {
+                    r.err = Some(y);
+                    x
+                }
+            };
             match dump {
                 FixupDumpOptions::TickStream => writeln!(out, "{:?}", parsed.tick_stream).unwrap(),
                 FixupDumpOptions::PrettyTracks => {
-                    writeln!(out, "{}", parsed.dump_tracks()).unwrap()
+                    writeln!(out, "{}", dump_tracks(&parsed.as_ref())).unwrap()
                 }
             }
-            r.err = parsed.error;
             return r;
         }
 
@@ -76,81 +82,66 @@ impl Backend for FixupBackend {
         let mut location_tracker = LocationTracker::new();
         loop {
             let parse_start = Instant::now();
-            let parsed = parse(&parser_input);
+            let r = Parser::parse(&parser_input);
             parse_time = parse_start.elapsed();
-            match &parsed.error {
-                None => break,
-                Some(err) => {
-                    location_tracker.add(err.main_location.clone());
-                    if location_tracker.is_same() {
-                        let lines =
-                            err.main_location.get_line_idx().map(|x| x..=x).unwrap_or(0..=0);
-                        return BackendResult::new(
-                            diagnostics,
-                            Some(BackendError::fixup_failed(err.main_location.clone(), lines)),
-                            Some(parse_time),
-                            Some(fixup_start.elapsed()),
-                        );
-                    }
-                    match err.kind {
-                        BackendErrorKind::IOError(_) | BackendErrorKind::FmtError(_) => {
-                            return BackendResult::new(
-                                diagnostics,
-                                parsed.error,
-                                Some(parse_time),
-                                None,
-                            );
-                        }
-                        BackendErrorKind::BendOnInvalid => {} // todo: bendOnInvalid fixup: remove the bend
-                        BackendErrorKind::InvalidStringName => {}
-                        BackendErrorKind::EmptyScore => {}
-                        BackendErrorKind::BothSlotsMultiChar => {} // todo: fix BothSlotsMultichar errors
-                        BackendErrorKind::FretTooLarge => {} // todo: fix FretTooLarge errors (add
-                        // space between)
-                        BackendErrorKind::MultiBothSlotsFilled => {
-                            let Some((line_idx, char_idx)) = err
-                                .main_location
-                                .get_line_idx()
-                                .zip(err.main_location.get_char_idx())
-                            else {
-                                continue;
-                            };
-                            // we just replace both with a rest to be sure
-                            // todo: use a better strategy by checking the actual ticks
-                            let line_mut = parser_input[line_idx].to_mut();
-                            line_mut.replace_range(char_idx..char_idx + 1, "-");
-                            line_mut.replace_range(char_idx + 1..char_idx + 2, "-");
-                            diagnostics.push(Diagnostic::info(
-                                err.main_location.clone(),
-                                DiagnosticKind::FormatReplacedInvalid,
-                            ));
-                        }
-                        BackendErrorKind::NoClosingBarline => {
-                            let l_idx = err.main_location.get_line_idx().unwrap();
-                            parser_input[l_idx].to_mut().push('|');
-                            diagnostics.push(Diagnostic::info(
-                                err.main_location.clone(),
-                                DiagnosticKind::FormatAddedBarline,
-                            ))
-                        }
-                        BackendErrorKind::FixupFailed => unreachable!(),
-                        BackendErrorKind::Parse3InvalidCharacter(_) => {
-                            let Some((line_idx, char_idx)) = err
-                                .main_location
-                                .get_line_idx()
-                                .zip(err.main_location.get_char_idx())
-                            else {
-                                continue;
-                            };
-                            parser_input[line_idx]
-                                .to_mut()
-                                .replace_range(char_idx + 1..char_idx + 2, "-");
-                            diagnostics.push(Diagnostic::info(
-                                err.main_location.clone(),
-                                DiagnosticKind::FormatReplacedInvalid,
-                            ))
-                        }
+            let Err((err, _)) = r else { break };
+
+            location_tracker.add(err.main_location.clone());
+            if location_tracker.is_same() {
+                let lines = err.main_location.get_line_idx().map(|x| x..=x).unwrap_or(0..=0);
+                return BackendResult::new(
+                    diagnostics,
+                    Some(BackendError::fixup_failed(err.main_location.clone(), lines)),
+                    Some(parse_time),
+                    Some(fixup_start.elapsed()),
+                );
+            }
+            match err.kind {
+                BackendErrorKind::IOError(_) | BackendErrorKind::FmtError(_) => {
+                    return BackendResult::new(diagnostics, Some(err), Some(parse_time), None);
+                }
+                BackendErrorKind::BendOnInvalid => {} // TODO: bendOnInvalid fixup: remove the bend
+                BackendErrorKind::InvalidStringName => {}
+                BackendErrorKind::EmptyScore => {}
+                BackendErrorKind::BothSlotsMultiChar => {} // TODO: fix BothSlotsMultichar errors
+                BackendErrorKind::FretTooLarge => {}       // TODO: fix FretTooLarge errors (add
+                // space between)
+                BackendErrorKind::MultiBothSlotsFilled => {
+                    let Some((line_idx, char_idx)) =
+                        err.main_location.get_line_idx().zip(err.main_location.get_char_idx())
+                    else {
+                        continue;
                     };
+                    // we just replace both with a rest to be sure
+                    // TODO: use a better strategy by checking the actual ticks
+                    let line_mut = parser_input[line_idx].to_mut();
+                    line_mut.replace_range(char_idx..char_idx + 1, "-");
+                    line_mut.replace_range(char_idx + 1..char_idx + 2, "-");
+                    diagnostics.push(Diagnostic::info(
+                        err.main_location.clone(),
+                        DiagnosticKind::FormatReplacedInvalid,
+                    ));
+                }
+                BackendErrorKind::NoClosingBarline => {
+                    let l_idx = err.main_location.get_line_idx().unwrap();
+                    parser_input[l_idx].to_mut().push('|');
+                    diagnostics.push(Diagnostic::info(
+                        err.main_location.clone(),
+                        DiagnosticKind::FormatAddedBarline,
+                    ))
+                }
+                BackendErrorKind::FixupFailed => unreachable!(),
+                BackendErrorKind::Parse3InvalidCharacter(_) => {
+                    let Some((line_idx, char_idx)) =
+                        err.main_location.get_line_idx().zip(err.main_location.get_char_idx())
+                    else {
+                        continue;
+                    };
+                    parser_input[line_idx].to_mut().replace_range(char_idx + 1..char_idx + 2, "-");
+                    diagnostics.push(Diagnostic::info(
+                        err.main_location.clone(),
+                        DiagnosticKind::FormatReplacedInvalid,
+                    ))
                 }
             }
         }
